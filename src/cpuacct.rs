@@ -1,24 +1,51 @@
-/* cpuacct controller */
+//! This module contains the implementation of the `cpuacct` cgroup subsystem.
+//! 
+//! See the Kernel's documentation for more information about this subsystem, found at:
+//!  [Documentation/cgroup-v1/cpuacct.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/cpuacct.txt)
 use std::path::PathBuf;
 use std::io::{Read, Write};
 use std::fs::File;
 
 use {Controllers, Resources, Subsystem, ControllIdentifier, Controller};
 
+/// A controller that allows controlling the `cpuacct` subsystem of a Cgroup.
+///
+/// In essence, this control group provides accounting (hence the name `cpuacct`) for CPU usage of
+/// the tasks in the control group.
 #[derive(Debug, Clone)]
 pub struct CpuAcctController {
     base: PathBuf,
     path: PathBuf,
 }
 
+/// Represents the statistics retrieved from the control group.
 pub struct CpuAcct {
+    /// Divides the time used by the tasks into `user` time and `system` time.
     pub stat: String,
+    /// Total CPU time (in nanoseconds) spent by the tasks.
     pub usage: u64,
+    /// Total CPU time (in nanoseconds) spent by the tasks, broken down by CPU and by whether the
+    /// time spent is `user` time or `system` time.
+    ///
+    /// An example is as follows:
+    /// ```
+    /// cpu user system
+    /// 0 8348363768 0
+    /// 1 8324369100 0
+    /// 2 8598185449 0
+    /// 3 8648262473 0
+    /// ```
     pub usage_all: String,
+    /// CPU time (in nanoseconds) spent by the tasks, broken down by each CPU.
+    /// Times spent in each CPU are separated by a space.
     pub usage_percpu: String,
+    /// As for `usage_percpu`, but the `system` time spent.
     pub usage_percpu_sys: String,
+    /// As for `usage_percpu`, but the `user` time spent.
     pub usage_percpu_user: String,
+    /// CPU time (in nanoseconds) spent by the tasks that counted for `system` time.
     pub usage_sys: u64,
+    /// CPU time (in nanoseconds) spent by the tasks that counted for `user` time.
     pub usage_user: u64,
 }
 
@@ -59,6 +86,8 @@ fn read_u64_from(mut file: File) -> Option<u64> {
 }
 
 impl CpuAcctController {
+
+    /// Contructs a new `CpuAcctController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
         root.push(Self::controller_type().to_string());
@@ -67,6 +96,8 @@ impl CpuAcctController {
             path: root,
         }
     }
+
+    /// Gathers the statistics that are available in the control group into a `CpuAcct` structure.
     pub fn cpuacct(self: &Self) -> CpuAcct {
         CpuAcct {
             stat: self.open_path("cpuacct.stat", false)
@@ -110,6 +141,8 @@ impl CpuAcctController {
                     .unwrap_or(0),
         }
     }
+
+    /// Reset the statistics the kernel has gathered about the control group.
     pub fn reset(self: &Self) {
         self.open_path("cpuacct.usage", true).and_then(|mut file| {
             file.write_all(b"0").ok()
