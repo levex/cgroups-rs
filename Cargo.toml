@@ -1,5 +1,5 @@
 [package]
-name = "cgroups-rs"
+name = "cgroups"
 version = "0.1.0"
 authors = ["Levente Kurusa <lkurusa@acm.org>"]
 

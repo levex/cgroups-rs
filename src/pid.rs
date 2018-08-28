@@ -1,22 +1,30 @@
-/* PID controller */
+//! This module contains the implementation of the `pids` cgroup subsystem.
+//! 
+//! See the Kernel's documentation for more information about this subsystem, found at:
+//!  [Documentation/cgroups-v1/pids.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/pids.txt)
 use std::path::PathBuf;
 use std::io::{Write, Read};
 
 use {Resources, PidResources, Controller, ControllIdentifier, Subsystem, Controllers};
 
+/// A controller that allows controlling the `pids` subsystem of a Cgroup.
 #[derive(Debug, Clone)]
 pub struct PidController {
     base: PathBuf,
     path: PathBuf,
 }
 
+/// The values found in the `pids.max` file in a Cgroup's `pids` subsystem.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum PidMax {
+    /// This value is returned when the text found `pids.max` is `"max"`.
     Max,
+    /// When the value in `pids.max` is a numerical value, they are returned via this enum field.
     Value(i64),
 }
 
 impl Default for PidMax {
+    /// By default, (as per the kernel) `pids.max` should contain `"max"`.
     fn default() -> Self {
         PidMax::Max
     }
@@ -66,9 +74,8 @@ impl<'a> From<&'a Subsystem> for &'a PidController {
 }
 
 impl PidController {
-    pub fn supported_at(_path: PathBuf) -> bool {
-        true
-    }
+    /// Constructors a new `PidController` instance, with `oroot` serving as the controller's root
+    /// directory.
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
         root.push(Self::controller_type().to_string());
@@ -78,6 +85,7 @@ impl PidController {
         }
     }
 
+    /// The number of times `fork` failed because the limit was hit.
     pub fn get_pid_events(self: &Self) -> i64 {
         self.open_path("pids.events", false).and_then(|mut file| {
             let mut string = String::new();
@@ -86,6 +94,7 @@ impl PidController {
         }).unwrap()
     }
 
+    /// The number of processes currently.
     pub fn get_pid_current(self: &Self) -> i64 {
         self.open_path("pids.current", false).and_then(|mut file| {
             let mut string = String::new();
@@ -94,6 +103,7 @@ impl PidController {
         }).unwrap()
     }
 
+    /// The maximum number of processes that can exist at one time in the control group.
     pub fn get_pid_max(self: &Self) -> Option<PidMax> {
         self.open_path("pids.max", false).and_then(|mut file| {
             let mut string = String::new();
@@ -106,6 +116,11 @@ impl PidController {
         })
     }
 
+    /// Set the maximum number of processes that can exist in this control group.
+    ///
+    /// Note that if `get_pid_current()` returns a higher number than what you
+    /// are about to set (`max_pid`), then no processess will be killed. Additonally, attaching
+    /// extra processes to a control group disregards the limit.
     pub fn set_pid_max(self: &Self, max_pid: PidMax) {
         self.open_path("pids.max", true).and_then(|mut file| {
             let string_to_write = match max_pid {

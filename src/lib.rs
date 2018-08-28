@@ -32,6 +32,7 @@ use net_prio::NetPrioController;
 use hugetlb::HugeTlbController;
 use rdma::RdmaController;
 
+/// Contains all the subsystems that are available in this crate.
 #[derive(Debug)]
 pub enum Subsystem {
     Pid(PidController),
@@ -49,6 +50,7 @@ pub enum Subsystem {
     Rdma(RdmaController),
 }
 
+/// Subsystem identifier without the controller attached.
 #[derive(Eq, PartialEq, Debug)]
 pub enum Controllers {
     Pids,
