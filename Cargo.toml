@@ -1,0 +1,6 @@
+[package]
+name = "cgroups-rs"
+version = "0.1.0"
+authors = ["Levente Kurusa <lkurusa@acm.org>"]
+
+[dependencies]
