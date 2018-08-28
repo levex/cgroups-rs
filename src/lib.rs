@@ -279,6 +279,14 @@ impl From<u64> for CgroupPid {
     }
 }
 
+impl<'a> From<&'a std::process::Child> for CgroupPid {
+    fn from(u: &std::process::Child) -> CgroupPid {
+        CgroupPid {
+            pid: u.id() as u64,
+        }
+    }
+}
+
 
 impl Subsystem {
     fn enter(self: Self, path: &String) -> Self {
