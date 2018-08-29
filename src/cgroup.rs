@@ -50,10 +50,17 @@ impl Cgroup {
         cg
     }
 
+    /// The list of subsystems that this control group supports.
     pub fn subsystems(self: &Self) -> &Vec<Subsystem> {
         &self.subsystems
     }
 
+    /// Deletes the control group.
+    ///
+    /// Note that this function makes no effort in cleaning up the descendant and the underlying
+    /// system call will fail if there are any descendants. Thus, one should check whether it was
+    /// actually removed, and remove the descendants first if not. In the future, this behavior
+    /// will change.
     pub fn delete(self: Self) {
         self.subsystems.into_iter().for_each(|sub| {
             match sub {
@@ -74,12 +81,23 @@ impl Cgroup {
         });
     }
 
+    /// Apply a set of resource limits to the control group.
     pub fn apply(self: &Self, res: &Resources) {
         for subsystem in &self.subsystems {
             subsystem.to_controller().apply(res);
         }
     }
 
+    /// Retrieve a container based on type inference.
+    ///
+    /// ## Example:
+    ///
+    /// ```
+    /// let pids: &PidController = control_group.controller_of()
+    ///                             .expect("No pids controller attached!");
+    /// let cpu: &CpuController = control_group.controller_of()
+    ///                             .expect("No cpu controller attached!");
+    /// ```
     pub fn controller_of<'a, T>(self: &'a Self) -> Option<&'a T>
         where &'a T: From<&'a Subsystem>,
                   T: Controller + ControllIdentifier,
@@ -96,6 +114,7 @@ impl Cgroup {
         None
     }
 
+    /// Attach a task to the control group.
     pub fn add_task(self: &Self, pid: CgroupPid) {
         self.subsystems().iter().for_each(|sub| sub.to_controller().add_task(&pid));
     }

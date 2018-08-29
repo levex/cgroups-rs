@@ -184,9 +184,13 @@ pub trait ControllIdentifier {
 /// Control group hierarchy (right now, only V1 is supported, but in the future Unified will be
 /// implemented as well).
 pub trait Hierarchy {
+    /// Returns what subsystems are supported by the hierarchy.
     fn subsystems(self: &Self) -> Vec<Subsystem>;
-    fn can_create_cgroup(self: &Self) -> bool;
+    /// Returns the root directory of the hierarchy.
     fn root(self: &Self) -> PathBuf;
+    /// Checks whether a certain subsystem is supported in the hierarchy.
+    ///
+    /// This is an internal function and should not be used.
     fn check_support(self: &Self, sub: Controllers) -> bool;
 }
 
@@ -299,7 +303,10 @@ pub struct Resources {
     pub blkio: BlkIoResources,
 }
 
+/// A structure representing a `pid`. Currently implementations exist for `u64` and
+/// `std::process::Child`.
 pub struct CgroupPid {
+    /// The process identifier
     pub pid: u64,
 }
 

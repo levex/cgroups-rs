@@ -1,3 +1,8 @@
+//! This module represents the various control group hierarchies the Linux kernel supports.
+//!
+//! Currently, we only support the cgroupv1 hierarchy, but in the future we will add support for
+//! the Unified Hierarchy.
+
 use std::io::BufRead;
 use std::io::BufReader;
 use std::fs::File;
@@ -18,6 +23,8 @@ use ::net_prio::NetPrioController;
 use ::hugetlb::HugeTlbController;
 use ::rdma::RdmaController;
 
+
+/// The standard, original cgroup implementation. Often referred to as "cgroupv1".
 pub struct V1 {
     mount_point: String,
 }
@@ -83,17 +90,11 @@ impl Hierarchy for V1 {
     fn root(self: &Self) -> PathBuf {
         PathBuf::from(self.mount_point.clone())
     }
-
-    fn can_create_cgroup(self: &Self) -> bool {
-        /*
-         * V1 hierarchies do not support creating cgroups,
-         * they have to be created in a subsystem
-         */
-        false
-    }
 }
 
 impl V1 {
+    /// Finds where control groups are mounted to and returns a hierarchy in which control groups
+    /// can be created.
     pub fn new() -> Self {
         let mount_point = find_v1_mount().unwrap();
         V1 {
