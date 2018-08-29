@@ -194,112 +194,196 @@ pub trait Hierarchy {
     fn check_support(self: &Self, sub: Controllers) -> bool;
 }
 
+/// Resource limits for the memory subsystem.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct MemoryResources {
+    /// Whether values should be applied to the controller.
     pub update_values: bool,
+    /// How much memory (in bytes) can the kernel consume.
     pub kernel_memory_limit: u64,
+    /// Upper limit of memory usage of the control group's tasks.
     pub memory_hard_limit: u64,
+    /// How much memory the tasks in the control group can use when the system is under memory
+    /// pressure.
     pub memory_soft_limit: u64,
+    /// How much of the kernel's memory (in bytes) can be used for TCP-related buffers.
     pub kernel_tcp_memory_limit: u64,
+    /// How much memory and swap together can the tasks in the control group use.
     pub memory_swap_limit: u64,
+    /// Controls the tendency of the kernel to swap out parts of the address space of the tasks to
+    /// disk. Lower value implies less likely.
+    ///
+    /// Note, however, that a value of zero does not mean the process is never swapped out. Use the
+    /// traditional `mlock(2)` system call for that purpose.
     pub swappiness: u64,
 }
 
+/// Resources limits on the number of processes.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct PidResources {
+    /// Whether values should be applied to the controller.
     pub update_values: bool,
+    /// The maximum number of processes that can exist in the control group.
+    ///
+    /// Note that attaching processes to the control group will still succeed _even_ if the limit
+    /// would be violated, however forks/clones inside the control group will have with `EAGAIN` if
+    /// they would violate the limit set here.
     pub maximum_number_of_processes: pid::PidMax,
 }
 
+/// Resources limits about how the tasks can use the CPU.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct CpuResources {
+    /// Whether values should be applied to the controller.
     pub update_values: bool,
     /* cpuset */
+    /// A comma-separated list of CPU IDs where the task in the control group can run. Dashes
+    /// between numbers indicate ranges.
     pub cpus: String,
+    /// Same syntax as the `cpus` field of this structure, but applies to memory nodes instead of
+    /// processors.
     pub mems: String,
     /* cpu */
+    /// Weight of how much of the total CPU time should this control group get. Note that this is
+    /// hierarchical, so this is weighted against the siblings of this control group.
     pub shares: u64,
+    /// In one `period`, how much can the tasks run in nanoseconds.
     pub quota: i64,
+    /// Period of time in nanoseconds.
     pub period: u64,
+    /// This is currently a no-operation.
     pub realtime_runtime: i64,
+    /// This is currently a no-operation.
     pub realtime_period: u64,
 }
 
+/// A device resource that can be allowed or denied access to.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct DeviceResource {
+    /// If true, access to the device is allowed, otherwise it's denied.
     pub allow: bool,
+    /// `'c'` for character device, `'b'` for block device; or `'a'` for all devices.
     pub devtype: String,
+    /// The major number of the device.
     pub major: u64,
+    /// The minor number of the device.
     pub minor: u64,
+    /// Sequence of `'r'`, `'w'` or `'m'`, each denoting read, write or mknod permissions.
     pub access: String,
 }
 
+/// Limit the usage of devices for the control group's tasks.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct DeviceResources {
+    /// Whether values should be applied to the controller.
     pub update_values: bool,
+    /// For each device in the list, the limits in the structure are applied.
     pub devices: Vec<DeviceResource>,
 }
 
+/// Assigned priority for a network device.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct NetworkPriority {
+    /// The name (as visible in `ifconfig`) of the interface.
     pub name: String,
+    /// Assigned priority.
     pub priority: u64,
 }
 
+/// Collections of limits and tags that can be imposed on packets emitted by the tasks in the
+/// control group.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct NetworkResources {
+    /// Whether values should be applied to the controller.
     pub update_values: bool,
+    /// The networking class identifier to attach to the packets.
+    ///
+    /// This can then later be used in iptables and such to have special rules.
     pub class_id: u64,
+    /// Priority of the egress traffic for each interface.
     pub priorities: Vec<NetworkPriority>,
 }
 
+/// A hugepage type and its consumption limit for the control group.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct HugePageResource {
+    /// The size of the hugepage, i.e. `2MB`, `1GB`, etc.
     pub size: String,
+    /// The amount of bytes (of memory consumed by the tasks) that are allowed to be backed by
+    /// hugepages.
     pub limit: u64,
 }
 
+/// Provides the ability to set consumption limit on each type of hugepages.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct HugePageResources {
+    /// Whether values should be applied to the controller.
     pub update_values: bool,
+    /// Set a limit of consumption for each hugepages type.
     pub limits: Vec<HugePageResource>,
 }
 
+/// Weight for a particular block device.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BlkIoDeviceResource {
+    /// The major number of the device.
     pub major: u64,
+    /// The minor number of the device.
     pub minor: u64,
+    /// The weight of the device against the descendant nodes.
     pub weight: u16,
+    /// The weight of the device against the sibling nodes.
     pub leaf_weight: u16,
 }
 
+/// Provides the ability to throttle a device (both byte/sec, and IO op/s)
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BlkIoDeviceThrottleResource {
+    /// The major number of the device.
     pub major: u64,
+    /// The minor number of the device.
     pub minor: u64,
+    /// The rate.
     pub rate: u64,
 }
 
+/// General block I/O resource limits.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BlkIoResources {
+    /// Whether values should be applied to the controller.
     pub update_values: bool,
+    /// The weight of the control group against descendant nodes.
     pub weight: u16,
+    /// The weight of the control group against sibling nodes.
     pub leaf_weight: u16,
+    /// For each device, a separate weight (both normal and leaf) can be provided.
     pub weight_device: Vec<BlkIoDeviceResource>,
+    /// Throttled read bytes/second can be provided for each device.
     pub throttle_read_bps_device: Vec<BlkIoDeviceThrottleResource>,
+    /// Throttled read IO operations per second can be provided for each device.
     pub throttle_read_iops_device: Vec<BlkIoDeviceThrottleResource>,
+    /// Throttled written bytes/second can be provided for each device.
     pub throttle_write_bps_device: Vec<BlkIoDeviceThrottleResource>,
+    /// Throttled write IO operations per second can be provided for each device.
     pub throttle_write_iops_device: Vec<BlkIoDeviceThrottleResource>,
 }
 
+/// The resource limits and constraints that will be set on the control group.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct Resources {
+    /// Memory usage related limits.
     pub memory: MemoryResources,
+    /// Process identifier related limits.
     pub pid: PidResources,
+    /// CPU related limits.
     pub cpu: CpuResources,
+    /// Device related limits.
     pub devices: DeviceResources,
+    /// Network related tags and limits.
     pub network: NetworkResources,
+    /// Hugepages consumption related limits.
     pub hugepages: HugePageResources,
+    /// Block device I/O related limits.
     pub blkio: BlkIoResources,
 }
 
