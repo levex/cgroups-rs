@@ -1,9 +1,16 @@
-/* Devices controller */
+//! This module contains the implementation of the `devices` cgroup subsystem.
+//! 
+//! See the Kernel's documentation for more information about this subsystem, found at:
+//!  [Documentation/cgroup-v1/devices.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/devices.txt)
 use std::path::PathBuf;
 use std::io::{Read, Write};
 
 use {DeviceResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
+/// A controller that allows controlling the `devices` subsystem of a Cgroup.
+///
+/// In essence, using the devices controller, it is possible to allow or disallow sets of devices to
+/// be used by the control group's tasks.
 #[derive(Debug, Clone)]
 pub struct DevicesController{
     base: PathBuf,
@@ -55,6 +62,7 @@ impl<'a> From<&'a Subsystem> for &'a DevicesController {
 }
 
 impl DevicesController {
+    /// Constructs a new `DevicesController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
         root.push(Self::controller_type().to_string());
@@ -63,18 +71,38 @@ impl DevicesController {
             path: root,
         }
     }
+
+    /// Allow a (possibly, set of) device(s) to be used by the tasks in the control group.
+    ///
+    /// The format of `dev` is rather simple:
+    /// `$type $major:$minor $rwm`
+    /// where `$rwm` is a combination of the characters `r`, `w`, `m`, each standing for read,
+    /// write, mknod permissions.
+    ///
+    /// Note that `dev` can be "regex"-like: both `$major` and `$minor` can be `*` which implies
+    /// that their value does not matter.
     pub fn allow_device(self: &Self, dev: &String) {
         self.open_path("devices.allow", true).and_then(|mut file| {
             file.write_all(dev.as_ref()).ok()
         });
     }
 
+    /// Deny the control group's tasks access to the devices covered by `dev`.
+    ///
+    /// The format of `dev` is rather simple:
+    /// `$type $major:$minor $rwm`
+    /// where `$rwm` is a combination of the characters `r`, `w`, `m`, each standing for read,
+    /// write, mknod permissions.
+    ///
+    /// Note that `dev` can be "regex"-like: both `$major` and `$minor` can be `*` which implies
+    /// that their value does not matter.
     pub fn deny_device(self: &Self, dev: &String) {
         self.open_path("devices.deny", true).and_then(|mut file| {
             file.write_all(dev.as_ref()).ok()
         });
     }
 
+    /// Get the current list of allowed devices.
     pub fn allowed_devices(self: &Self) -> String {
         self.open_path("devices.list", false).and_then(|mut file| {
             let mut s = String::new();

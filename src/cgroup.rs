@@ -1,24 +1,43 @@
+//! This module handles cgroup operations. Start here!
+
 use {CgroupPid, Resources, ControllIdentifier, Controller, Hierarchy, Subsystem};
 
 use std::convert::From;
 
 
-/* Describe a cgroup in a simple fashion */
+/// A control group is the central structure to this crate.
+///
+///
+/// # What are control groups?
+///
+/// Lifting over from the Linux kernel sources: 
+///
+/// > Control Groups provide a mechanism for aggregating/partitioning sets of
+/// > tasks, and all their future children, into hierarchical groups with
+/// > specialized behaviour.
+///
+/// This crate is an attempt at providing a Rust-native way of managing these cgroups.
 pub struct Cgroup {
-    /// Name of the cgroup
-    //name: String,
     /// The list of subsystems that control this cgroup
     subsystems: Vec<Subsystem>,
 }
 
 impl Cgroup {
+
+    /// Create this control group.
     fn create(self: &Self) {
         for subsystem in &self.subsystems {
             subsystem.to_controller().create();
         }
     }
 
-    pub fn new(hier: &Hierarchy, path: String, _resources: i64) -> Cgroup {
+    /// Create a new control group in the hierarchy `hier`, with name `path`.
+    ///
+    /// Returns a handle to the control group that can be used to manipulate it.
+    ///
+    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
+    /// destroyed.
+    pub fn new(hier: &Hierarchy, path: String) -> Cgroup {
         let mut subsystems = hier.subsystems();
         subsystems = subsystems.into_iter().map(|x| x.enter(&path)).collect::<Vec<_>>();
 

@@ -35,22 +35,35 @@ use rdma::RdmaController;
 /// Contains all the subsystems that are available in this crate.
 #[derive(Debug)]
 pub enum Subsystem {
+    /// Controller for the `Pid` subsystem, see `PidController` for more information.
     Pid(PidController),
+    /// Controller for the `Mem` subsystem, see `MemController` for more information.
     Mem(MemController),
+    /// Controller for the `CpuSet subsystem, see `CpuSetController` for more information.
     CpuSet(CpuSetController),
+    /// Controller for the `CpuAcct` subsystem, see `CpuAcctController` for more information.
     CpuAcct(CpuAcctController),
+    /// Controller for the `Cpu` subsystem, see `CpuController` for more information.
     Cpu(CpuController),
+    /// Controller for the `Devices` subsystem, see `DevicesController` for more information.
     Devices(DevicesController),
+    /// Controller for the `Freezer` subsystem, see `FreezerController` for more information.
     Freezer(FreezerController),
+    /// Controller for the `NetCls` subsystem, see `NetClsController` for more information.
     NetCls(NetClsController),
+    /// Controller for the `BlkIo` subsystem, see `BlkIoController` for more information.
     BlkIo(BlkIoController),
+    /// Controller for the `PerfEvent` subsystem, see `PerfEventController` for more information.
     PerfEvent(PerfEventController),
+    /// Controller for the `NetPrio` subsystem, see `NetPrioController` for more information.
     NetPrio(NetPrioController),
+    /// Controller for the `HugeTlb` subsystem, see `HugeTlbController` for more information.
     HugeTlb(HugeTlbController),
+    /// Controller for the `Rdma` subsystem, see `RdmaController` for more information.
     Rdma(RdmaController),
 }
 
-/// Subsystem identifier without the controller attached.
+#[doc(hidden)]
 #[derive(Eq, PartialEq, Debug)]
 pub enum Controllers {
     Pids,
@@ -88,20 +101,30 @@ impl Controllers {
     }
 }
 
+/// A Controller is a subsystem attached to the control group.
+///
+/// Implementors are able to control certain aspects of a control group.
 pub trait Controller {
-    /* actual API */
+    /// Apply a set of resources to the Controller, invoking its internal functions to pass the
+    /// kernel the information.
     fn apply(self: &Self, res: &Resources);
 
     /* meta stuff */
+    #[doc(hidden)]
     fn control_type(self: &Self) -> Controllers;
+    #[doc(hidden)]
     fn get_path<'a>(self: &'a Self) -> &'a PathBuf;
+    #[doc(hidden)]
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf;
+    #[doc(hidden)]
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf;
 
+    #[doc(hidden)]
     fn verify_path(self: &Self) -> bool {
         self.get_path().starts_with(self.get_base())
     }
 
+    /// Create this controller
     fn create(self: &Self) {
         if self.verify_path() {
             match ::std::fs::create_dir(self.get_path()) {
@@ -111,16 +134,19 @@ pub trait Controller {
         }
     }
 
+    /// Does this controller already exist?
     fn exists(self: &Self) -> bool {
         self.get_path().exists()
     }
 
+    /// Delete the controller.
     fn delete(self: &Self) {
         if self.get_path().exists() {
             let _ = ::std::fs::remove_dir(self.get_path());
         }
     }
 
+    #[doc(hidden)]
     fn open_path(self: &Self, p: &str, w: bool) -> Option<File> {
         let mut path = self.get_path().clone();
         path.push(p);
@@ -142,6 +168,7 @@ pub trait Controller {
         }
     }
 
+    /// Attach a task to this controller.
     fn add_task(self: &Self, pid: &CgroupPid) {
         self.open_path("tasks", true).and_then(|mut file| {
             file.write_all(pid.pid.to_string().as_ref()).ok()
@@ -149,10 +176,13 @@ pub trait Controller {
     }
 }
 
+#[doc(hidden)]
 pub trait ControllIdentifier {
     fn controller_type() -> Controllers;
 }
 
+/// Control group hierarchy (right now, only V1 is supported, but in the future Unified will be
+/// implemented as well).
 pub trait Hierarchy {
     fn subsystems(self: &Self) -> Vec<Subsystem>;
     fn can_create_cgroup(self: &Self) -> bool;

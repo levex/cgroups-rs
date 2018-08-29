@@ -1,8 +1,15 @@
-/* Perf event controller */
+//! This module contains the implementation of the `perf_event` cgroup subsystem.
+//! 
+//! See the Kernel's documentation for more information about this subsystem, found at:
+//!  [tools/perf/Documentation/perf-record.txt](https://raw.githubusercontent.com/torvalds/linux/master/tools/perf/Documentation/perf-record.txt)
 use std::path::PathBuf;
 
 use {Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
+/// A controller that allows controlling the `perf_event` subsystem of a Cgroup.
+///
+/// In essence, when processes belong to the same `perf_event` controller, they can be monitored
+/// together using the `perf` performance monitoring and reporting tool.
 #[derive(Debug, Clone)]
 pub struct PerfEventController {
     base: PathBuf,
@@ -40,6 +47,7 @@ impl<'a> From<&'a Subsystem> for &'a PerfEventController {
 }
 
 impl PerfEventController {
+    /// Constructs a new `PerfEventController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
         root.push(Self::controller_type().to_string());

@@ -1,4 +1,7 @@
-/* Network priority controller */
+//! This module contains the implementation of the `net_prio` cgroup subsystem.
+//! 
+//! See the Kernel's documentation for more information about this subsystem, found at:
+//!  [Documentation/cgroup-v1/net_prio.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/net_prio.txt)
 use std::path::PathBuf;
 use std::io::{BufReader, BufRead, Write, Read};
 use std::fs::File;
@@ -6,6 +9,11 @@ use std::collections::HashMap;
 
 use {NetworkResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
+/// A controller that allows controlling the `net_prio` subsystem of a Cgroup.
+///
+/// In essence, using `net_prio` one can set the priority of the packets emitted from the control
+/// group's tasks. This can then be used to have QoS restrictions on certain control groups and
+/// thus, prioritizing certain tasks.
 #[derive(Debug, Clone)]
 pub struct NetPrioController {
     base: PathBuf,
@@ -57,6 +65,7 @@ fn read_u64_from(mut file: File) -> Option<u64> {
 }
 
 impl NetPrioController {
+    /// Constructs a new `NetPrioController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
         root.push(Self::controller_type().to_string());
@@ -65,12 +74,15 @@ impl NetPrioController {
             path: root,
         }
     }
+
+    /// Retrieves the current priority of the emitted packets.
     pub fn prio_idx(self: &Self) -> u64 {
         self.open_path("net_prio.prioidx", false)
             .and_then(read_u64_from)
             .unwrap_or(0)
     }
 
+    /// A map of priorities for each network interface.
     pub fn ifpriomap(self: &Self) -> HashMap<String, u64> {
         self.open_path("net_prio.ifpriomap", false)
             .and_then(|file| {
@@ -84,6 +96,7 @@ impl NetPrioController {
             }).unwrap_or(HashMap::new())
     }
 
+    /// Set the priority of the network traffic on `eif` to be `prio`.
     pub fn set_if_prio(self: &Self, eif: &String, prio: u64) {
         self.open_path("net_prio.ifpriomap", true)
             .and_then(|mut file| {

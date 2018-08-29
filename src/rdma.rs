@@ -1,10 +1,17 @@
-/* RDMA controller */
+//! This module contains the implementation of the `rdma` cgroup subsystem.
+//! 
+//! See the Kernel's documentation for more information about this subsystem, found at:
+//!  [Documentation/cgroup-v1/rdma.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/rdma.txt)
 use std::path::PathBuf;
 use std::io::{Write, Read};
 use std::fs::File;
 
 use {Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
+/// A controller that allows controlling the `rdma` subsystem of a Cgroup.
+///
+/// In essence, using this controller one can limit the RDMA/IB specific resources that the tasks
+/// in the control group can use.
 #[derive(Debug, Clone)]
 pub struct RdmaController {
     base: PathBuf,
@@ -48,6 +55,7 @@ fn read_string_from(mut file: File) -> Option<String> {
 }
 
 impl RdmaController {
+    /// Constructs a new `RdmaController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
         root.push(Self::controller_type().to_string());
@@ -56,12 +64,15 @@ impl RdmaController {
             path: root,
         }
     }
+
+    /// Returns the current usage of RDMA/IB specific resources.
     pub fn current(self: &Self) -> String {
         self.open_path("rdma.current", false)
             .and_then(read_string_from)
             .unwrap_or("".to_string())
     }
 
+    /// Set a maximum usage for each RDMA/IB resource.
     pub fn set_max(self: &Self, max: &String) {
         self.open_path("rdma.max", true)
             .and_then(|mut file| {
