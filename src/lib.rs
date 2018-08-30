@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn create_and_delete_cgroup() {
         let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest2"), 0);
+        let cg = Cgroup::new(&hier, String::from("ltest2"));
         {
             let pidcontroller: &PidController = cg.controller_of().unwrap();
             pidcontroller.set_pid_max(PidMax::Value(1337));
@@ -523,7 +523,7 @@ mod tests {
     #[test]
     fn test_pid_pids_current_is_zero() {
         let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest3"), 0);
+        let cg = Cgroup::new(&hier, String::from("ltest3"));
         {
             let pidcontroller: &PidController = cg.controller_of().unwrap();
             assert_eq!(pidcontroller.get_pid_current(), 0);
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn test_pid_pids_events_is_zero() {
         let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest4"), 0);
+        let cg = Cgroup::new(&hier, String::from("ltest4"));
         {
             let pidcontroller: &PidController = cg.controller_of().unwrap();
             assert_eq!(pidcontroller.get_pid_events(), 0);
@@ -545,7 +545,7 @@ mod tests {
     #[test]
     fn test_setting_resources() {
         let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest5"), 0);
+        let cg = Cgroup::new(&hier, String::from("ltest5"));
         {
             let res = Resources {
                 pid: PidResources {
