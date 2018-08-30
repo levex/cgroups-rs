@@ -32,6 +32,8 @@ use net_prio::NetPrioController;
 use hugetlb::HugeTlbController;
 use rdma::RdmaController;
 
+pub use cgroup::Cgroup;
+
 /// Contains all the subsystems that are available in this crate.
 #[derive(Debug)]
 pub enum Subsystem {
@@ -499,68 +501,4 @@ impl Subsystem {
             Subsystem::Rdma(cont) => cont,
         }
     }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use {Resources, PidResources, Hierarchy, Controller, Controllers, Subsystem};
-    use pid::{PidMax, PidController};
-    use cgroup::Cgroup;
-
-    #[test]
-    fn create_and_delete_cgroup() {
-        let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest2"));
-        {
-            let pidcontroller: &PidController = cg.controller_of().unwrap();
-            pidcontroller.set_pid_max(PidMax::Value(1337));
-            assert_eq!(pidcontroller.get_pid_max(), Some(PidMax::Value(1337)));
-        }
-        cg.delete();
-    }
-
-    #[test]
-    fn test_pid_pids_current_is_zero() {
-        let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest3"));
-        {
-            let pidcontroller: &PidController = cg.controller_of().unwrap();
-            assert_eq!(pidcontroller.get_pid_current(), 0);
-        }
-        cg.delete();
-    }
-
-    #[test]
-    fn test_pid_pids_events_is_zero() {
-        let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest4"));
-        {
-            let pidcontroller: &PidController = cg.controller_of().unwrap();
-            assert_eq!(pidcontroller.get_pid_events(), 0);
-        }
-        cg.delete();
-    }
-
-    #[test]
-    fn test_setting_resources() {
-        let hier = ::hierarchies::V1::new();
-        let cg = Cgroup::new(&hier, String::from("ltest5"));
-        {
-            let res = Resources {
-                pid: PidResources {
-                    update_values: true,
-                    maximum_number_of_processes: PidMax::Value(512),
-                },
-                ..Default::default()
-            };
-            cg.apply(&res);
-
-            /* verify */
-            let pidcontroller: &PidController = cg.controller_of().unwrap();
-            assert_eq!(pidcontroller.get_pid_max(), Some(PidMax::Value(512)));
-        }
-        cg.delete();
-    }
-
 }

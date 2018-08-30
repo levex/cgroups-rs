@@ -28,7 +28,7 @@ pub struct CpuAcct {
     /// time spent is `user` time or `system` time.
     ///
     /// An example is as follows:
-    /// ```
+    /// ```text
     /// cpu user system
     /// 0 8348363768 0
     /// 1 8324369100 0

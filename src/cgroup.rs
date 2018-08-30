@@ -92,7 +92,7 @@ impl Cgroup {
     ///
     /// ## Example:
     ///
-    /// ```
+    /// ```text
     /// let pids: &PidController = control_group.controller_of()
     ///                             .expect("No pids controller attached!");
     /// let cpu: &CpuController = control_group.controller_of()
