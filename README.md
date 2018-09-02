@@ -1,4 +1,4 @@
-# cgroups-rs
+# cgroups-rs ![Build](https://travis-ci.org/levex/cgroups-rs.svg?branch=master)
 Native Rust library for managing control groups under Linux
 
 # Example
