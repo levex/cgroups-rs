@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 
 pub mod hierarchies;
 pub mod pid;
@@ -176,6 +176,21 @@ pub trait Controller {
             file.write_all(pid.pid.to_string().as_ref()).ok()
         });
     }
+
+    /// Get the list of tasks that this controller has.
+    fn tasks(self: &Self) -> Vec<CgroupPid> {
+        self.open_path("tasks", false).and_then(|file| {
+            let bf = BufReader::new(file);
+            let mut v = Vec::new();
+            for line in bf.lines() {
+                if let Ok(line) = line {
+                    let n = line.trim().parse().unwrap_or(0u64);
+                    v.push(n);
+                }
+            }
+            Some(v.into_iter().map(CgroupPid::from).collect())
+        }).unwrap_or(vec![])
+    }
 }
 
 #[doc(hidden)]
@@ -188,11 +203,17 @@ pub trait ControllIdentifier {
 pub trait Hierarchy {
     /// Returns what subsystems are supported by the hierarchy.
     fn subsystems(self: &Self) -> Vec<Subsystem>;
+
     /// Returns the root directory of the hierarchy.
     fn root(self: &Self) -> PathBuf;
+
+    /// Return a handle to the root control group in the hierarchy.
+    fn root_control_group(self: &Self) -> Cgroup;
+
     /// Checks whether a certain subsystem is supported in the hierarchy.
     ///
     /// This is an internal function and should not be used.
+    #[doc(hidden)]
     fn check_support(self: &Self, sub: Controllers) -> bool;
 }
 
@@ -391,6 +412,7 @@ pub struct Resources {
 
 /// A structure representing a `pid`. Currently implementations exist for `u64` and
 /// `std::process::Child`.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CgroupPid {
     /// The process identifier
     pub pid: u64,

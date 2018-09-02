@@ -23,6 +23,8 @@ use ::net_prio::NetPrioController;
 use ::hugetlb::HugeTlbController;
 use ::rdma::RdmaController;
 
+use ::cgroup::Cgroup;
+
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
 pub struct V1 {
@@ -73,6 +75,10 @@ impl Hierarchy for V1 {
         }
 
         subs
+    }
+
+    fn root_control_group(self: &Self) -> Cgroup {
+        Cgroup::load(self, "".to_string())
     }
 
     fn check_support(self: &Self, sub: Controllers) -> bool {
