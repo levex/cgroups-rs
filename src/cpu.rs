@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::io::{Read, Write};
 
-use {CpuResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, CpuResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
 /// A controller that allows controlling the `cpu` subsystem of a Cgroup.
 /// 
@@ -40,9 +40,9 @@ impl Controller for CpuController {
 
         if res.update_values {
             /* apply pid_max */
-            self.set_shares(res.shares);
-            self.set_cfs_period(res.period);
-            self.set_cfs_quota(res.quota as u64);
+            let _ = self.set_shares(res.shares);
+            let _ = self.set_cfs_period(res.period);
+            let _ = self.set_cfs_quota(res.quota as u64);
             /* TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported */
         }
     }
@@ -84,8 +84,11 @@ impl CpuController {
         Cpu {
             stat: self.open_path("cpu.stat", false).and_then(|mut file| {
                 let mut s = String::new();
-                let _ = file.read_to_string(&mut s);
-                Some(s)
+                let res = file.read_to_string(&mut s);
+                match res {
+                    Ok(_) => Ok(s),
+                    Err(e) => Err(CgroupError::ReadError(e)),
+                }
             }).unwrap_or("".to_string()),
         }
     }
@@ -96,25 +99,25 @@ impl CpuController {
     /// For example, setting control group `A`'s `shares` to `100`, and control group `B`'s
     /// `shares` to `200` ensures that control group `B` receives twice as much as CPU bandwidth.
     /// (Assuming both `A` and `B` are of the same parent)
-    pub fn set_shares(self: &Self, shares: u64) {
+    pub fn set_shares(self: &Self, shares: u64) -> Result<(), CgroupError> {
         self.open_path("cpu.shares", true).and_then(|mut file| {
-            file.write_all(shares.to_string().as_ref()).ok()
-        });
+            file.write_all(shares.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Specify a period (when using the CFS scheduler) of time in microseconds for how often this
     /// control group's access to the CPU should be reallocated.
-    pub fn set_cfs_period(self: &Self, us: u64) {
+    pub fn set_cfs_period(self: &Self, us: u64) -> Result<(), CgroupError> {
         self.open_path("cpu.cfs_period_us", true).and_then(|mut file| {
-            file.write_all(us.to_string().as_ref()).ok()
-        });
+            file.write_all(us.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Specify a quota (when using the CFS scheduler) of time in microseconds for which all tasks
     /// in this control group can run during one period (see: `set_cfs_period()`).
-    pub fn set_cfs_quota(self: &Self, us: u64) {
+    pub fn set_cfs_quota(self: &Self, us: u64) -> Result<(), CgroupError> {
         self.open_path("cpu.cfs_quota_us", true).and_then(|mut file| {
-            file.write_all(us.to_string().as_ref()).ok()
-        });
+            file.write_all(us.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 }

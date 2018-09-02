@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use std::io::{Read, Write};
 use std::fs::File;
 
-use {NetworkResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, NetworkResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use CgroupError::*;
 
 /// A controller that allows controlling the `net_cls` subsystem of a Cgroup.
 ///
@@ -30,7 +31,7 @@ impl Controller for NetClsController {
         let res: &NetworkResources = &res.network;
 
         if res.update_values {
-            self.set_class(res.class_id);
+            let _ = self.set_class(res.class_id);
         }
     }
 }
@@ -55,10 +56,12 @@ impl<'a> From<&'a Subsystem> for &'a NetClsController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Option<u64> {
+fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
     let mut string = String::new();
-    let _ = file.read_to_string(&mut string);
-    string.trim().parse().ok()
+    match file.read_to_string(&mut string) {
+        Ok(_) => string.trim().parse().map_err(|_| ParseError),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
 }
 
 impl NetClsController {
@@ -73,17 +76,17 @@ impl NetClsController {
     }
     
     /// Set the network class id of the outgoing packets of the control group's tasks.
-    pub fn set_class(self: &Self, class: u64) {
+    pub fn set_class(self: &Self, class: u64) -> Result<(), CgroupError> {
         self.open_path("net_cls.classid", true).and_then(|mut file| {
             let s = format!("{:#08X}", class);
-            file.write_all(s.as_ref()).ok()
-        });
+            file.write_all(s.as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Get the network class id of the outgoing packets of the control group's tasks.
-    pub fn get_class(self: &Self) -> u64 {
+    pub fn get_class(self: &Self) -> Result<u64, CgroupError> {
         self.open_path("net_cls.classid", false).and_then(|file| {
             read_u64_from(file)
-        }).unwrap_or(0u64)
+        })
     }
 }

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::io::{Read, Write};
 use std::fs::File;
 
-use {Controllers, Resources, Subsystem, ControllIdentifier, Controller};
+use {CgroupError, Controllers, Resources, Subsystem, ControllIdentifier, Controller};
 
 /// A controller that allows controlling the `cpuacct` subsystem of a Cgroup.
 ///
@@ -79,10 +79,24 @@ impl<'a> From<&'a Subsystem> for &'a CpuAcctController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Option<u64> {
+fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
     let mut string = String::new();
-    let _ = file.read_to_string(&mut string);
-    string.trim().parse().ok()
+    let res = file.read_to_string(&mut string);
+    match res {
+        Ok(_) => match string.trim().parse() {
+            Ok(e) => Ok(e),
+            Err(_) => Err(CgroupError::ParseError),
+        },
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
+}
+
+fn read_string_from(mut file: File) -> Result<String, CgroupError> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => Ok(string.trim().to_string()),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
 }
 
 impl CpuAcctController {
@@ -101,38 +115,18 @@ impl CpuAcctController {
     pub fn cpuacct(self: &Self) -> CpuAcct {
         CpuAcct {
             stat: self.open_path("cpuacct.stat", false)
-                    .and_then(|mut file| {
-                        let mut string = String::new();
-                        let _ = file.read_to_string(&mut string);
-                        Some(string.trim().to_string())
-                    }).unwrap_or("".to_string()),
+                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
             usage: self.open_path("cpuacct.usage", false)
                     .and_then(|file| read_u64_from(file))
                     .unwrap_or(0),
             usage_all: self.open_path("cpuacct.usage_all", false)
-                    .and_then(|mut file| {
-                        let mut string = String::new();
-                        let _ = file.read_to_string(&mut string);
-                        Some(string.trim().to_string())
-                    }).unwrap_or("".to_string()),
+                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
             usage_percpu: self.open_path("cpuacct.usage_percpu", false)
-                    .and_then(|mut file| {
-                        let mut string = String::new();
-                        let _ = file.read_to_string(&mut string);
-                        Some(string.trim().to_string())
-                    }).unwrap_or("".to_string()),
+                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
             usage_percpu_sys: self.open_path("cpuacct.usage_percpu_sys", false)
-                    .and_then(|mut file| {
-                        let mut string = String::new();
-                        let _ = file.read_to_string(&mut string);
-                        Some(string.trim().to_string())
-                    }).unwrap_or("".to_string()),
+                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
             usage_percpu_user: self.open_path("cpuacct.usage_percpu_user", false)
-                    .and_then(|mut file| {
-                        let mut string = String::new();
-                        let _ = file.read_to_string(&mut string);
-                        Some(string.trim().to_string())
-                    }).unwrap_or("".to_string()),
+                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
             usage_sys: self.open_path("cpuacct.usage_sys", false)
                     .and_then(|file| read_u64_from(file))
                     .unwrap_or(0),
@@ -143,9 +137,9 @@ impl CpuAcctController {
     }
 
     /// Reset the statistics the kernel has gathered about the control group.
-    pub fn reset(self: &Self) {
+    pub fn reset(self: &Self) -> Result<(), CgroupError> {
         self.open_path("cpuacct.usage", true).and_then(|mut file| {
-            file.write_all(b"0").ok()
-        });
+            file.write_all(b"0").map_err(CgroupError::WriteError)
+        })
     }
 }

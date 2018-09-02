@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use std::io::{Read, Write};
 use std::fs::File;
 
-use {CpuResources, Resources, Controller, ControllIdentifier, Subsystem, Controllers};
+use {CgroupError, CpuResources, Resources, Controller, ControllIdentifier, Subsystem, Controllers};
+use CgroupError::*;
 
 /// A controller that allows controlling the `cpuset` subsystem of a Cgroup.
 /// 
@@ -84,8 +85,8 @@ impl Controller for CpuSetController {
 
         if res.update_values {
             /* apply pid_max */
-            self.set_cpus(&res.cpus);
-            self.set_mems(&res.mems);
+            let _ = self.set_cpus(&res.cpus);
+            let _ = self.set_mems(&res.mems);
         }
     }
 }
@@ -110,10 +111,20 @@ impl<'a> From<&'a Subsystem> for &'a CpuSetController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Option<u64> {
+fn read_string_from(mut file: File) -> Result<String, CgroupError> {
     let mut string = String::new();
-    let _ = file.read_to_string(&mut string);
-    string.trim().parse().ok()
+    match file.read_to_string(&mut string) {
+        Ok(_) => Ok(string.trim().to_string()),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
+}
+
+fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => string.trim().parse().map_err(|_| ParseError),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
 }
 
 impl CpuSetController {
@@ -137,122 +148,96 @@ impl CpuSetController {
                 }).map(|x| x == 1).unwrap_or(false)
             },
             cpus: {
-                self.open_path("cpuset.cpus", false).and_then(|mut file| {
-                    let mut string = String::new();
-                    let _ = file.read_to_string(&mut string);
-                    Some(string.trim().to_string())
-                }).unwrap()
+                self.open_path("cpuset.cpus", false).and_then(read_string_from).unwrap_or("".to_string())
             },
             effective_cpus: {
-                self.open_path("cpuset.effective_cpus", false).and_then(|mut file| {
-                    let mut string = String::new();
-                    let _ = file.read_to_string(&mut string);
-                    Some(string.trim().to_string())
-                }).unwrap()
+                self.open_path("cpuset.effective_cpus", false).and_then(read_string_from).unwrap_or("".to_string())
             },
             effective_mems: {
-                self.open_path("cpuset.effective_mems", false).and_then(|mut file| {
-                    let mut string = String::new();
-                    let _ = file.read_to_string(&mut string);
-                    Some(string.trim().to_string())
-                }).unwrap()
+                self.open_path("cpuset.effective_mems", false).and_then(read_string_from).unwrap_or("".to_string())
             },
             mem_exclusive: {
-                self.open_path("cpuset.mem_exclusive", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.mem_exclusive", false).and_then(read_u64_from)
+                    .map(|x| x == 1).unwrap_or(false)
             },
             mem_hardwall: {
-                self.open_path("cpuset.mem_hardwall", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.mem_hardwall", false).and_then(read_u64_from)
+                    .map(|x| x == 1).unwrap_or(false)
             },
             memory_migrate: {
-                self.open_path("cpuset.memory_migrate", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.memory_migrate", false).and_then(read_u64_from)
+                    .map(|x| x == 1).unwrap_or(false)
             },
             memory_pressure: {
-                self.open_path("cpuset.memory_pressure", false).and_then(|file| {
-                    read_u64_from(file)
-                }).unwrap_or(0)
+                self.open_path("cpuset.memory_pressure", false).and_then(read_u64_from).unwrap_or(0)
             },
             memory_pressure_enabled: {
-                self.open_path("cpuset.memory_pressure_enabled", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1)
+                self.open_path("cpuset.memory_pressure_enabled", false).and_then(read_u64_from)
+                    .map(|x| x == 1).ok()
             },
             memory_spread_page: {
-                self.open_path("cpuset.memory_spread_page", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.memory_spread_page", false).and_then(read_u64_from)
+                    .map(|x| x == 1).unwrap_or(false)
             },
             memory_spread_slab: {
-                self.open_path("cpuset.memory_spread_slab", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.memory_spread_slab", false).and_then(read_u64_from)
+                    .map(|x| x == 1).unwrap_or(false)
             },
             mems: {
-                self.open_path("cpuset.mems", false).and_then(|mut file| {
-                    let mut string = String::new();
-                    let _ = file.read_to_string(&mut string);
-                    Some(string.trim().to_string())
-                }).unwrap()
+                self.open_path("cpuset.mems", false).and_then(read_string_from).unwrap_or("".to_string())
             },
             sched_load_balance: {
-                self.open_path("cpuset.sched_load_balance", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.sched_load_balance", false).and_then(read_u64_from)
+                    .map(|x| x == 1).unwrap_or(false)
             },
             sched_relax_domain_level: {
-                self.open_path("cpuset.sched_relax_domain_level", false).and_then(|file| {
-                    read_u64_from(file)
-                }).unwrap_or(0)
+                self.open_path("cpuset.sched_relax_domain_level", false).and_then(read_u64_from)
+                    .unwrap_or(0)
             },
         }
     }
 
     /// Control whether the CPUs selected via `set_cpus()` should be exclusive to this control
     /// group or not.
-    pub fn set_cpu_exclusive(self: &Self, b: bool) {
+    pub fn set_cpu_exclusive(self: &Self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.cpu_exclusive", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 
     /// Control whether the memory nodes selected via `set_memss()` should be exclusive to this control
     /// group or not.
-    pub fn set_mem_exclusive(self: &Self, b: bool) {
+    pub fn set_mem_exclusive(self: &Self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.mem_exclusive", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 
     /// Set the CPUs that the tasks in this control group can run on.
     ///
     /// Syntax is a comma separated list of CPUs, with an additional extension that ranges can
     /// be represented via dashes.
-    pub fn set_cpus(self: &Self, cpus: &String) {
+    pub fn set_cpus(self: &Self, cpus: &String) -> Result<(), CgroupError> {
         self.open_path("cpuset.cpus", true).and_then(|mut file| {
-            file.write_all(cpus.as_ref()).ok()
-        });
+            file.write_all(cpus.as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Set the memory nodes that the tasks in this control group can use.
     ///
     /// Syntax is the same as with `set_cpus()`.
-    pub fn set_mems(self: &Self, mems: &String) {
+    pub fn set_mems(self: &Self, mems: &String) -> Result<(), CgroupError> {
         self.open_path("cpuset.mems", true).and_then(|mut file| {
-            file.write_all(mems.as_ref()).ok()
-        });
+            file.write_all(mems.as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Controls whether the control group should be "hardwalled", i.e., whether kernel allocations
@@ -260,71 +245,71 @@ impl CpuSetController {
     ///
     /// Note that some kernel allocations, most notably those that are made in interrupt handlers
     /// may disregard this.
-    pub fn set_hardwall(self: &Self, b: bool) {
+    pub fn set_hardwall(self: &Self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.mem_hardwall", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 
     /// Controls whether the kernel should attempt to rebalance the load between the CPUs specified in the
     /// `cpus` field of this control group.
-    pub fn set_load_balancing(self: &Self, b: bool) {
+    pub fn set_load_balancing(self: &Self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.sched_load_balance", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 
     /// Contorl how much effort the kernel should invest in rebalacing the control group.
     ///
     /// See @CpuSet 's similar field for more information.
-    pub fn set_rebalance_relax_domain_level(self: &Self, i: i64) {
+    pub fn set_rebalance_relax_domain_level(self: &Self, i: i64) -> Result<(), CgroupError> {
         self.open_path("cpuset.sched_relax_domain_level", true).and_then(|mut file| {
-            file.write_all(i.to_string().as_ref()).ok()
-        });
+            file.write_all(i.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Control whether when using `set_mems()` the existing memory used by the tasks should be
     /// migrated over to the now-selected nodes.
-    pub fn set_memory_migration(self: &Self, b: bool) {
+    pub fn set_memory_migration(self: &Self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.memory_migrate", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 
     /// Control whether filesystem buffers should be evenly split across the nodes selected via
     /// `set_mems()`.
-    pub fn set_memory_spread_page(self: &Self, b: bool) {
+    pub fn set_memory_spread_page(self: &Self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.memory_spread_page", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 
     /// Control whether the kernel's slab cache for file I/O should be evenly split across the
     /// nodes selected via `set_mems()`.
-    pub fn set_memory_spread_slab(self: &Self, b: bool) {
+    pub fn set_memory_spread_slab(self: &Self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.memory_spread_slab", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 
     /// Control whether the kernel should collect information to calculate memory pressure for
@@ -332,14 +317,14 @@ impl CpuSetController {
     ///
     /// Note: This is a no-operation if the control group referred by `self` is not the root
     /// control group.
-    pub fn set_enable_memory_pressure(self: &Self, b: bool) {
+    pub fn set_enable_memory_pressure(self: &Self, b: bool) -> Result<(), CgroupError> {
         /* XXX: this file should only be present in the root cpuset cg */
         self.open_path("cpuset.memory_pressure_enabled", true).and_then(|mut file| {
             if b {
-                file.write_all(b"1").ok()
+                file.write_all(b"1").map_err(CgroupError::WriteError)
             } else {
-                file.write_all(b"0").ok()
+                file.write_all(b"0").map_err(CgroupError::WriteError)
             }
-        });
+        })
     }
 }

@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::io::{Read, Write};
 
-use {DeviceResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, DeviceResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
 /// A controller that allows controlling the `devices` subsystem of a Cgroup.
 ///
@@ -32,9 +32,9 @@ impl Controller for DevicesController {
                 let wstr = format!("{} {}:{} {}",
                                    i.devtype, i.major, i.minor, i.access);
                 if i.allow {
-                    self.allow_device(&wstr);
+                    let _ = self.allow_device(&wstr);
                 } else {
-                    self.deny_device(&wstr);
+                    let _ = self.deny_device(&wstr);
                 }
             }
         }
@@ -81,10 +81,10 @@ impl DevicesController {
     ///
     /// Note that `dev` can be "regex"-like: both `$major` and `$minor` can be `*` which implies
     /// that their value does not matter.
-    pub fn allow_device(self: &Self, dev: &String) {
+    pub fn allow_device(self: &Self, dev: &String) -> Result<(), CgroupError> {
         self.open_path("devices.allow", true).and_then(|mut file| {
-            file.write_all(dev.as_ref()).ok()
-        });
+            file.write_all(dev.as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Deny the control group's tasks access to the devices covered by `dev`.
@@ -96,18 +96,21 @@ impl DevicesController {
     ///
     /// Note that `dev` can be "regex"-like: both `$major` and `$minor` can be `*` which implies
     /// that their value does not matter.
-    pub fn deny_device(self: &Self, dev: &String) {
+    pub fn deny_device(self: &Self, dev: &String) -> Result<(), CgroupError> {
         self.open_path("devices.deny", true).and_then(|mut file| {
-            file.write_all(dev.as_ref()).ok()
-        });
+            file.write_all(dev.as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Get the current list of allowed devices.
-    pub fn allowed_devices(self: &Self) -> String {
+    pub fn allowed_devices(self: &Self) -> Result<String, CgroupError> {
         self.open_path("devices.list", false).and_then(|mut file| {
             let mut s = String::new();
-            let _ = file.read_to_string(&mut s);
-            Some(s)
-        }).unwrap_or("".to_string())
+            let res = file.read_to_string(&mut s);
+            match res {
+                Ok(_) => Ok(s),
+                Err(e) => Err(CgroupError::ReadError(e)),
+            }
+        })
     }
 }

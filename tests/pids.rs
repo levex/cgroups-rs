@@ -1,6 +1,6 @@
 //! Integration tests about the pids subsystem
 extern crate cgroups;
-use cgroups::{CgroupPid, Cgroup, Resources, PidResources};
+use cgroups::{CgroupError, CgroupPid, Cgroup, Resources, PidResources};
 use cgroups::pid::{PidController, PidMax};
 use cgroups::Controller;
 

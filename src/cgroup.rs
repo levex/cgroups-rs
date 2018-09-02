@@ -1,6 +1,6 @@
 //! This module handles cgroup operations. Start here!
 
-use {CgroupPid, Resources, ControllIdentifier, Controller, Hierarchy, Subsystem};
+use {CgroupError, CgroupPid, Resources, ControllIdentifier, Controller, Hierarchy, Subsystem};
 
 use std::convert::From;
 
@@ -136,12 +136,12 @@ impl<'b> Cgroup<'b> {
     /// Note that this means that the task will be moved back to the root control group in the
     /// hierarchy and any rules applied to that control group will _still_ apply to the task.
     pub fn remove_task(self: &Self, pid: CgroupPid) {
-        self.hier.root_control_group().add_task(pid);
+        let _ = self.hier.root_control_group().add_task(pid);
     }
 
     /// Attach a task to the control group.
-    pub fn add_task(self: &Self, pid: CgroupPid) {
-        self.subsystems().iter().for_each(|sub| sub.to_controller().add_task(&pid));
+    pub fn add_task(self: &Self, pid: CgroupPid) -> Result<(), CgroupError> {
+        self.subsystems().iter().try_for_each(|sub| sub.to_controller().add_task(&pid))
     }
 
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the

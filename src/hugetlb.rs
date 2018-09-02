@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::{Write, Read};
 
-use {HugePageResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, HugePageResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use CgroupError::*;
 
 
 /// A controller that allows controlling the `hugetlb` subsystem of a Cgroup.
@@ -31,7 +32,7 @@ impl Controller for HugeTlbController {
 
         if res.update_values {
             for i in &res.limits {
-                self.set_limit_in_bytes(&i.size, i.limit);
+                let _ = self.set_limit_in_bytes(&i.size, i.limit);
             }
         }
     }
@@ -57,10 +58,12 @@ impl<'a> From<&'a Subsystem> for &'a HugeTlbController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Option<u64> {
+fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
     let mut string = String::new();
-    let _ = file.read_to_string(&mut string);
-    string.trim().parse().ok()
+    match file.read_to_string(&mut string) {
+        Ok(_) => string.trim().parse().map_err(|_| ParseError),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
 }
 
 impl HugeTlbController {
@@ -81,38 +84,38 @@ impl HugeTlbController {
     }
 
     /// Check how many times has the limit of `hugetlb_size` hugepages been hit.
-    pub fn failcnt(self: &Self, hugetlb_size: &String) -> Option<u64> {
+    pub fn failcnt(self: &Self, hugetlb_size: &String) -> Result<u64, CgroupError> {
         self.open_path(&format!("hugetlb.{}.failcnt", hugetlb_size), false)
             .and_then(read_u64_from)
     }
 
     /// Get the limit (in bytes) of how much memory can be backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn limit_in_bytes(self: &Self, hugetlb_size: &String) -> Option<u64> {
+    pub fn limit_in_bytes(self: &Self, hugetlb_size: &String) -> Result<u64, CgroupError> {
         self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), false)
             .and_then(read_u64_from)
     }
 
     /// Get the current usage of memory that is backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn usage_in_bytes(self: &Self, hugetlb_size: &String) -> Option<u64> {
+    pub fn usage_in_bytes(self: &Self, hugetlb_size: &String) -> Result<u64, CgroupError> {
         self.open_path(&format!("hugetlb.{}.usage_in_bytes", hugetlb_size), false)
             .and_then(read_u64_from)
     }
 
     /// Get the maximum observed usage of memory that is backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn max_usage_in_bytes(self: &Self, hugetlb_size: &String) -> Option<u64> {
+    pub fn max_usage_in_bytes(self: &Self, hugetlb_size: &String) -> Result<u64, CgroupError> {
         self.open_path(&format!("hugetlb.{}.max_usage_in_bytes", hugetlb_size), false)
             .and_then(read_u64_from)
     }
 
     /// Set the limit (in bytes) of how much memory can be backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn set_limit_in_bytes(self: &Self, hugetlb_size: &String, limit: u64) {
+    pub fn set_limit_in_bytes(self: &Self, hugetlb_size: &String, limit: u64) -> Result<(), CgroupError> {
         self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), false)
             .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref()).ok()
-            });
+                file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
+            })
     }
 }

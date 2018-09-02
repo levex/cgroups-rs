@@ -7,7 +7,8 @@ use std::io::{BufReader, BufRead, Write, Read};
 use std::fs::File;
 use std::collections::HashMap;
 
-use {NetworkResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, NetworkResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use CgroupError::*;
 
 /// A controller that allows controlling the `net_prio` subsystem of a Cgroup.
 ///
@@ -32,7 +33,7 @@ impl Controller for NetPrioController {
 
         if res.update_values {
             for i in &res.priorities {
-                self.set_if_prio(&i.name, i.priority);
+                let _ = self.set_if_prio(&i.name, i.priority);
             }
         }
     }
@@ -58,10 +59,12 @@ impl<'a> From<&'a Subsystem> for &'a NetPrioController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Option<u64> {
+fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
     let mut string = String::new();
-    let _ = file.read_to_string(&mut string);
-    string.trim().parse().ok()
+    match file.read_to_string(&mut string) {
+        Ok(_) => string.trim().parse().map_err(|_| ParseError),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
 }
 
 impl NetPrioController {
@@ -83,24 +86,39 @@ impl NetPrioController {
     }
 
     /// A map of priorities for each network interface.
-    pub fn ifpriomap(self: &Self) -> HashMap<String, u64> {
-        self.open_path("net_prio.ifpriomap", false)
-            .and_then(|file| {
-                let bf = BufReader::new(file);
-                Some(bf.lines().map(|line| {
+    pub fn ifpriomap(self: &Self) -> Result<HashMap<String, u64>, CgroupError> {
+        self.open_path("net_prio.ifpriomap", false) .and_then(|file| {
+            let bf = BufReader::new(file);
+            bf.lines().fold(Ok(HashMap::new()), |acc, line| {
+                if acc.is_err() {
+                    acc
+                } else {
+                    let mut acc = acc.unwrap();
                     let l = line.unwrap();
                     let mut sp = l.split_whitespace();
-                    (sp.nth(0).unwrap().to_string(),
-                     sp.nth(1).unwrap().trim().parse().unwrap())
-                }).collect())
-            }).unwrap_or(HashMap::new())
+                    let ifname = sp.nth(0);
+                    let ifprio = sp.nth(1);
+                    if ifname.is_none() || ifprio.is_none() {
+                        Err(CgroupError::ParseError)
+                    } else {
+                        let ifname = ifname.unwrap();
+                        let ifprio = ifprio.unwrap().trim().parse();
+                        if ifprio.is_err() {
+                            Err(CgroupError::ParseError)
+                        } else {
+                            acc.insert(ifname.to_string(), ifprio.unwrap());
+                            Ok(acc)
+                        }
+                    }
+                }
+            })
+        })
     }
 
     /// Set the priority of the network traffic on `eif` to be `prio`.
-    pub fn set_if_prio(self: &Self, eif: &String, prio: u64) {
-        self.open_path("net_prio.ifpriomap", true)
-            .and_then(|mut file| {
-                Some(file.write_all(format!("{} {}", eif, prio).as_ref()))
-            });
+    pub fn set_if_prio(self: &Self, eif: &String, prio: u64) -> Result<(), CgroupError> {
+        self.open_path("net_prio.ifpriomap", true).and_then(|mut file| {
+            file.write_all(format!("{} {}", eif, prio).as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 }

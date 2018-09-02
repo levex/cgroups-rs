@@ -65,6 +65,29 @@ pub enum Subsystem {
     Rdma(RdmaController),
 }
 
+/// The different types of errors that can occur while manipulating control groups.
+#[derive(Debug)]
+pub enum CgroupError {
+    /// An error occured while writing to a control group file.
+    WriteError(std::io::Error),
+    /// An error occured while trying to read from a control group file.
+    ReadError(std::io::Error),
+    /// An error occured while trying to parse a value from a control group file.
+    ///
+    /// In the future, there will be some information attached to this field.
+    ParseError,
+    /// You tried to do something invalid.
+    ///
+    /// This could be because you tried to set a value in a control group that is not a root
+    /// control group. Or, when using unified hierarchy, you tried to add a task in a leaf node.
+    InvalidOperation,
+    /// The path of the control group was invalid.
+    ///
+    /// This could be caused by trying to escape the control group filesystem via a string of "..".
+    /// This crate checks against this and operations will fail with this error.
+    InvalidPath,
+}
+
 #[doc(hidden)]
 #[derive(Eq, PartialEq, Debug)]
 pub enum Controllers {
@@ -149,32 +172,32 @@ pub trait Controller {
     }
 
     #[doc(hidden)]
-    fn open_path(self: &Self, p: &str, w: bool) -> Option<File> {
+    fn open_path(self: &Self, p: &str, w: bool) -> Result<File, CgroupError> {
         let mut path = self.get_path().clone();
         path.push(p);
 
         if !self.verify_path() {
-            return None;
+            return Err(CgroupError::InvalidPath);
         }
 
         if w {
             match File::create(&path) {
-                Err(_) => return None,
-                Ok(file) => return Some(file),
+                Err(e) => return Err(CgroupError::WriteError(e)),
+                Ok(file) => return Ok(file),
             }
         } else {
             match File::open(&path) {
-                Err(_) => return None,
-                Ok(file) => return Some(file),
+                Err(e) => return Err(CgroupError::ReadError(e)),
+                Ok(file) => return Ok(file),
             }
         }
     }
 
     /// Attach a task to this controller.
-    fn add_task(self: &Self, pid: &CgroupPid) {
+    fn add_task(self: &Self, pid: &CgroupPid) -> Result<(), CgroupError> {
         self.open_path("tasks", true).and_then(|mut file| {
-            file.write_all(pid.pid.to_string().as_ref()).ok()
-        });
+            file.write_all(pid.pid.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Get the list of tasks that this controller has.
@@ -188,7 +211,7 @@ pub trait Controller {
                     v.push(n);
                 }
             }
-            Some(v.into_iter().map(CgroupPid::from).collect())
+            Ok(v.into_iter().map(CgroupPid::from).collect())
         }).unwrap_or(vec![])
     }
 }

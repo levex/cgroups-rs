@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::io::{Read, Write};
 
-use {Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
 /// A controller that allows controlling the `freezer` subsystem of a Cgroup.
 ///
@@ -73,30 +73,33 @@ impl FreezerController {
     }
 
     /// Freezes the processes in the control group.
-    pub fn freeze(self: &Self) {
+    pub fn freeze(self: &Self) -> Result<(), CgroupError> {
         self.open_path("freezer.state", true).and_then(|mut file| {
-            file.write_all("FROZEN".to_string().as_ref()).ok()
-        });
+            file.write_all("FROZEN".to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Thaws, that is, unfreezes the processes in the control group.
-    pub fn thaw(self: &Self) {
+    pub fn thaw(self: &Self) -> Result<(), CgroupError> {
         self.open_path("freezer.state", true).and_then(|mut file| {
-            file.write_all("THAWED".to_string().as_ref()).ok()
-        });
+            file.write_all("THAWED".to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Retrieve the state of processes in the control group.
-    pub fn state(self: &Self) -> FreezerState {
+    pub fn state(self: &Self) -> Result<FreezerState, CgroupError> {
         self.open_path("freezer.state", false).and_then(|mut file| {
             let mut s = String::new();
-            let _ = file.read_to_string(&mut s);
-            match s.as_ref() {
-                "FROZEN" => Some(FreezerState::Frozen),
-                "THAWED" => Some(FreezerState::Thawed),
-                "FREEZING" => Some(FreezerState::Freezing),
-                _ => None,
+            let res = file.read_to_string(&mut s);
+            match res {
+                Ok(_) => match s.as_ref() {
+                    "FROZEN" => Ok(FreezerState::Frozen),
+                    "THAWED" => Ok(FreezerState::Thawed),
+                    "FREEZING" => Ok(FreezerState::Freezing),
+                    _ => Err(CgroupError::ParseError),
+                },
+                Err(e) => Err(CgroupError::ReadError(e)),
             }
-        }).unwrap_or(FreezerState::Thawed)
+        })
     }
 }

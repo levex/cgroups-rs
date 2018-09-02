@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use std::io::{Write, Read};
 use std::fs::File;
 
-use {Resources, MemoryResources, Controller, Controllers, Subsystem, ControllIdentifier};
+use {CgroupError, Resources, MemoryResources, Controller, Controllers, Subsystem, ControllIdentifier};
+use CgroupError::*;
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
 ///
@@ -125,12 +126,12 @@ impl Controller for MemController {
         let memres: &MemoryResources = &res.memory;
 
         if memres.update_values {
-            self.set_limit(memres.memory_hard_limit);
-            self.set_soft_limit(memres.memory_soft_limit);
-            self.set_kmem_limit(memres.kernel_memory_limit);
-            self.set_memswap_limit(memres.memory_swap_limit);
-            self.set_tcp_limit(memres.kernel_tcp_memory_limit);
-            self.set_swappiness(memres.swappiness);
+            let _ = self.set_limit(memres.memory_hard_limit);
+            let _ = self.set_soft_limit(memres.memory_soft_limit);
+            let _ = self.set_kmem_limit(memres.kernel_memory_limit);
+            let _ = self.set_memswap_limit(memres.memory_swap_limit);
+            let _ = self.set_tcp_limit(memres.kernel_tcp_memory_limit);
+            let _ = self.set_swappiness(memres.swappiness);
         }
     }
 }
@@ -154,46 +155,29 @@ impl MemController {
     pub fn memory_stat(self: &Self) -> Memory {
         Memory {
             fail_cnt: self.open_path("memory.failcnt", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             limit_in_bytes: self.open_path("memory.limit_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             usage_in_bytes: self.open_path("memory.usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             max_usage_in_bytes: self.open_path("memory.max_usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             move_charge_at_immigrate: self.open_path("memory.move_charge_at_immigrate", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             numa_stat: self.open_path("memory.numa_stat", false)
-                            .and_then(|mut file| {
-                                let mut string = String::new();
-                                let _ = file.read_to_string(&mut string);
-                                Some(string.trim().to_string())
-                            }).unwrap_or("".to_string()),
+                            .and_then(read_string_from).unwrap_or("".to_string()),
             oom_control: self.open_path("memory.oom_control", false)
-                            .and_then(|mut file| {
-                                let mut string = String::new();
-                                let _ = file.read_to_string(&mut string);
-                                Some(string.trim().to_string())
-                            }).unwrap_or("".to_string()),
+                            .and_then(read_string_from).unwrap_or("".to_string()),
             soft_limit_in_bytes: self.open_path("memory.soft_limit_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
+                            .and_then(read_u64_from)
                             .unwrap_or(0),
             stat: self.open_path("memory.stat", false)
-                            .and_then(|mut file| {
-                                let mut string = String::new();
-                                let _ = file.read_to_string(&mut string);
-                                Some(string.trim().to_string())
-                            }).unwrap_or("".to_string()),
+                            .and_then(read_string_from).unwrap_or("".to_string()),
             swappiness: self.open_path("memory.swappiness", false)
-                            .and_then(|file| read_u64_from(file))
+                            .and_then(read_u64_from)
                             .unwrap_or(0),
             use_hierarchy: self.open_path("memory.use_hierarchy", false)
-                            .and_then(|file| read_u64_from(file))
+                            .and_then(read_u64_from)
                             .unwrap_or(0)
         }
     }
@@ -202,23 +186,15 @@ impl MemController {
     pub fn kmem_stat(self: &Self) -> Kmem {
         Kmem {
             fail_cnt: self.open_path("memory.kmem.failcnt", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             limit_in_bytes: self.open_path("memory.kmem.limit_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             usage_in_bytes: self.open_path("memory.kmem.usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             max_usage_in_bytes: self.open_path("memory.kmem.max_usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             slabinfo: self.open_path("memory.kmem.slabinfo", false)
-                            .and_then(|mut file| {
-                                let mut string = String::new();
-                                let _ = file.read_to_string(&mut string);
-                                Some(string.trim().to_string())
-                            }).unwrap_or("".to_string()),
+                            .and_then(read_string_from).unwrap_or("".to_string()),
         }
     }
 
@@ -227,17 +203,13 @@ impl MemController {
     pub fn kmem_tcp_stat(self: &Self) -> Tcp {
         Tcp {
             fail_cnt: self.open_path("memory.kmem.tcp.failcnt", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             limit_in_bytes: self.open_path("memory.kmem.tcp.limit_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             usage_in_bytes: self.open_path("memory.kmem.tcp.usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             max_usage_in_bytes: self.open_path("memory.kmem.tcp.max_usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
         }
     }
 
@@ -246,46 +218,42 @@ impl MemController {
     pub fn memswap(self: &Self) -> MemSwap {
         MemSwap {
             fail_cnt: self.open_path("memory.memsw.failcnt", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             limit_in_bytes: self.open_path("memory.memsw.limit_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             usage_in_bytes: self.open_path("memory.memsw.usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
             max_usage_in_bytes: self.open_path("memory.memsw.max_usage_in_bytes", false)
-                            .and_then(|file| read_u64_from(file))
-                            .unwrap_or(0),
+                            .and_then(read_u64_from).unwrap_or(0),
         }
     }
 
     /// Set the memory usage limit of the control group, in bytes.
-    pub fn set_limit(self: &Self, limit: u64) {
+    pub fn set_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).ok()
-        });
+            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Set the kernel memory limit of the control group, in bytes.
-    pub fn set_kmem_limit(self: &Self, limit: u64) {
+    pub fn set_kmem_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.kmem.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).ok()
-        });
+            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Set the memory+swap limit of the control group, in bytes.
-    pub fn set_memswap_limit(self: &Self, limit: u64) {
+    pub fn set_memswap_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.memsw.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).ok()
-        });
+            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
-    pub fn set_tcp_limit(self: &Self, limit: u64) {
+    pub fn set_tcp_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.kmem.tcp.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).ok()
-        });
+            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
 
@@ -293,10 +261,10 @@ impl MemController {
     ///
     /// This limit is enforced when the system is nearing OOM conditions. Contrast this with the
     /// hard limit, which is _always_ enforced.
-    pub fn set_soft_limit(self: &Self, limit: u64) {
+    pub fn set_soft_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.soft_limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).ok()
-        });
+            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 
 
@@ -304,10 +272,10 @@ impl MemController {
     /// group.
     ///
     /// Note that a value of zero does not imply that the process will not be swapped out.
-    pub fn set_swappiness(self: &Self, swp: u64) {
+    pub fn set_swappiness(self: &Self, swp: u64) -> Result<(), CgroupError> {
         self.open_path("memory.swappiness", true).and_then(|mut file| {
-            file.write_all(swp.to_string().as_ref()).ok()
-        });
+            file.write_all(swp.to_string().as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 }
 
@@ -331,8 +299,18 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Option<u64> {
+fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
     let mut string = String::new();
-    let _ = file.read_to_string(&mut string);
-    string.trim().parse().ok()
+    match file.read_to_string(&mut string) {
+        Ok(_) => string.trim().parse().map_err(|_| ParseError),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
+}
+
+fn read_string_from(mut file: File) -> Result<String, CgroupError> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => Ok(string.trim().to_string()),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
 }

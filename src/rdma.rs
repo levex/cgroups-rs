@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::io::{Write, Read};
 use std::fs::File;
 
-use {Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
 /// A controller that allows controlling the `rdma` subsystem of a Cgroup.
 ///
@@ -48,10 +48,12 @@ impl<'a> From<&'a Subsystem> for &'a RdmaController {
     }
 }
 
-fn read_string_from(mut file: File) -> Option<String> {
+fn read_string_from(mut file: File) -> Result<String, CgroupError> {
     let mut string = String::new();
-    let _ = file.read_to_string(&mut string);
-    Some(string.trim().to_string())
+    match file.read_to_string(&mut string) {
+        Ok(_) => Ok(string.trim().to_string()),
+        Err(e) => Err(CgroupError::ReadError(e)),
+    }
 }
 
 impl RdmaController {
@@ -66,17 +68,15 @@ impl RdmaController {
     }
 
     /// Returns the current usage of RDMA/IB specific resources.
-    pub fn current(self: &Self) -> String {
+    pub fn current(self: &Self) -> Result<String, CgroupError> {
         self.open_path("rdma.current", false)
             .and_then(read_string_from)
-            .unwrap_or("".to_string())
     }
 
     /// Set a maximum usage for each RDMA/IB resource.
-    pub fn set_max(self: &Self, max: &String) {
-        self.open_path("rdma.max", true)
-            .and_then(|mut file| {
-                file.write_all(max.as_ref()).ok()
-            });
+    pub fn set_max(self: &Self, max: &String) -> Result<(), CgroupError> {
+        self.open_path("rdma.max", true).and_then(|mut file| {
+            file.write_all(max.as_ref()).map_err(CgroupError::WriteError)
+        })
     }
 }
