@@ -20,7 +20,9 @@ fn create_and_delete_cgroup() {
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
         pidcontroller.set_pid_max(PidMax::Value(1337));
-        assert_eq!(pidcontroller.get_pid_max(), Some(PidMax::Value(1337)));
+        let max = pidcontroller.get_pid_max();
+        assert!(max.is_ok());
+        assert_eq!(max.unwrap(), PidMax::Value(1337));
     }
     cg.delete();
 }
@@ -31,7 +33,9 @@ fn test_pids_current_is_zero() {
     let cg = Cgroup::new(&hier, String::from("test_pids_current_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
-        assert_eq!(pidcontroller.get_pid_current(), 0);
+        let current = pidcontroller.get_pid_current();
+        assert!(current.is_ok());
+        assert_eq!(current.unwrap(), 0);
     }
     cg.delete();
 }
@@ -42,7 +46,9 @@ fn test_pids_events_is_zero() {
     let cg = Cgroup::new(&hier, String::from("test_pids_events_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
-        assert_eq!(pidcontroller.get_pid_events(), 0);
+        let events = pidcontroller.get_pid_events();
+        assert!(events.is_ok());
+        assert_eq!(events.unwrap(), 0);
     }
     cg.delete();
 }
@@ -54,6 +60,8 @@ fn test_pid_events_is_not_zero() {
     {
         let pids: &PidController = cg.controller_of().unwrap();
         let before = pids.get_pid_events();
+        assert!(before.is_ok());
+        let before = before.unwrap();
 
         match fork() {
             Ok(ForkResult::Parent { child, .. }) => {
@@ -75,11 +83,14 @@ fn test_pid_events_is_not_zero() {
                 }
 
                 // Check pids.events
-                assert_eq!(pids.get_pid_events(), before + 1);
+                let events = pids.get_pid_events();
+                assert!(events.is_ok());
+                assert_eq!(events.unwrap(), before + 1);
             },
             Ok(ForkResult::Child) => {
                 loop {
-                    if pids.get_pid_max() == Some(PidMax::Value(1)) {
+                    let pids_max = pids.get_pid_max();
+                    if pids_max.is_ok() && pids_max.unwrap() == PidMax::Value(1) {
                         if let Err(_) = fork() {
                             unsafe { libc::exit(0) };
                         } else {

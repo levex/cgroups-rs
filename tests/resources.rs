@@ -20,7 +20,9 @@ fn pid_resources() {
 
         /* verify */
         let pidcontroller: &PidController = cg.controller_of().unwrap();
-        assert_eq!(pidcontroller.get_pid_max(), Some(PidMax::Value(512)));
+        let pid_max = pidcontroller.get_pid_max();
+        assert_eq!(pid_max.is_ok(), true);
+        assert_eq!(pid_max.unwrap(), PidMax::Value(512));
     }
     cg.delete();
 }
