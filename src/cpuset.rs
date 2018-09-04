@@ -315,10 +315,12 @@ impl CpuSetController {
     /// Control whether the kernel should collect information to calculate memory pressure for
     /// control groups.
     ///
-    /// Note: This is a no-operation if the control group referred by `self` is not the root
+    /// Note: This will fail with `InvalidOperation` if the current congrol group is not the root
     /// control group.
     pub fn set_enable_memory_pressure(self: &Self, b: bool) -> Result<(), CgroupError> {
-        /* XXX: this file should only be present in the root cpuset cg */
+        if !self.path_exists("cpuset.memory_pressure_enabled") {
+            return Err(CgroupError::InvalidOperation);
+        }
         self.open_path("cpuset.memory_pressure_enabled", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)

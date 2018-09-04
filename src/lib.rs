@@ -88,6 +88,28 @@ pub enum CgroupError {
     InvalidPath,
 }
 
+impl PartialEq for CgroupError {
+    fn eq(&self, other: &CgroupError) -> bool {
+        match self {
+            CgroupError::WriteError(_) => if let CgroupError::WriteError(_) = other {
+                return true;
+            } else { return false },
+            CgroupError::ReadError(_) => if let CgroupError::ReadError(_) = other {
+                return true;
+            } else { return false },
+            CgroupError::ParseError => if let CgroupError::ParseError = other {
+                return true;
+            } else { return false },
+            CgroupError::InvalidOperation => if let CgroupError::InvalidOperation = other {
+                return true;
+            } else { return false },
+            CgroupError::InvalidPath => if let CgroupError::InvalidPath = other {
+                return true;
+            } else { return false },
+        }
+    }
+}
+
 #[doc(hidden)]
 #[derive(Eq, PartialEq, Debug)]
 pub enum Controllers {
@@ -191,6 +213,15 @@ pub trait Controller {
                 Ok(file) => return Ok(file),
             }
         }
+    }
+
+    #[doc(hidden)]
+    fn path_exists(self: &Self, p: &str) -> bool {
+        if !self.verify_path() {
+            return false;
+        }
+
+        std::path::Path::new(p).exists()
     }
 
     /// Attach a task to this controller.
