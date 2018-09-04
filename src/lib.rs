@@ -309,13 +309,13 @@ pub struct DeviceResource {
     /// If true, access to the device is allowed, otherwise it's denied.
     pub allow: bool,
     /// `'c'` for character device, `'b'` for block device; or `'a'` for all devices.
-    pub devtype: String,
+    pub devtype: ::devices::DeviceType,
     /// The major number of the device.
-    pub major: u64,
+    pub major: i64,
     /// The minor number of the device.
-    pub minor: u64,
+    pub minor: i64,
     /// Sequence of `'r'`, `'w'` or `'m'`, each denoting read, write or mknod permissions.
-    pub access: String,
+    pub access: Vec<::devices::DevicePermissions>,
 }
 
 /// Limit the usage of devices for the control group's tasks.
