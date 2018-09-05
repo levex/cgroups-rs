@@ -23,17 +23,19 @@ pub struct CpuSetController {
 pub struct CpuSet {
     /// If true, no other control groups can share the CPUs listed in the `cpus` field.
     pub cpu_exclusive: bool,
-    /// The list of CPUs the tasks of the control group can run on. This is a comma-separated list
-    /// with dashes between numbers representing ranges.
-    pub cpus: String,
+    /// The list of CPUs the tasks of the control group can run on.
+    ///
+    /// This is a vector of `(start, end)` tuples, where each tuple is a range of CPUs where the
+    /// control group is allowed to run on. Both sides of the range are inclusive.
+    pub cpus: Vec<(u64, u64)>,
     /// The list of CPUs that the tasks can effectively run on. This removes the list of CPUs that
     /// the parent (and all of its parents) cannot run on from the `cpus` field of this control
     /// group.
-    pub effective_cpus: String,
+    pub effective_cpus: Vec<(u64, u64)>,
     /// The list of memory nodes that the tasks can effectively use. This removes the list of nodes that
     /// the parent (and all of its parents) cannot use from the `mems` field of this control
     /// group.
-    pub effective_mems: String,
+    pub effective_mems: Vec<(u64, u64)>,
     /// If true, no other control groups can share the memory nodes listed in the `mems` field.
     pub mem_exclusive: bool,
     /// If true, the control group is 'hardwalled'. Kernel memory allocations (except for a few
@@ -52,9 +54,10 @@ pub struct CpuSet {
     /// If true, kernel slab caches for file I/O are spread across evenly between the nodes
     /// specified in `mems`.
     pub memory_spread_slab: bool, 
-    /// The list of memory nodes the tasks of the control group can use. This is a comma-separated list
-    /// with dashes between numbers representing ranges.
-    pub mems: String,
+    /// The list of memory nodes the tasks of the control group can use. 
+    ///
+    /// The format is the same as the `cpus`, `effective_cpus` and `effective_mems` fields.
+    pub mems: Vec<(u64, u64)>,
     /// If true, the kernel will attempt to rebalance the load between the CPUs specified in the
     /// `cpus` field of this control group.
     pub sched_load_balance: bool,
@@ -127,6 +130,43 @@ fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
     }
 }
 
+/// Parse a string like "1,2,4-5,8" into a list of (start, end) tuples.
+fn parse_range(s: String) -> Result<Vec<(u64, u64)>, CgroupError> {
+    let mut fin = Vec::new();
+
+    if s == "".to_string() {
+        return Ok(fin);
+    }
+
+    /* first split by commas */
+    let comma_split = s.split(",");
+
+    for sp in comma_split {
+        if sp.contains("-") {
+            /* this is a true range */
+            let dash_split = sp.split("-").collect::<Vec<_>>();
+            if dash_split.len() != 2 {
+                return Err(CgroupError::ParseError);
+            }
+            let first = dash_split[0].parse::<u64>();
+            let second = dash_split[1].parse::<u64>();
+            if first.is_err() || second.is_err() {
+                return Err(CgroupError::ParseError);
+            }
+            fin.push((first.unwrap(), second.unwrap()));
+        } else {
+            /* this is just a single number */
+            let num = sp.parse::<u64>();
+            if num.is_err() {
+                return Err(CgroupError::ParseError);
+            }
+            fin.push((num.clone().unwrap(), num.clone().unwrap()));
+        }
+    }
+
+    Ok(fin)
+}
+
 impl CpuSetController {
     /// Contructs a new `CpuSetController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf) -> Self {
@@ -148,13 +188,20 @@ impl CpuSetController {
                 }).map(|x| x == 1).unwrap_or(false)
             },
             cpus: {
-                self.open_path("cpuset.cpus", false).and_then(read_string_from).unwrap_or("".to_string())
+                self.open_path("cpuset.cpus", false).and_then(read_string_from)
+                    .and_then(parse_range).unwrap_or(Vec::new())
             },
             effective_cpus: {
-                self.open_path("cpuset.effective_cpus", false).and_then(read_string_from).unwrap_or("".to_string())
+                self.open_path("cpuset.effective_cpus", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_range)
+                    .unwrap_or(Vec::new())
             },
             effective_mems: {
-                self.open_path("cpuset.effective_mems", false).and_then(read_string_from).unwrap_or("".to_string())
+                self.open_path("cpuset.effective_mems", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_range)
+                    .unwrap_or(Vec::new())
             },
             mem_exclusive: {
                 self.open_path("cpuset.mem_exclusive", false).and_then(read_u64_from)
@@ -184,7 +231,10 @@ impl CpuSetController {
                     .map(|x| x == 1).unwrap_or(false)
             },
             mems: {
-                self.open_path("cpuset.mems", false).and_then(read_string_from).unwrap_or("".to_string())
+                self.open_path("cpuset.mems", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_range)
+                    .unwrap_or(Vec::new())
             },
             sched_load_balance: {
                 self.open_path("cpuset.sched_load_balance", false).and_then(read_u64_from)
@@ -328,5 +378,34 @@ impl CpuSetController {
                 file.write_all(b"0").map_err(CgroupError::WriteError)
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cpuset;
+    #[test]
+    fn test_parse_range() {
+        let test_cases = vec!["1,2,4-6,9".to_string(),
+                              "".to_string(),
+                              "1".to_string(),
+                              "1-111".to_string(),
+                              "1,2,3,4".to_string(),
+                              "1-5,6-7,8-9".to_string()
+                             ];
+        let expecteds = vec![vec![(1, 1), (2, 2), (4, 6), (9, 9)],
+                             vec![],
+                             vec![(1, 1)],
+                             vec![(1, 111)],
+                             vec![(1, 1), (2, 2), (3, 3), (4, 4)],
+                             vec![(1, 5), (6, 7), (8, 9)]
+                            ];
+
+        for (i, case) in test_cases.into_iter().enumerate() {
+            let range = cpuset::parse_range(case.clone());
+            println!("{:?} => {:?}", case, range);
+            assert!(range.is_ok());
+            assert_eq!(range.unwrap(), expecteds[i]);
+        }
     }
 }
