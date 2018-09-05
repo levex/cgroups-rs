@@ -20,8 +20,11 @@ pub struct DevicesController{
 /// An enum holding the different types of devices that can be manipulated using this controller.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DeviceType {
+    /// The rule applies to all devices.
     All,
+    /// The rule only applies to character devices.
     Char,
+    /// The rule only applies to block devices.
     Block,
 }
 
@@ -39,6 +42,7 @@ impl DeviceType {
         }
     }
 
+    /// Convert the kenrel's representation into the DeviceType type.
     pub fn from_char(c: Option<char>) -> Option<DeviceType> {
         match c {
             Some('a') => Some(DeviceType::All),
@@ -174,8 +178,8 @@ impl DevicesController {
 
     /// Allow a (possibly, set of) device(s) to be used by the tasks in the control group.
     ///
-    /// Note that `dev` can be "regex"-like: both `$major` and `$minor` can be `*` which implies
-    /// that their value does not matter.
+    /// When `-1` is passed as `major` or `minor`, the kernel interprets that value as "any",
+    /// meaning that it will match any device.
     pub fn allow_device(self: &Self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
         let perms = perm.iter().map(DevicePermissions::to_char).collect::<String>();
         let minor = if minor == -1 { "*".to_string() } else { format!("{}", minor) };
@@ -188,8 +192,8 @@ impl DevicesController {
 
     /// Deny the control group's tasks access to the devices covered by `dev`.
     ///
-    /// Note that `dev` can be "regex"-like: both `$major` and `$minor` can be `*` which implies
-    /// that their value does not matter.
+    /// When `-1` is passed as `major` or `minor`, the kernel interprets that value as "any",
+    /// meaning that it will match any device.
     pub fn deny_device(self: &Self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
         let perms = perm.iter().map(DevicePermissions::to_char).collect::<String>();
         let minor = if minor == -1 { "*".to_string() } else { format!("{}", minor) };
