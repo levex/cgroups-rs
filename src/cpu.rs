@@ -5,6 +5,7 @@
 //!  paragraph 7 ("GROUP SCHEDULER EXTENSIONS TO CFS").
 use std::path::PathBuf;
 use std::io::{Read, Write};
+use std::fs::File;
 
 use {CgroupError, CpuResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 
@@ -34,17 +35,28 @@ impl Controller for CpuController {
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) {
+    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &CpuResources = &res.cpu;
 
         if res.update_values {
             /* apply pid_max */
             let _ = self.set_shares(res.shares);
+            if self.shares() != Ok(res.shares as u64) {
+                return Err(CgroupError::Unknown);
+            }
             let _ = self.set_cfs_period(res.period);
+            if self.cfs_period() != Ok(res.period as u64) {
+                return Err(CgroupError::Unknown);
+            }
             let _ = self.set_cfs_quota(res.quota as u64);
+            if self.cfs_quota() != Ok(res.quota as u64) {
+                return Err(CgroupError::Unknown);
+            }
             /* TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported */
         }
+
+        Ok(())
     }
 }
 
@@ -65,6 +77,14 @@ impl<'a> From<&'a Subsystem> for &'a CpuController {
                 },
             }
         }
+    }
+}
+
+fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => string.trim().parse().map_err(|_| CgroupError::ParseError),
+        Err(e) => Err(CgroupError::ReadError(e)),
     }
 }
 
@@ -105,6 +125,13 @@ impl CpuController {
         })
     }
 
+    /// Retrieve the CPU bandwidth that this control group (relative to other control groups and
+    /// this control group's parent) can use.
+    pub fn shares(self: &Self) -> Result<u64, CgroupError> {
+        self.open_path("cpu.shares", false)
+            .and_then(read_u64_from)
+    }
+
     /// Specify a period (when using the CFS scheduler) of time in microseconds for how often this
     /// control group's access to the CPU should be reallocated.
     pub fn set_cfs_period(self: &Self, us: u64) -> Result<(), CgroupError> {
@@ -113,11 +140,25 @@ impl CpuController {
         })
     }
 
+    /// Retrieve the period of time of how often this cgroup's access to the CPU should be
+    /// reallocated in microseconds.
+    pub fn cfs_period(self: &Self) -> Result<u64, CgroupError> {
+        self.open_path("cpu.cfs_period_us", false)
+            .and_then(read_u64_from)
+    }
+
     /// Specify a quota (when using the CFS scheduler) of time in microseconds for which all tasks
     /// in this control group can run during one period (see: `set_cfs_period()`).
     pub fn set_cfs_quota(self: &Self, us: u64) -> Result<(), CgroupError> {
         self.open_path("cpu.cfs_quota_us", true).and_then(|mut file| {
             file.write_all(us.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
+    }
+    
+    /// Retrieve the quota of time for which all tasks in this cgroup can run during one period, in
+    /// microseconds.
+    pub fn cfs_quota(self: &Self) -> Result<u64, CgroupError> {
+        self.open_path("cpu.cfs_quota_us", false)
+            .and_then(read_u64_from)
     }
 }

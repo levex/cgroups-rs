@@ -86,6 +86,8 @@ pub enum CgroupError {
     /// This could be caused by trying to escape the control group filesystem via a string of "..".
     /// This crate checks against this and operations will fail with this error.
     InvalidPath,
+    /// An unknown error has occured.
+    Unknown,
 }
 
 impl PartialEq for CgroupError {
@@ -104,6 +106,9 @@ impl PartialEq for CgroupError {
                 return true;
             } else { return false },
             CgroupError::InvalidPath => if let CgroupError::InvalidPath = other {
+                return true;
+            } else { return false },
+            CgroupError::Unknown => if let CgroupError::Unknown = other {
                 return true;
             } else { return false },
         }
@@ -154,7 +159,7 @@ impl Controllers {
 pub trait Controller {
     /// Apply a set of resources to the Controller, invoking its internal functions to pass the
     /// kernel the information.
-    fn apply(self: &Self, res: &Resources);
+    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError>;
 
     /* meta stuff */
     #[doc(hidden)]

@@ -101,7 +101,7 @@ impl Controller for BlkIoController {
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) {
+    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &BlkIoResources = &res.blkio;
 
@@ -110,8 +110,7 @@ impl Controller for BlkIoController {
             let _ = self.set_leaf_weight(res.leaf_weight as u64);
 
             for dev in &res.weight_device {
-                let _ = self.set_weight_for_device(format!("{}:{} {}",
-                                dev.major, dev.minor, dev.weight));
+                let _ = self.set_weight_for_device(dev.major, dev.minor, dev.weight as u64);
             }
 
             for dev in &res.throttle_read_bps_device {
@@ -130,6 +129,8 @@ impl Controller for BlkIoController {
                 let _ = self.throttle_write_iops_for_device(dev.major, dev.minor, dev.rate);
             }
         }
+
+        Ok(())
     }
 }
 
@@ -334,9 +335,10 @@ impl BlkIoController {
     }
 
     /// Same as `set_weight()`, but settable per each block device.
-    pub fn set_weight_for_device(self: &Self, d: String) -> Result<(), CgroupError> {
+    pub fn set_weight_for_device(self: &Self, major: u64, minor: u64, weight: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.weight_device", true).and_then(|mut file| {
-            file.write_all(d.as_ref()).map_err(CgroupError::WriteError)
+            file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 }

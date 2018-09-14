@@ -26,13 +26,17 @@ impl Controller for NetClsController {
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) {
+    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &NetworkResources = &res.network;
 
         if res.update_values {
             let _ = self.set_class(res.class_id);
+            if self.get_class() != Ok(res.class_id) {
+                return Err(CgroupError::Unknown);
+            }
         }
+        return Ok(());
     }
 }
 

@@ -37,7 +37,8 @@ impl Controller for FreezerController {
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
 
-    fn apply(self: &Self, _res: &Resources) {
+    fn apply(self: &Self, _res: &Resources) -> Result<(), CgroupError> {
+        Ok(())
     }
 }
 

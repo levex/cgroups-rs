@@ -38,14 +38,23 @@ impl Controller for PidController {
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) {
+    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let pidres: &PidResources = &res.pid;
 
         if pidres.update_values {
             /* apply pid_max */
             let _ = self.set_pid_max(pidres.maximum_number_of_processes);
+            
+            /* now, verify */
+            if self.get_pid_max() == Ok(pidres.maximum_number_of_processes) {
+                return Ok(());
+            } else {
+                return Err(CgroupError::Unknown);
+            }
         }
+
+        Ok(())
     }
 }
 

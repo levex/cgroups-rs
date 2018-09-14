@@ -26,15 +26,19 @@ impl Controller for HugeTlbController {
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) {
+    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &HugePageResources = &res.hugepages;
 
         if res.update_values {
             for i in &res.limits {
                 let _ = self.set_limit_in_bytes(&i.size, i.limit);
+                if self.limit_in_bytes(&i.size) != Ok(i.limit) {
+                    return Err(CgroupError::Unknown);
+                }
             }
         }
+        Ok(())
     }
 }
 

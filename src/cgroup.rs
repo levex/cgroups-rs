@@ -99,10 +99,8 @@ impl<'b> Cgroup<'b> {
     }
 
     /// Apply a set of resource limits to the control group.
-    pub fn apply(self: &Self, res: &Resources) {
-        for subsystem in &self.subsystems {
-            subsystem.to_controller().apply(res);
-        }
+    pub fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+        self.subsystems.iter().try_fold((), |_, e| e.to_controller().apply(res))
     }
 
     /// Retrieve a container based on type inference.

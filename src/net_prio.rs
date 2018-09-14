@@ -27,7 +27,7 @@ impl Controller for NetPrioController {
     fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
     fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) {
+    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &NetworkResources = &res.network;
 
@@ -36,6 +36,8 @@ impl Controller for NetPrioController {
                 let _ = self.set_if_prio(&i.name, i.priority);
             }
         }
+
+        Ok(())
     }
 }
 
