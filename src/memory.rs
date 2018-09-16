@@ -20,8 +20,29 @@ pub struct MemController{
     path: PathBuf,
 }
 
+/// Controls statistics and controls about the OOM killer operating in this control group.
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct OomControl {
+    /// If true, the OOM killer has been disabled for the tasks in this control group.
+    pub oom_kill_disable: bool,
+    /// Is the OOM killer currently running for the tasks in the control group?
+    pub under_oom: bool,
+    /// How many tasks were killed by the OOM killer so far.
+    pub oom_kill: u64,
+}
+
+fn parse_oom_control(s: String) -> Result<OomControl, CgroupError> {
+    let spl = s.split_whitespace().collect::<Vec<_>>();
+
+    Ok(OomControl {
+        oom_kill_disable: spl[1].parse::<u64>().unwrap() == 1,
+        under_oom: spl[3].parse::<u64>().unwrap() == 1,
+        oom_kill: spl[5].parse::<u64>().unwrap(),
+    })
+}
+
 /// Contains statistics about the NUMA locality of the control group's tasks.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct NumaStat {
     /// Total amount of pages used by the control group.
     pub total_pages: u64,
@@ -154,10 +175,9 @@ pub struct Memory {
     /// unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
     /// hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
     /// ```
-    pub numa_stat: String,
-    /// If this equals "1", then the OOM killer is enabled for this control group (this is the
-    /// default setting).
-    pub oom_control: String,
+    pub numa_stat: NumaStat,
+    /// Various statistics and control information about the Out Of Memory killer.
+    pub oom_control: OomControl,
     /// Allows setting a limit to memory usage which is enforced when the system (note, _not_ the
     /// control group) detects memory pressure.
     pub soft_limit_in_bytes: u64,
@@ -262,9 +282,13 @@ impl MemController {
             move_charge_at_immigrate: self.open_path("memory.move_charge_at_immigrate", false)
                             .and_then(read_u64_from).unwrap_or(0),
             numa_stat: self.open_path("memory.numa_stat", false)
-                            .and_then(read_string_from).unwrap_or("".to_string()),
+                            .and_then(read_string_from)
+                            .and_then(parse_numa_stat)
+                            .unwrap_or(NumaStat::default()),
             oom_control: self.open_path("memory.oom_control", false)
-                            .and_then(read_string_from).unwrap_or("".to_string()),
+                            .and_then(read_string_from)
+                            .and_then(parse_oom_control)
+                            .unwrap_or(OomControl::default()),
             soft_limit_in_bytes: self.open_path("memory.soft_limit_in_bytes", false)
                             .and_then(read_u64_from)
                             .unwrap_or(0),
@@ -414,7 +438,7 @@ fn read_string_from(mut file: File) -> Result<String, CgroupError> {
 
 #[cfg(test)]
 mod tests {
-    use memory::{NumaStat, parse_numa_stat};
+    use memory::{NumaStat, parse_oom_control, OomControl, parse_numa_stat};
     const good_value: &str = "\
 total=51189 N0=51189 N1=123
 file=50175 N0=50175 N1=123
@@ -424,6 +448,12 @@ hierarchical_total=1628573 N0=1628573 N1=123
 hierarchical_file=858151 N0=858151 N1=123
 hierarchical_anon=770402 N0=770402 N1=123
 hierarchical_unevictable=20 N0=20 N1=123
+";
+
+    const good_oomcontrol_val: &str = "\
+oom_kill_disable 0
+under_oom 1
+oom_kill 1337
 ";
 
     #[test]
@@ -448,5 +478,15 @@ hierarchical_unevictable=20 N0=20 N1=123
                 hierarchical_unevictable_pages: 20,
                 hierarchical_unevictable_pages_per_node: vec![20, 123],
             }));
+    }
+
+    #[test]
+    fn test_parse_oom_control() {
+        assert_eq!(parse_oom_control(good_oomcontrol_val.to_string()),
+                   Ok(OomControl {
+                       oom_kill_disable: false,
+                       under_oom: true,
+                       oom_kill: 1337,
+                   }));
     }
 }
