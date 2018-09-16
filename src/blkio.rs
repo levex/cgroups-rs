@@ -19,18 +19,124 @@ pub struct BlkIoController {
     path: PathBuf,
 }
 
+#[derive(Eq, PartialEq, Debug)]
+/// Per-device activity from the control group.
+pub struct IoService {
+    /// The major number of the device.
+    pub major: i16,
+    /// The minor number of the device.
+    pub minor: i16,
+    /// How many items were read from the device.
+    pub read: u64,
+    /// How many items were written to the device.
+    pub write: u64,
+    /// How many items were synchronously transferred.
+    pub sync: u64,
+    /// How many items were asynchronously transferred.
+    pub async: u64,
+    /// Total number of items transferred.
+    pub total: u64,
+}
+
+/*
+ * 8:32 Read 4280320
+ * 8:32 Write 0
+ * 8:32 Sync 4280320
+ * 8:32 Async 0
+ * 8:32 Total 4280320
+ * 8:48 Read 5705479168
+ * 8:48 Write 56096055296
+ * 8:48 Sync 11213923328
+ * 8:48 Async 50587611136
+ * 8:48 Total 61801534464
+ * 8:16 Read 10059776
+ * 8:16 Write 0
+ * 8:16 Sync 10059776
+ * 8:16 Async 0
+ * 8:16 Total 10059776
+ * 8:0 Read 7192576
+ * 8:0 Write 0
+ * 8:0 Sync 7192576
+ * 8:0 Async 0
+ * 8:0 Total 7192576
+ * Total 61823067136
+ */
+fn parse_io_service(s: String) -> Result<Vec<IoService>, CgroupError> {
+    s.lines()
+        .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 3)
+        .map(|x| {
+            let mut spl = x.split_whitespace();
+            (spl.nth(0).unwrap(), spl.nth(0).unwrap(), spl.nth(0).unwrap())
+        })
+        .map(|(a, b, c)| {
+            let mut spl = a.split(":");
+            (spl.nth(0).unwrap(), spl.nth(0).unwrap(), b, c)
+        })
+        .collect::<Vec<_>>()
+        .chunks(5)
+        .map(|x| {
+            match x {
+                [(major, minor, "Read", read_val), (_, _, "Write", write_val),
+                   (_, _, "Sync", sync_val), (_, _, "Async", async_val),
+                   (_, _, "Total", total_val)] =>
+                    Some(IoService {
+                        major: major.parse::<i16>().unwrap(),
+                        minor: minor.parse::<i16>().unwrap(),
+                        read: read_val.parse::<u64>().unwrap(),
+                        write: write_val.parse::<u64>().unwrap(),
+                        sync: sync_val.parse::<u64>().unwrap(),
+                        async: async_val.parse::<u64>().unwrap(),
+                        total: total_val.parse::<u64>().unwrap(),
+                    }),
+               _ => None,
+            }
+        })
+        .fold(Ok(Vec::new()), |acc, x| {
+            if acc.is_err() || x.is_none() {
+                Err(CgroupError::ParseError)
+            } else {
+                let mut acc = acc.unwrap();
+                acc.push(x.unwrap());
+                Ok(acc)
+            }
+        })
+}
+
+fn parse_io_service_total(s: String) -> Result<u64, CgroupError> {
+    s.lines()
+        .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 2)
+        .fold(Err(CgroupError::ParseError), |_, x| {
+            match x.split_whitespace().collect::<Vec<_>>().as_slice() {
+                ["Total", val] => val.parse::<u64>().map_err(|_| CgroupError::ParseError),
+                _ => Err(CgroupError::ParseError),
+            }
+        })
+}
+
 /// Current state and statistics about how throttled are the block devices when accessed from the
 /// controller's control group.
 #[derive(Debug)]
 pub struct BlkIoThrottle {
+    /// Statistics about the bytes transferred between the block devices by the tasks in this
+    /// control group.
+    pub io_service_bytes: Vec<IoService>,
     /// Total amount of bytes transferred to and from the block devices.
-    pub io_service_bytes: String,
+    pub io_service_bytes_total: u64,
     /// Same as `io_service_bytes`, but contains all descendant control groups.
-    pub io_service_bytes_recursive: String,
+    pub io_service_bytes_recursive: Vec<IoService>,
+    /// Total amount of bytes transferred to and from the block devices, including all descendant
+    /// control groups.
+    pub io_service_bytes_recursive_total: u64,
     /// The number of I/O operations performed on the devices as seen by the throttling policy.
-    pub io_serviced: String,
+    pub io_serviced: Vec<IoService>,
+    /// The total number of I/O operations performed on the devices as seen by the throttling
+    /// policy.
+    pub io_serviced_total: u64,
     /// Same as `io_serviced`, but contains all descendant control groups.
-    pub io_serviced_recursive: String,
+    pub io_serviced_recursive: Vec<IoService>,
+    /// Same as `io_serviced`, but contains all descendant control groups and contains only the
+    /// total amount.
+    pub io_serviced_recursive_total: u64,
     /// The upper limit of bytes per second rate of read operation on the block devices by the
     /// control group's tasks.
     pub read_bps_device: String,
@@ -47,32 +153,60 @@ pub struct BlkIoThrottle {
 #[derive(Debug)]
 pub struct BlkIo {
     /// The number of BIOS requests merged into I/O requests by the control group's tasks.
-    pub io_merged: String,
+    pub io_merged: Vec<IoService>,
+    /// Same as `io_merged`, but only reports the total number.
+    pub io_merged_total: u64,
     /// Same as `io_merged`, but contains all descendant control groups.
-    pub io_merged_recursive: String,
+    pub io_merged_recursive: Vec<IoService>,
+    /// Same as `io_merged_recursive`, but only reports the total number.
+    pub io_merged_recursive_total: u64,
     /// The number of requests queued for I/O operations by the tasks of the control group.
-    pub io_queued: String,
+    pub io_queued: Vec<IoService>,
+    /// Same as `io_queued`, but only reports the total number.
+    pub io_queued_total: u64,
     /// Same as `io_queued`, but contains all descendant control groups.
-    pub io_queued_recursive: String,
-    /// The number of bytes transferred from and to the block device (as seen by the CFQ I/O
-    /// scheduler).
-    pub io_service_bytes: String,
+    pub io_queued_recursive: Vec<IoService>,
+    /// Same as `io_queued_recursive`, but contains all descendant control groups.
+    pub io_queued_recursive_total: u64,
+    /// The number of bytes transferred from and to the block device (as seen by the CFQ I/O scheduler).
+    pub io_service_bytes: Vec<IoService>,
     /// Same as `io_service_bytes`, but contains all descendant control groups.
-    pub io_service_bytes_recursive: String,
+    pub io_service_bytes_total: u64,
+    /// Same as `io_service_bytes`, but contains all descendant control groups.
+    pub io_service_bytes_recursive: Vec<IoService>,
+    /// Total amount of bytes transferred between the tasks and block devices, including the
+    /// descendant control groups' numbers.
+    pub io_service_bytes_recursive_total: u64,
     /// The number of I/O operations (as seen by the CFQ I/O scheduler) between the devices and the
     /// control group's tasks.
-    pub io_serviced: String,
+    pub io_serviced: Vec<IoService>,
+    /// The total number of I/O operations performed on the devices as seen by the throttling
+    /// policy.
+    pub io_serviced_total: u64,
     /// Same as `io_serviced`, but contains all descendant control groups.
-    pub io_serviced_recursive: String,
+    pub io_serviced_recursive: Vec<IoService>,
+    /// Same as `io_serviced`, but contains all descendant control groups and contains only the
+    /// total amount.
+    pub io_serviced_recursive_total: u64,
     /// The total time spent between dispatch and request completion for I/O requests (as seen by
     /// the CFQ I/O scheduler) by the control group's tasks.
-    pub io_service_time: String,
+    pub io_service_time: Vec<IoService>,
+    /// Same as `io_service_time`, but contains all descendant control groups and contains only the
+    /// total amount.
+    pub io_service_time_total: u64,
     /// Same as `io_service_time`, but contains all descendant control groups.
-    pub io_service_time_recursive: String,
+    pub io_service_time_recursive: Vec<IoService>,
+    /// Same as `io_service_time_recursive`, but contains all descendant control groups and only
+    /// the total amount.
+    pub io_service_time_recursive_total: u64,
     /// Total amount of time spent waiting for a free slot in the CFQ I/O scheduler's queue.
-    pub io_wait_time: String,
+    pub io_wait_time: Vec<IoService>,
+    /// Same as `io_wait_time`, but only reports the total amount.
+    pub io_wait_time_total: u64,
     /// Same as `io_wait_time`, but contains all descendant control groups.
-    pub io_wait_time_recursive: String,
+    pub io_wait_time_recursive: Vec<IoService>,
+    /// Same as `io_wait_time_recursive`, but only reports the total amount.
+    pub io_wait_time_recursive_total: u64,
     /// How much weight do the control group's tasks have when competing against the descendant
     /// control group's tasks.
     pub leaf_weight: u64,
@@ -185,42 +319,102 @@ impl BlkIoController {
     /// group's tasks.
     pub fn blkio(self: &Self) -> BlkIo {
         BlkIo {
-            io_merged: self.open_path("blkio.io_merged", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_merged_recursive: self.open_path("blkio.io_merged_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_queued: self.open_path("blkio.io_queued", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_queued_recursive: self.open_path("blkio.io_queued_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_service_bytes: self.open_path("blkio.io_service_bytes", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_service_bytes_recursive: self.open_path("blkio.io_service_bytes_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_serviced: self.open_path("blkio.io_serviced", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_serviced_recursive: self.open_path("blkio.io_serviced_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_service_time: self.open_path("blkio.io_service_time", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_service_time_recursive: self.open_path("blkio.io_service_time_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_wait_time: self.open_path("blkio.io_wait_time", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            io_wait_time_recursive: self.open_path("blkio.io_wait_time_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
+            io_merged: self.open_path("blkio.io_merged", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_merged_total: self.open_path("blkio.io_merged", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_merged_recursive: self.open_path("blkio.io_merged_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_merged_recursive_total: self.open_path("blkio.io_merged_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_queued: self.open_path("blkio.io_queued", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_queued_total: self.open_path("blkio.io_queued", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_queued_recursive: self.open_path("blkio.io_queued_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_queued_recursive_total: self.open_path("blkio.io_queued_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_service_bytes: self.open_path("blkio.io_service_bytes", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_service_bytes_total: self.open_path("blkio.io_service_bytes", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_service_bytes_recursive: self.open_path("blkio.io_service_bytes_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_service_bytes_recursive_total: self.open_path("blkio.io_service_bytes_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_serviced: self.open_path("blkio.io_serviced", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_serviced_total: self.open_path("blkio.io_serviced", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_serviced_recursive: self.open_path("blkio.io_serviced_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_serviced_recursive_total: self.open_path("blkio.io_serviced_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_service_time: self.open_path("blkio.io_service_time", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_service_time_total: self.open_path("blkio.io_service_time", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_service_time_recursive: self.open_path("blkio.io_service_time_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_service_time_recursive_total: self.open_path("blkio.io_service_time_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_wait_time: self.open_path("blkio.io_wait_time", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_wait_time_total: self.open_path("blkio.io_wait_time", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
+            io_wait_time_recursive: self.open_path("blkio.io_wait_time_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service)
+                .unwrap_or(Vec::new()),
+            io_wait_time_recursive_total: self.open_path("blkio.io_wait_time_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_service_total)
+                .unwrap_or(0),
             leaf_weight: self.open_path("blkio.leaf_weight", false).and_then(|file| {
                 read_u64_from(file)
             }).unwrap_or(0u64),
@@ -234,18 +428,38 @@ impl BlkIoController {
                 read_string_from(file)
             }).unwrap_or("".to_string()),
             throttle: BlkIoThrottle {
-                io_service_bytes: self.open_path("blkio.throttle.io_service_bytes", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
-                io_service_bytes_recursive: self.open_path("blkio.throttle.io_service_bytes_recursive", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
-                io_serviced: self.open_path("blkio.throttle.io_serviced", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
-                io_serviced_recursive: self.open_path("blkio.throttle.io_serviced_recursive", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
+                io_service_bytes: self.open_path("blkio.throttle.io_service_bytes", false)
+                        .and_then(read_string_from)
+                        .and_then(parse_io_service)
+                        .unwrap_or(Vec::new()),
+                io_service_bytes_total: self.open_path("blkio.throttle.io_service_bytes", false)
+                        .and_then(read_string_from)
+                        .and_then(parse_io_service_total)
+                        .unwrap_or(0),
+                io_service_bytes_recursive: self.open_path("blkio.throttle.io_service_bytes_recursive", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service)
+                    .unwrap_or(Vec::new()),
+                io_service_bytes_recursive_total: self.open_path("blkio.throttle.io_service_bytes_recursive", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service_total)
+                    .unwrap_or(0),
+                io_serviced: self.open_path("blkio.throttle.io_serviced", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service)
+                    .unwrap_or(Vec::new()),
+                io_serviced_total: self.open_path("blkio.throttle.io_serviced", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service_total)
+                    .unwrap_or(0),
+                io_serviced_recursive: self.open_path("blkio.throttle.io_serviced_recursive", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service)
+                    .unwrap_or(Vec::new()),
+                io_serviced_recursive_total: self.open_path("blkio.throttle.io_serviced_recursive", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service_total)
+                    .unwrap_or(0),
                 read_bps_device: self.open_path("blkio.throttle.read_bps_device", false).and_then(|file| {
                     read_string_from(file)
                 }).unwrap_or("".to_string()),
@@ -340,5 +554,104 @@ impl BlkIoController {
             file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
                 .map_err(CgroupError::WriteError)
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use blkio::{IoService, parse_io_service, parse_io_service_total};
+    use ::CgroupError;
+
+    const test_value: &str = "\
+8:32 Read 4280320
+8:32 Write 0
+8:32 Sync 4280320
+8:32 Async 0
+8:32 Total 4280320
+8:48 Read 5705479168
+8:48 Write 56096055296
+8:48 Sync 11213923328
+8:48 Async 50587611136
+8:48 Total 61801534464
+8:16 Read 10059776
+8:16 Write 0
+8:16 Sync 10059776
+8:16 Async 0
+8:16 Total 10059776
+8:0 Read 7192576
+8:0 Write 0
+8:0 Sync 7192576
+8:0 Async 0
+8:0 Total 7192576
+Total 61823067136
+ ";
+    const test_wrong_value: &str = "\
+8:32 Read 4280320
+8:32 Write 0
+8:32 Async 0
+8:32 Total 4280320 8:48 Read 5705479168
+8:48 Write 56096055296
+8:48 Sync 11213923328
+8:48 Async 50587611136
+8:48 Total 61801534464
+8:16 Read 10059776
+8:16 Write 0
+8:16 Sync 10059776
+8:16 Async 0
+8:16 Total 10059776
+8:0 Read 7192576
+8:0 Write 0
+8:0 Sync 7192576
+8:0 Async 0
+8:0 Total 7192576
+Total 61823067136
+ ";
+
+    #[test]
+    fn test_parse_io_service_total() {
+        assert_eq!(parse_io_service_total(test_value.to_string()), Ok(61823067136));
+    }
+
+    #[test]
+    fn test_parse_io_service() {
+        assert_eq!(parse_io_service(test_value.to_string()), Ok(vec![
+                    IoService {
+                        major: 8,
+                        minor: 32,
+                        read: 4280320,
+                        write: 0,
+                        sync: 4280320,
+                        async: 0,
+                        total: 4280320,
+                    },
+                    IoService {
+                        major: 8,
+                        minor: 48,
+                        read: 5705479168,
+                        write: 56096055296,
+                        sync: 11213923328,
+                        async: 50587611136,
+                        total: 61801534464,
+                    },
+                    IoService {
+                        major: 8,
+                        minor: 16,
+                        read: 10059776,
+                        write: 0,
+                        sync: 10059776,
+                        async: 0,
+                        total: 10059776,
+                    },
+                    IoService {
+                        major: 8,
+                        minor: 0 ,
+                        read: 7192576,
+                        write: 0,
+                        sync: 7192576,
+                        async: 0,
+                        total: 7192576,
+                    }
+        ]));
+        assert_eq!(parse_io_service(test_wrong_value.to_string()), Err(CgroupError::ParseError));
     }
 }
