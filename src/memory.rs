@@ -20,6 +20,101 @@ pub struct MemController{
     path: PathBuf,
 }
 
+/// Contains statistics about the NUMA locality of the control group's tasks.
+#[derive(Debug, PartialEq, Eq)]
+pub struct NumaStat {
+    /// Total amount of pages used by the control group.
+    pub total_pages: u64,
+    /// Total amount of pages used by the control group, broken down by NUMA node.
+    pub total_pages_per_node: Vec<u64>,
+    /// Total amount of file pages used by the control group.
+    pub file_pages: u64,
+    /// Total amount of file pages used by the control group, broken down by NUMA node.
+    pub file_pages_per_node: Vec<u64>,
+    /// Total amount of anonymous pages used by the control group.
+    pub anon_pages: u64,
+    /// Total amount of anonymous pages used by the control group, broken down by NUMA node.
+    pub anon_pages_per_node: Vec<u64>,
+    /// Total amount of unevictable pages used by the control group.
+    pub unevictable_pages: u64,
+    /// Total amount of unevictable pages used by the control group, broken down by NUMA node.
+    pub unevictable_pages_per_node: Vec<u64>,
+
+    /// Same as `total_pages`, but includes the descedant control groups' number as well.
+    pub hierarchical_total_pages: u64,
+    /// Same as `total_pages_per_node`, but includes the descedant control groups' number as well.
+    pub hierarchical_total_pages_per_node: Vec<u64>,
+    /// Same as `file_pages`, but includes the descedant control groups' number as well.
+    pub hierarchical_file_pages: u64,
+    /// Same as `file_pages_per_node`, but includes the descedant control groups' number as well.
+    pub hierarchical_file_pages_per_node: Vec<u64>,
+    /// Same as `anon_pages`, but includes the descedant control groups' number as well.
+    pub hierarchical_anon_pages: u64,
+    /// Same as `anon_pages_per_node`, but includes the descedant control groups' number as well.
+    pub hierarchical_anon_pages_per_node: Vec<u64>,
+    /// Same as `unevictable`, but includes the descedant control groups' number as well.
+    pub hierarchical_unevictable_pages: u64,
+    /// Same as `unevictable_per_node`, but includes the descedant control groups' number as well.
+    pub hierarchical_unevictable_pages_per_node: Vec<u64>,
+}
+
+fn parse_numa_stat(s: String) -> Result<NumaStat, CgroupError> {
+    // Parse the number of nodes
+    let nodes = (s.split_whitespace().collect::<Vec<_>>().len() - 8) / 8;
+    let mut ls = s.lines();
+    let total_line   = ls.next().unwrap();
+    let file_line    = ls.next().unwrap();
+    let anon_line    = ls.next().unwrap();
+    let unevict_line = ls.next().unwrap();
+    let hier_total_line   = ls.next().unwrap();
+    let hier_file_line    = ls.next().unwrap();
+    let hier_anon_line    = ls.next().unwrap();
+    let hier_unevict_line = ls.next().unwrap();
+
+    Ok(NumaStat {
+        total_pages: total_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        total_pages_per_node: {
+            let spl = &total_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+        file_pages: file_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        file_pages_per_node: {
+            let spl = &file_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+        anon_pages: anon_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        anon_pages_per_node: {
+            let spl = &anon_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+        unevictable_pages: unevict_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        unevictable_pages_per_node: {
+            let spl = &unevict_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+        hierarchical_total_pages: hier_total_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_total_pages_per_node: {
+            let spl = &hier_total_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+        hierarchical_file_pages: hier_file_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_file_pages_per_node: {
+            let spl = &hier_file_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+        hierarchical_anon_pages: hier_anon_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_anon_pages_per_node: {
+            let spl = &hier_anon_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+        hierarchical_unevictable_pages: hier_unevict_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_unevictable_pages_per_node: {
+            let spl = &hier_unevict_line.split(" ").collect::<Vec<_>>()[1..];
+            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+        },
+    })
+}
+
 /// Contains statistics about the current usage of memory and swap (together, not seperately) by
 /// the control group's tasks.
 #[derive(Debug)]
@@ -314,5 +409,44 @@ fn read_string_from(mut file: File) -> Result<String, CgroupError> {
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
         Err(e) => Err(CgroupError::ReadError(e)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use memory::{NumaStat, parse_numa_stat};
+    const good_value: &str = "\
+total=51189 N0=51189 N1=123
+file=50175 N0=50175 N1=123
+anon=1014 N0=1014 N1=123
+unevictable=0 N0=0 N1=123
+hierarchical_total=1628573 N0=1628573 N1=123
+hierarchical_file=858151 N0=858151 N1=123
+hierarchical_anon=770402 N0=770402 N1=123
+hierarchical_unevictable=20 N0=20 N1=123
+";
+
+    #[test]
+    fn test_parse_numa_stat() {
+        assert_eq!(parse_numa_stat(good_value.to_string()),
+            Ok(NumaStat {
+                total_pages: 51189,
+                total_pages_per_node: vec![51189, 123],
+                file_pages: 50175,
+                file_pages_per_node: vec![50175, 123],
+                anon_pages: 1014,
+                anon_pages_per_node: vec![1014, 123],
+                unevictable_pages: 0,
+                unevictable_pages_per_node: vec![0, 123],
+
+                hierarchical_total_pages: 1628573,
+                hierarchical_total_pages_per_node: vec![1628573, 123],
+                hierarchical_file_pages: 858151,
+                hierarchical_file_pages_per_node: vec![858151, 123],
+                hierarchical_anon_pages: 770402,
+                hierarchical_anon_pages_per_node: vec![770402, 123],
+                hierarchical_unevictable_pages: 20,
+                hierarchical_unevictable_pages_per_node: vec![20, 123],
+            }));
     }
 }
