@@ -136,6 +136,92 @@ fn parse_numa_stat(s: String) -> Result<NumaStat, CgroupError> {
     })
 }
 
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct MemoryStat {
+    pub cache: u64,
+    pub rss: u64,
+    pub rss_huge: u64,
+    pub shmem: u64,
+    pub mapped_file: u64,
+    pub dirty: u64,
+    pub writeback: u64,
+    pub swap: u64,
+    pub pgpgin: u64,
+    pub pgpgout: u64,
+    pub pgfault: u64,
+    pub pgmajfault: u64,
+    pub inactive_anon: u64,
+    pub active_anon: u64,
+    pub inactive_file: u64,
+    pub active_file: u64,
+    pub unevictable: u64,
+    pub hierarchical_memory_limit: u64,
+    pub hierarchical_memsw_limit: u64,
+    pub total_cache: u64,
+    pub total_rss: u64,
+    pub total_rss_huge: u64,
+    pub total_shmem: u64,
+    pub total_mapped_file: u64,
+    pub total_dirty: u64,
+    pub total_writeback: u64,
+    pub total_swap: u64,
+    pub total_pgpgin: u64,
+    pub total_pgpgout: u64,
+    pub total_pgfault: u64,
+    pub total_pgmajfault: u64,
+    pub total_inactive_anon: u64,
+    pub total_active_anon: u64,
+    pub total_inactive_file: u64,
+    pub total_active_file: u64,
+    pub total_unevictable: u64,
+}
+
+fn parse_memory_stat(s: String) -> Result<MemoryStat, CgroupError> {
+    let sp: Vec<&str> = s.split_whitespace()
+                          .filter(|x| x.parse::<u64>().is_ok())
+                          .collect();
+
+    let mut spl = sp.iter();
+    Ok(MemoryStat {
+        cache: spl.next().unwrap().parse::<u64>().unwrap(),
+        rss: spl.next().unwrap().parse::<u64>().unwrap(),
+        rss_huge: spl.next().unwrap().parse::<u64>().unwrap(),
+        shmem: spl.next().unwrap().parse::<u64>().unwrap(),
+        mapped_file: spl.next().unwrap().parse::<u64>().unwrap(),
+        dirty: spl.next().unwrap().parse::<u64>().unwrap(),
+        writeback: spl.next().unwrap().parse::<u64>().unwrap(),
+        swap: spl.next().unwrap().parse::<u64>().unwrap(),
+        pgpgin: spl.next().unwrap().parse::<u64>().unwrap(),
+        pgpgout: spl.next().unwrap().parse::<u64>().unwrap(),
+        pgfault: spl.next().unwrap().parse::<u64>().unwrap(),
+        pgmajfault: spl.next().unwrap().parse::<u64>().unwrap(),
+        inactive_anon: spl.next().unwrap().parse::<u64>().unwrap(),
+        active_anon: spl.next().unwrap().parse::<u64>().unwrap(),
+        inactive_file: spl.next().unwrap().parse::<u64>().unwrap(),
+        active_file: spl.next().unwrap().parse::<u64>().unwrap(),
+        unevictable: spl.next().unwrap().parse::<u64>().unwrap(),
+        hierarchical_memory_limit: spl.next().unwrap().parse::<u64>().unwrap(),
+        hierarchical_memsw_limit: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_cache: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_rss: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_rss_huge: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_shmem: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_mapped_file: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_dirty: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_writeback: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_swap: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_pgpgin: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_pgpgout: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_pgfault: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_pgmajfault: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_inactive_anon: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_active_anon: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_inactive_file: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_active_file: spl.next().unwrap().parse::<u64>().unwrap(),
+        total_unevictable: spl.next().unwrap().parse::<u64>().unwrap(),
+    })
+}
+
 /// Contains statistics about the current usage of memory and swap (together, not seperately) by
 /// the control group's tasks.
 #[derive(Debug)]
@@ -184,7 +270,7 @@ pub struct Memory {
     /* TODO: parse this */
     /// Contains a wide array of statistics about the memory usage of the tasks in the control
     /// group.
-    pub stat: String,
+    pub stat: MemoryStat,
     /// Set the tendency of the kernel to swap out parts of the address space consumed by the
     /// control group's tasks.
     ///
@@ -293,7 +379,9 @@ impl MemController {
                             .and_then(read_u64_from)
                             .unwrap_or(0),
             stat: self.open_path("memory.stat", false)
-                            .and_then(read_string_from).unwrap_or("".to_string()),
+                            .and_then(read_string_from)
+                            .and_then(parse_memory_stat)
+                            .unwrap_or(MemoryStat::default()),
             swappiness: self.open_path("memory.swappiness", false)
                             .and_then(read_u64_from)
                             .unwrap_or(0),
@@ -438,7 +526,7 @@ fn read_string_from(mut file: File) -> Result<String, CgroupError> {
 
 #[cfg(test)]
 mod tests {
-    use memory::{NumaStat, parse_oom_control, OomControl, parse_numa_stat};
+    use memory::{MemoryStat, parse_memory_stat, NumaStat, parse_oom_control, OomControl, parse_numa_stat};
     const good_value: &str = "\
 total=51189 N0=51189 N1=123
 file=50175 N0=50175 N1=123
@@ -454,6 +542,45 @@ hierarchical_unevictable=20 N0=20 N1=123
 oom_kill_disable 0
 under_oom 1
 oom_kill 1337
+";
+
+    static good_memorystat_val: &str = "\
+cache 178880512
+rss 4206592
+rss_huge 0
+shmem 106496
+mapped_file 7491584
+dirty 114688
+writeback 49152
+swap 0
+pgpgin 213928
+pgpgout 169220
+pgfault 87064
+pgmajfault 202
+inactive_anon 0
+active_anon 4153344
+inactive_file 84779008
+active_file 94273536
+unevictable 0
+hierarchical_memory_limit 9223372036854771712
+hierarchical_memsw_limit 9223372036854771712
+total_cache 4200333312
+total_rss 2927677440
+total_rss_huge 0
+total_shmem 590061568
+total_mapped_file 1086164992
+total_dirty 1769472
+total_writeback 602112
+total_swap 0
+total_pgpgin 5267326291
+total_pgpgout 5265586647
+total_pgfault 9947902469
+total_pgmajfault 25132
+total_inactive_anon 585981952
+total_active_anon 2928996352
+total_inactive_file 1272135680
+total_active_file 2338816000
+total_unevictable 81920
 ";
 
     #[test]
@@ -488,5 +615,48 @@ oom_kill 1337
                        under_oom: true,
                        oom_kill: 1337,
                    }));
+    }
+
+    #[test]
+    fn test_parse_memory_stat() {
+        assert_eq!(parse_memory_stat(good_memorystat_val.to_string()),
+            Ok(MemoryStat {
+                cache: 178880512,
+                rss: 4206592,
+                rss_huge: 0,
+                shmem: 106496,
+                mapped_file: 7491584,
+                dirty: 114688,
+                writeback: 49152,
+                swap: 0,
+                pgpgin: 213928,
+                pgpgout: 169220,
+                pgfault: 87064,
+                pgmajfault: 202,
+                inactive_anon: 0,
+                active_anon: 4153344,
+                inactive_file: 84779008,
+                active_file: 94273536,
+                unevictable: 0,
+                hierarchical_memory_limit: 9223372036854771712,
+                hierarchical_memsw_limit: 9223372036854771712,
+                total_cache: 4200333312,
+                total_rss: 2927677440,
+                total_rss_huge: 0,
+                total_shmem: 590061568,
+                total_mapped_file: 1086164992,
+                total_dirty: 1769472,
+                total_writeback: 602112,
+                total_swap: 0,
+                total_pgpgin: 5267326291,
+                total_pgpgout: 5265586647,
+                total_pgfault: 9947902469,
+                total_pgmajfault: 25132,
+                total_inactive_anon: 585981952,
+                total_active_anon: 2928996352,
+                total_inactive_file: 1272135680,
+                total_active_file: 2338816000,
+                total_unevictable: 81920,
+            }));
     }
 }
