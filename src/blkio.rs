@@ -20,6 +20,17 @@ pub struct BlkIoController {
 }
 
 #[derive(Eq, PartialEq, Debug)]
+/// Per-device time used in milliseconds.
+pub struct BlkIoTime {
+    /// The major number of the device.
+    pub major: i16,
+    /// The minor number of the device.
+    pub minor: i16,
+    /// The disk time allocated to the device.
+    pub time: u64,
+}
+
+#[derive(Eq, PartialEq, Debug)]
 /// Per-device activity from the control group.
 pub struct IoService {
     /// The major number of the device.
@@ -38,29 +49,6 @@ pub struct IoService {
     pub total: u64,
 }
 
-/*
- * 8:32 Read 4280320
- * 8:32 Write 0
- * 8:32 Sync 4280320
- * 8:32 Async 0
- * 8:32 Total 4280320
- * 8:48 Read 5705479168
- * 8:48 Write 56096055296
- * 8:48 Sync 11213923328
- * 8:48 Async 50587611136
- * 8:48 Total 61801534464
- * 8:16 Read 10059776
- * 8:16 Write 0
- * 8:16 Sync 10059776
- * 8:16 Async 0
- * 8:16 Total 10059776
- * 8:0 Read 7192576
- * 8:0 Write 0
- * 8:0 Sync 7192576
- * 8:0 Async 0
- * 8:0 Total 7192576
- * Total 61823067136
- */
 fn parse_io_service(s: String) -> Result<Vec<IoService>, CgroupError> {
     s.lines()
         .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 3)
@@ -111,6 +99,44 @@ fn parse_io_service_total(s: String) -> Result<u64, CgroupError> {
                 _ => Err(CgroupError::ParseError),
             }
         })
+}
+
+fn parse_blkio_time(s: String) -> Result<Vec<BlkIoTime>, CgroupError> {
+    let r = s.chars()
+        .map(|x| if x == ':' { ' ' } else { x })
+        .collect::<String>();
+
+    let r = r.lines()
+        .flat_map(|x| x.split_whitespace())
+        .collect::<Vec<_>>();
+
+    let r = r.chunks(3)
+        .collect::<Vec<_>>();
+
+    let mut res = Vec::new();
+
+    let err = r.iter()
+        .try_for_each(|x|
+            match x {
+                [major, minor, time] => {
+                  res.push(BlkIoTime {
+                    major: major.parse::<i16>().unwrap(),
+                    minor: minor.parse::<i16>().unwrap(),
+                    time: time.parse::<u64>().unwrap(),
+                  });
+                  Ok(())
+                },
+                _ => {
+                    Err(CgroupError::ParseError)
+                }
+           }
+           );
+
+    if err.is_err() {
+        return Err(CgroupError::ParseError);
+    } else {
+        return Ok(res);
+    }
 }
 
 /// Current state and statistics about how throttled are the block devices when accessed from the
@@ -220,9 +246,9 @@ pub struct BlkIo {
     /// Similar statistics, but as seen by the throttle policy.
     pub throttle: BlkIoThrottle,
     /// The time the control group had access to the I/O devices.
-    pub time: String,
+    pub time: Vec<BlkIoTime>,
     /// Same as `time`, but contains all descendant control groups.
-    pub time_recursive: String,
+    pub time_recursive: Vec<BlkIoTime>,
     /// The weight of this control group.
     pub weight: u64,
     /// Same as `weight`, but per-block-device.
@@ -473,12 +499,14 @@ impl BlkIoController {
                     read_string_from(file)
                 }).unwrap_or("".to_string()),
             },
-            time: self.open_path("blkio.time", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            time_recursive: self.open_path("blkio.time_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
+            time: self.open_path("blkio.time", false)
+                .and_then(read_string_from)
+                .and_then(parse_blkio_time)
+                .unwrap_or(Vec::new()),
+            time_recursive: self.open_path("blkio.time_recursive", false)
+                .and_then(read_string_from)
+                .and_then(parse_blkio_time)
+                .unwrap_or(Vec::new()),
             weight: self.open_path("blkio.weight", false).and_then(|file| {
                 read_u64_from(file)
             }).unwrap_or(0u64),
@@ -560,6 +588,7 @@ impl BlkIoController {
 #[cfg(test)]
 mod test {
     use blkio::{IoService, parse_io_service, parse_io_service_total};
+    use blkio::{BlkIoTime, parse_blkio_time};
     use ::CgroupError;
 
     const test_value: &str = "\
@@ -605,6 +634,12 @@ Total 61823067136
 8:0 Async 0
 8:0 Total 7192576
 Total 61823067136
+ ";
+    const test_blkio_time: &str = "\
+8:48 454480833999
+8:32 228392923193
+8:16 772456885
+8:0 559583764
  ";
 
     #[test]
@@ -653,5 +688,31 @@ Total 61823067136
                     }
         ]));
         assert_eq!(parse_io_service(test_wrong_value.to_string()), Err(CgroupError::ParseError));
+    }
+
+    #[test]
+    fn test_parse_blkio_time() {
+        assert_eq!(parse_blkio_time(test_blkio_time.to_string()), Ok(vec![
+            BlkIoTime {
+                major: 8,
+                minor: 48,
+                time: 454480833999,
+            },
+            BlkIoTime {
+                major: 8,
+                minor: 32,
+                time: 228392923193,
+            },
+            BlkIoTime {
+                major: 8,
+                minor: 16,
+                time: 772456885,
+            },
+            BlkIoTime {
+                major: 8,
+                minor: 0,
+                time: 559583764,
+            }
+        ]));
     }
 }
