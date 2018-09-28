@@ -20,14 +20,14 @@ pub struct BlkIoController {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-/// Per-device time used in milliseconds.
-pub struct BlkIoTime {
+/// Per-device information
+pub struct BlkIoData {
     /// The major number of the device.
     pub major: i16,
     /// The minor number of the device.
     pub minor: i16,
-    /// The disk time allocated to the device.
-    pub time: u64,
+    /// The data that is associated with the device.
+    pub data: u64,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -101,7 +101,7 @@ fn parse_io_service_total(s: String) -> Result<u64, CgroupError> {
         })
 }
 
-fn parse_blkio_time(s: String) -> Result<Vec<BlkIoTime>, CgroupError> {
+fn parse_blkio_data(s: String) -> Result<Vec<BlkIoData>, CgroupError> {
     let r = s.chars()
         .map(|x| if x == ':' { ' ' } else { x })
         .collect::<String>();
@@ -118,11 +118,11 @@ fn parse_blkio_time(s: String) -> Result<Vec<BlkIoTime>, CgroupError> {
     let err = r.iter()
         .try_for_each(|x|
             match x {
-                [major, minor, time] => {
-                  res.push(BlkIoTime {
+                [major, minor, data] => {
+                  res.push(BlkIoData {
                     major: major.parse::<i16>().unwrap(),
                     minor: minor.parse::<i16>().unwrap(),
-                    time: time.parse::<u64>().unwrap(),
+                    data: data.parse::<u64>().unwrap(),
                   });
                   Ok(())
                 },
@@ -246,9 +246,9 @@ pub struct BlkIo {
     /// Similar statistics, but as seen by the throttle policy.
     pub throttle: BlkIoThrottle,
     /// The time the control group had access to the I/O devices.
-    pub time: Vec<BlkIoTime>,
+    pub time: Vec<BlkIoData>,
     /// Same as `time`, but contains all descendant control groups.
-    pub time_recursive: Vec<BlkIoTime>,
+    pub time_recursive: Vec<BlkIoData>,
     /// The weight of this control group.
     pub weight: u64,
     /// Same as `weight`, but per-block-device.
@@ -501,11 +501,11 @@ impl BlkIoController {
             },
             time: self.open_path("blkio.time", false)
                 .and_then(read_string_from)
-                .and_then(parse_blkio_time)
+                .and_then(parse_blkio_data)
                 .unwrap_or(Vec::new()),
             time_recursive: self.open_path("blkio.time_recursive", false)
                 .and_then(read_string_from)
-                .and_then(parse_blkio_time)
+                .and_then(parse_blkio_data)
                 .unwrap_or(Vec::new()),
             weight: self.open_path("blkio.weight", false).and_then(|file| {
                 read_u64_from(file)
@@ -588,7 +588,7 @@ impl BlkIoController {
 #[cfg(test)]
 mod test {
     use blkio::{IoService, parse_io_service, parse_io_service_total};
-    use blkio::{BlkIoTime, parse_blkio_time};
+    use blkio::{BlkIoData, parse_blkio_data};
     use ::CgroupError;
 
     const test_value: &str = "\
@@ -635,7 +635,7 @@ Total 61823067136
 8:0 Total 7192576
 Total 61823067136
  ";
-    const test_blkio_time: &str = "\
+    const test_blkio_data: &str = "\
 8:48 454480833999
 8:32 228392923193
 8:16 772456885
@@ -691,27 +691,27 @@ Total 61823067136
     }
 
     #[test]
-    fn test_parse_blkio_time() {
-        assert_eq!(parse_blkio_time(test_blkio_time.to_string()), Ok(vec![
-            BlkIoTime {
+    fn test_parse_blkio_data() {
+        assert_eq!(parse_blkio_data(test_blkio_data.to_string()), Ok(vec![
+            BlkIoData {
                 major: 8,
                 minor: 48,
-                time: 454480833999,
+                data: 454480833999,
             },
-            BlkIoTime {
+            BlkIoData {
                 major: 8,
                 minor: 32,
-                time: 228392923193,
+                data: 228392923193,
             },
-            BlkIoTime {
+            BlkIoData {
                 major: 8,
                 minor: 16,
-                time: 772456885,
+                data: 772456885,
             },
-            BlkIoTime {
+            BlkIoData {
                 major: 8,
                 minor: 0,
-                time: 559583764,
+                data: 559583764,
             }
         ]));
     }
