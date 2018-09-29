@@ -252,7 +252,7 @@ pub struct BlkIo {
     /// The weight of this control group.
     pub weight: u64,
     /// Same as `weight`, but per-block-device.
-    pub weight_device: String,
+    pub weight_device: Vec<BlkIoData>,
 }
 
 impl Controller for BlkIoController {
@@ -510,9 +510,10 @@ impl BlkIoController {
             weight: self.open_path("blkio.weight", false).and_then(|file| {
                 read_u64_from(file)
             }).unwrap_or(0u64),
-            weight_device: self.open_path("blkio.weight_device", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
+            weight_device: self.open_path("blkio.weight_device", false)
+                .and_then(read_string_from)
+                .and_then(parse_blkio_data)
+                .unwrap_or(Vec::new()),
         }
     }
 
