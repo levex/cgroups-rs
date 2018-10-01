@@ -21,12 +21,12 @@ pub struct NetClsController {
 }
 
 impl Controller for NetClsController {
-    fn control_type(self: &Self) -> Controllers { Controllers::NetCls }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::NetCls }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &NetworkResources = &res.network;
 
@@ -80,7 +80,7 @@ impl NetClsController {
     }
     
     /// Set the network class id of the outgoing packets of the control group's tasks.
-    pub fn set_class(self: &Self, class: u64) -> Result<(), CgroupError> {
+    pub fn set_class(&self, class: u64) -> Result<(), CgroupError> {
         self.open_path("net_cls.classid", true).and_then(|mut file| {
             let s = format!("{:#08X}", class);
             file.write_all(s.as_ref()).map_err(CgroupError::WriteError)
@@ -88,7 +88,7 @@ impl NetClsController {
     }
 
     /// Get the network class id of the outgoing packets of the control group's tasks.
-    pub fn get_class(self: &Self) -> Result<u64, CgroupError> {
+    pub fn get_class(&self) -> Result<u64, CgroupError> {
         self.open_path("net_cls.classid", false).and_then(|file| {
             read_u64_from(file)
         })

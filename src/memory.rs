@@ -317,12 +317,12 @@ pub struct Kmem {
 }
 
 impl Controller for MemController {
-    fn control_type(self: &Self) -> Controllers { Controllers::Mem }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::Mem }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let memres: &MemoryResources = &res.memory;
 
@@ -355,7 +355,7 @@ impl MemController {
     ///
     /// See the individual fields for more explanation, and as always, remember to consult the
     /// kernel Documentation and/or sources.
-    pub fn memory_stat(self: &Self) -> Memory {
+    pub fn memory_stat(&self) -> Memory {
         Memory {
             fail_cnt: self.open_path("memory.failcnt", false)
                             .and_then(read_u64_from).unwrap_or(0),
@@ -392,7 +392,7 @@ impl MemController {
     }
 
     /// Gathers information about the kernel memory usage of the control group's tasks.
-    pub fn kmem_stat(self: &Self) -> Kmem {
+    pub fn kmem_stat(&self) -> Kmem {
         Kmem {
             fail_cnt: self.open_path("memory.kmem.failcnt", false)
                             .and_then(read_u64_from).unwrap_or(0),
@@ -409,7 +409,7 @@ impl MemController {
 
     /// Gathers information about the control group's kernel memory usage where said memory is
     /// TCP-related.
-    pub fn kmem_tcp_stat(self: &Self) -> Tcp {
+    pub fn kmem_tcp_stat(&self) -> Tcp {
         Tcp {
             fail_cnt: self.open_path("memory.kmem.tcp.failcnt", false)
                             .and_then(read_u64_from).unwrap_or(0),
@@ -424,7 +424,7 @@ impl MemController {
 
     /// Gathers information about the memory usage of the control group including the swap usage
     /// (if any).
-    pub fn memswap(self: &Self) -> MemSwap {
+    pub fn memswap(&self) -> MemSwap {
         MemSwap {
             fail_cnt: self.open_path("memory.memsw.failcnt", false)
                             .and_then(read_u64_from).unwrap_or(0),
@@ -438,28 +438,28 @@ impl MemController {
     }
 
     /// Set the memory usage limit of the control group, in bytes.
-    pub fn set_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_limit(&self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.limit_in_bytes", true).and_then(|mut file| {
             file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Set the kernel memory limit of the control group, in bytes.
-    pub fn set_kmem_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_kmem_limit(&self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.kmem.limit_in_bytes", true).and_then(|mut file| {
             file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Set the memory+swap limit of the control group, in bytes.
-    pub fn set_memswap_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_memswap_limit(&self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.memsw.limit_in_bytes", true).and_then(|mut file| {
             file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
-    pub fn set_tcp_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_tcp_limit(&self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.kmem.tcp.limit_in_bytes", true).and_then(|mut file| {
             file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -470,7 +470,7 @@ impl MemController {
     ///
     /// This limit is enforced when the system is nearing OOM conditions. Contrast this with the
     /// hard limit, which is _always_ enforced.
-    pub fn set_soft_limit(self: &Self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_soft_limit(&self, limit: u64) -> Result<(), CgroupError> {
         self.open_path("memory.soft_limit_in_bytes", true).and_then(|mut file| {
             file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -481,7 +481,7 @@ impl MemController {
     /// group.
     ///
     /// Note that a value of zero does not imply that the process will not be swapped out.
-    pub fn set_swappiness(self: &Self, swp: u64) -> Result<(), CgroupError> {
+    pub fn set_swappiness(&self, swp: u64) -> Result<(), CgroupError> {
         self.open_path("memory.swappiness", true).and_then(|mut file| {
             file.write_all(swp.to_string().as_ref()).map_err(CgroupError::WriteError)
         })

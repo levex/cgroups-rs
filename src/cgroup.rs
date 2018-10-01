@@ -28,7 +28,7 @@ pub struct Cgroup<'b> {
 impl<'b> Cgroup<'b> {
 
     /// Create this control group.
-    fn create(self: &Self) {
+    fn create(&self) {
         for subsystem in &self.subsystems {
             subsystem.to_controller().create();
         }
@@ -68,7 +68,7 @@ impl<'b> Cgroup<'b> {
     }
 
     /// The list of subsystems that this control group supports.
-    pub fn subsystems(self: &Self) -> &Vec<Subsystem> {
+    pub fn subsystems(&self) -> &Vec<Subsystem> {
         &self.subsystems
     }
 
@@ -78,7 +78,7 @@ impl<'b> Cgroup<'b> {
     /// system call will fail if there are any descendants. Thus, one should check whether it was
     /// actually removed, and remove the descendants first if not. In the future, this behavior
     /// will change.
-    pub fn delete(self: Self) {
+    pub fn delete(self) {
         self.subsystems.into_iter().for_each(|sub| {
             match sub {
                 Subsystem::Pid(pidc) => pidc.delete(),
@@ -99,7 +99,7 @@ impl<'b> Cgroup<'b> {
     }
 
     /// Apply a set of resource limits to the control group.
-    pub fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    pub fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         self.subsystems.iter().try_fold((), |_, e| e.to_controller().apply(res))
     }
 
@@ -133,18 +133,18 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that this means that the task will be moved back to the root control group in the
     /// hierarchy and any rules applied to that control group will _still_ apply to the task.
-    pub fn remove_task(self: &Self, pid: CgroupPid) {
+    pub fn remove_task(&self, pid: CgroupPid) {
         let _ = self.hier.root_control_group().add_task(pid);
     }
 
     /// Attach a task to the control group.
-    pub fn add_task(self: &Self, pid: CgroupPid) -> Result<(), CgroupError> {
+    pub fn add_task(&self, pid: CgroupPid) -> Result<(), CgroupError> {
         self.subsystems().iter().try_for_each(|sub| sub.to_controller().add_task(&pid))
     }
 
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the
     /// control group.
-    pub fn tasks(self: &Self) -> Vec<CgroupPid> {
+    pub fn tasks(&self) -> Vec<CgroupPid> {
         /* Collect the tasks from all subsystems */
         let mut v = self.subsystems().iter()
             .map(|x| x.to_controller().tasks())

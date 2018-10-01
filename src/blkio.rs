@@ -256,12 +256,12 @@ pub struct BlkIo {
 }
 
 impl Controller for BlkIoController {
-    fn control_type(self: &Self) -> Controllers { Controllers::BlkIo }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::BlkIo }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &BlkIoResources = &res.blkio;
 
@@ -343,7 +343,7 @@ impl BlkIoController {
 
     /// Gathers statistics about and reports the state of the block devices used by the control
     /// group's tasks.
-    pub fn blkio(self: &Self) -> BlkIo {
+    pub fn blkio(&self) -> BlkIo {
         BlkIo {
             io_merged: self.open_path("blkio.io_merged", false)
                 .and_then(read_string_from)
@@ -519,21 +519,21 @@ impl BlkIoController {
 
     /// Set the leaf weight on the control group's tasks, i.e., how are they weighted against the
     /// descendant control groups' tasks.
-    pub fn set_leaf_weight(self: &Self, w: u64) -> Result<(), CgroupError> {
+    pub fn set_leaf_weight(&self, w: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.leaf_weight", true).and_then(|mut file| {
             file.write_all(w.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Same as `set_leaf_weight()`, but settable per each block device.
-    pub fn set_leaf_weight_for_device(self: &Self, d: String) -> Result<(), CgroupError> {
+    pub fn set_leaf_weight_for_device(&self, d: String) -> Result<(), CgroupError> {
         self.open_path("blkio.leaf_weight_device", true).and_then(|mut file| {
             file.write_all(d.as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Reset the statistics the kernel has gathered so far and start fresh.
-    pub fn reset_stats(self: &Self) -> Result<(), CgroupError> {
+    pub fn reset_stats(&self) -> Result<(), CgroupError> {
         self.open_path("blkio.leaf_weight_device", true).and_then(|mut file| {
             file.write_all("1".to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -541,7 +541,7 @@ impl BlkIoController {
 
     /// Throttle the bytes per second rate of read operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_read_bps_for_device(self: &Self, major: u64, minor: u64, bps: u64) -> Result<(), CgroupError> {
+    pub fn throttle_read_bps_for_device(&self, major: u64, minor: u64, bps: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.throttle.read_bps_device", true).and_then(|mut file| {
             file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -549,14 +549,14 @@ impl BlkIoController {
 
     /// Throttle the I/O operations per second rate of read operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_read_iops_for_device(self: &Self, major: u64, minor: u64, iops: u64) -> Result<(), CgroupError> {
+    pub fn throttle_read_iops_for_device(&self, major: u64, minor: u64, iops: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.throttle.read_iops_device", true).and_then(|mut file| {
             file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
     /// Throttle the bytes per second rate of write operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_write_bps_for_device(self: &Self, major: u64, minor: u64, bps: u64) -> Result<(), CgroupError> {
+    pub fn throttle_write_bps_for_device(&self, major: u64, minor: u64, bps: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.throttle.write_bps_device", true).and_then(|mut file| {
             file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -564,21 +564,21 @@ impl BlkIoController {
 
     /// Throttle the I/O operations per second rate of write operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_write_iops_for_device(self: &Self, major: u64, minor: u64, iops: u64) -> Result<(), CgroupError> {
+    pub fn throttle_write_iops_for_device(&self, major: u64, minor: u64, iops: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.throttle.write_iops_device", true).and_then(|mut file| {
             file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Set the weight of the control group's tasks.
-    pub fn set_weight(self: &Self, w: u64) -> Result<(), CgroupError> {
+    pub fn set_weight(&self, w: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.leaf_weight", true).and_then(|mut file| {
             file.write_all(w.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Same as `set_weight()`, but settable per each block device.
-    pub fn set_weight_for_device(self: &Self, major: u64, minor: u64, weight: u64) -> Result<(), CgroupError> {
+    pub fn set_weight_for_device(&self, major: u64, minor: u64, weight: u64) -> Result<(), CgroupError> {
         self.open_path("blkio.weight_device", true).and_then(|mut file| {
             file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
                 .map_err(CgroupError::WriteError)

@@ -17,12 +17,12 @@ pub struct PerfEventController {
 }
 
 impl Controller for PerfEventController {
-    fn control_type(self: &Self) -> Controllers { Controllers::PerfEvent }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::PerfEvent }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, _res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
         Ok(())
     }
 }

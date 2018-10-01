@@ -33,12 +33,12 @@ impl Default for PidMax {
 }
 
 impl Controller for PidController {
-    fn control_type(self: &Self) -> Controllers { Controllers::Pids }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::Pids }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let pidres: &PidResources = &res.pid;
 
@@ -105,7 +105,7 @@ impl PidController {
     }
 
     /// The number of times `fork` failed because the limit was hit.
-    pub fn get_pid_events(self: &Self) -> Result<u64, CgroupError> {
+    pub fn get_pid_events(&self) -> Result<u64, CgroupError> {
         self.open_path("pids.events", false).and_then(|mut file| {
             let mut string = String::new();
             match file.read_to_string(&mut string) {
@@ -124,12 +124,12 @@ impl PidController {
     }
 
     /// The number of processes currently.
-    pub fn get_pid_current(self: &Self) -> Result<u64, CgroupError> {
+    pub fn get_pid_current(&self) -> Result<u64, CgroupError> {
         self.open_path("pids.current", false).and_then(read_u64_from)
     }
 
     /// The maximum number of processes that can exist at one time in the control group.
-    pub fn get_pid_max(self: &Self) -> Result<PidMax, CgroupError> {
+    pub fn get_pid_max(&self) -> Result<PidMax, CgroupError> {
         self.open_path("pids.max", false).and_then(|mut file| {
             let mut string = String::new();
             let res = file.read_to_string(&mut string);
@@ -152,7 +152,7 @@ impl PidController {
     /// Note that if `get_pid_current()` returns a higher number than what you
     /// are about to set (`max_pid`), then no processess will be killed. Additonally, attaching
     /// extra processes to a control group disregards the limit.
-    pub fn set_pid_max(self: &Self, max_pid: PidMax) -> Result<(), CgroupError> {
+    pub fn set_pid_max(&self, max_pid: PidMax) -> Result<(), CgroupError> {
         self.open_path("pids.max", true).and_then(|mut file| {
             let string_to_write = match max_pid {
                 PidMax::Max => "max".to_string(),

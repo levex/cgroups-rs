@@ -34,7 +34,7 @@ impl Default for DeviceType {
 
 impl DeviceType {
     /// Convert a DeviceType into the character that the kernel recognizes.
-    pub fn to_char(self: &Self) -> char {
+    pub fn to_char(&self) -> char {
         match self {
             DeviceType::All => 'a',
             DeviceType::Char => 'c',
@@ -67,7 +67,7 @@ pub enum DevicePermissions {
 
 impl DevicePermissions {
     /// Convert a DevicePermissions into the character that the kernel recognizes.
-    pub fn to_char(self: &Self) -> char {
+    pub fn to_char(&self) -> char {
         match self {
             DevicePermissions::Read => 'r',
             DevicePermissions::Write => 'w',
@@ -124,12 +124,12 @@ impl DevicePermissions {
 }
 
 impl Controller for DevicesController {
-    fn control_type(self: &Self) -> Controllers { Controllers::Devices }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::Devices }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &DeviceResources = &res.devices;
 
@@ -182,7 +182,7 @@ impl DevicesController {
     ///
     /// When `-1` is passed as `major` or `minor`, the kernel interprets that value as "any",
     /// meaning that it will match any device.
-    pub fn allow_device(self: &Self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
+    pub fn allow_device(&self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
         let perms = perm.iter().map(DevicePermissions::to_char).collect::<String>();
         let minor = if minor == -1 { "*".to_string() } else { format!("{}", minor) };
         let major = if major == -1 { "*".to_string() } else { format!("{}", major) };
@@ -196,7 +196,7 @@ impl DevicesController {
     ///
     /// When `-1` is passed as `major` or `minor`, the kernel interprets that value as "any",
     /// meaning that it will match any device.
-    pub fn deny_device(self: &Self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
+    pub fn deny_device(&self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
         let perms = perm.iter().map(DevicePermissions::to_char).collect::<String>();
         let minor = if minor == -1 { "*".to_string() } else { format!("{}", minor) };
         let major = if major == -1 { "*".to_string() } else { format!("{}", major) };
@@ -207,7 +207,7 @@ impl DevicesController {
     }
 
     /// Get the current list of allowed devices.
-    pub fn allowed_devices(self: &Self) -> Result<Vec<DeviceResource>, CgroupError> {
+    pub fn allowed_devices(&self) -> Result<Vec<DeviceResource>, CgroupError> {
         self.open_path("devices.list", false).and_then(|mut file| {
             let mut s = String::new();
             let res = file.read_to_string(&mut s);
