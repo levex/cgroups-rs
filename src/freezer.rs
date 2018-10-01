@@ -32,12 +32,12 @@ pub enum FreezerState {
 }
 
 impl Controller for FreezerController {
-    fn control_type(self: &Self) -> Controllers { Controllers::Freezer }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::Freezer }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, _res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
         Ok(())
     }
 }
@@ -74,21 +74,21 @@ impl FreezerController {
     }
 
     /// Freezes the processes in the control group.
-    pub fn freeze(self: &Self) -> Result<(), CgroupError> {
+    pub fn freeze(&self) -> Result<(), CgroupError> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("FROZEN".to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Thaws, that is, unfreezes the processes in the control group.
-    pub fn thaw(self: &Self) -> Result<(), CgroupError> {
+    pub fn thaw(&self) -> Result<(), CgroupError> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("THAWED".to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Retrieve the state of processes in the control group.
-    pub fn state(self: &Self) -> Result<FreezerState, CgroupError> {
+    pub fn state(&self) -> Result<FreezerState, CgroupError> {
         self.open_path("freezer.state", false).and_then(|mut file| {
             let mut s = String::new();
             let res = file.read_to_string(&mut s);

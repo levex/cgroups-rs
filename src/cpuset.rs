@@ -77,12 +77,12 @@ pub struct CpuSet {
 }
 
 impl Controller for CpuSetController {
-    fn control_type(self: &Self) -> Controllers { Controllers::CpuSet }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::CpuSet }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &CpuResources = &res.cpu;
 
@@ -181,7 +181,7 @@ impl CpuSetController {
 
     /// Returns the statistics gathered by the kernel for this control group. See the struct for
     /// more information on what information this entails.
-    pub fn cpuset(self: &Self) -> CpuSet {
+    pub fn cpuset(&self) -> CpuSet {
         CpuSet {
             cpu_exclusive: {
                 self.open_path("cpuset.cpu_exclusive", false).and_then(|file| {
@@ -250,7 +250,7 @@ impl CpuSetController {
 
     /// Control whether the CPUs selected via `set_cpus()` should be exclusive to this control
     /// group or not.
-    pub fn set_cpu_exclusive(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_cpu_exclusive(&self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.cpu_exclusive", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)
@@ -262,7 +262,7 @@ impl CpuSetController {
 
     /// Control whether the memory nodes selected via `set_memss()` should be exclusive to this control
     /// group or not.
-    pub fn set_mem_exclusive(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_mem_exclusive(&self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.mem_exclusive", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)
@@ -276,7 +276,7 @@ impl CpuSetController {
     ///
     /// Syntax is a comma separated list of CPUs, with an additional extension that ranges can
     /// be represented via dashes.
-    pub fn set_cpus(self: &Self, cpus: &String) -> Result<(), CgroupError> {
+    pub fn set_cpus(&self, cpus: &String) -> Result<(), CgroupError> {
         self.open_path("cpuset.cpus", true).and_then(|mut file| {
             file.write_all(cpus.as_ref()).map_err(CgroupError::WriteError)
         })
@@ -285,7 +285,7 @@ impl CpuSetController {
     /// Set the memory nodes that the tasks in this control group can use.
     ///
     /// Syntax is the same as with `set_cpus()`.
-    pub fn set_mems(self: &Self, mems: &String) -> Result<(), CgroupError> {
+    pub fn set_mems(&self, mems: &String) -> Result<(), CgroupError> {
         self.open_path("cpuset.mems", true).and_then(|mut file| {
             file.write_all(mems.as_ref()).map_err(CgroupError::WriteError)
         })
@@ -296,7 +296,7 @@ impl CpuSetController {
     ///
     /// Note that some kernel allocations, most notably those that are made in interrupt handlers
     /// may disregard this.
-    pub fn set_hardwall(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_hardwall(&self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.mem_hardwall", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)
@@ -308,7 +308,7 @@ impl CpuSetController {
 
     /// Controls whether the kernel should attempt to rebalance the load between the CPUs specified in the
     /// `cpus` field of this control group.
-    pub fn set_load_balancing(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_load_balancing(&self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.sched_load_balance", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)
@@ -321,7 +321,7 @@ impl CpuSetController {
     /// Contorl how much effort the kernel should invest in rebalacing the control group.
     ///
     /// See @CpuSet 's similar field for more information.
-    pub fn set_rebalance_relax_domain_level(self: &Self, i: i64) -> Result<(), CgroupError> {
+    pub fn set_rebalance_relax_domain_level(&self, i: i64) -> Result<(), CgroupError> {
         self.open_path("cpuset.sched_relax_domain_level", true).and_then(|mut file| {
             file.write_all(i.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -329,7 +329,7 @@ impl CpuSetController {
 
     /// Control whether when using `set_mems()` the existing memory used by the tasks should be
     /// migrated over to the now-selected nodes.
-    pub fn set_memory_migration(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_memory_migration(&self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.memory_migrate", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)
@@ -341,7 +341,7 @@ impl CpuSetController {
 
     /// Control whether filesystem buffers should be evenly split across the nodes selected via
     /// `set_mems()`.
-    pub fn set_memory_spread_page(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_memory_spread_page(&self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.memory_spread_page", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)
@@ -353,7 +353,7 @@ impl CpuSetController {
 
     /// Control whether the kernel's slab cache for file I/O should be evenly split across the
     /// nodes selected via `set_mems()`.
-    pub fn set_memory_spread_slab(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_memory_spread_slab(&self, b: bool) -> Result<(), CgroupError> {
         self.open_path("cpuset.memory_spread_slab", true).and_then(|mut file| {
             if b {
                 file.write_all(b"1").map_err(CgroupError::WriteError)
@@ -368,7 +368,7 @@ impl CpuSetController {
     ///
     /// Note: This will fail with `InvalidOperation` if the current congrol group is not the root
     /// control group.
-    pub fn set_enable_memory_pressure(self: &Self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_enable_memory_pressure(&self, b: bool) -> Result<(), CgroupError> {
         if !self.path_exists("cpuset.memory_pressure_enabled") {
             return Err(CgroupError::InvalidOperation);
         }

@@ -22,12 +22,12 @@ pub struct NetPrioController {
 }
 
 impl Controller for NetPrioController {
-    fn control_type(self: &Self) -> Controllers { Controllers::NetPrio }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::NetPrio }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &NetworkResources = &res.network;
 
@@ -81,14 +81,14 @@ impl NetPrioController {
     }
 
     /// Retrieves the current priority of the emitted packets.
-    pub fn prio_idx(self: &Self) -> u64 {
+    pub fn prio_idx(&self) -> u64 {
         self.open_path("net_prio.prioidx", false)
             .and_then(read_u64_from)
             .unwrap_or(0)
     }
 
     /// A map of priorities for each network interface.
-    pub fn ifpriomap(self: &Self) -> Result<HashMap<String, u64>, CgroupError> {
+    pub fn ifpriomap(&self) -> Result<HashMap<String, u64>, CgroupError> {
         self.open_path("net_prio.ifpriomap", false) .and_then(|file| {
             let bf = BufReader::new(file);
             bf.lines().fold(Ok(HashMap::new()), |acc, line| {
@@ -118,7 +118,7 @@ impl NetPrioController {
     }
 
     /// Set the priority of the network traffic on `eif` to be `prio`.
-    pub fn set_if_prio(self: &Self, eif: &String, prio: u64) -> Result<(), CgroupError> {
+    pub fn set_if_prio(&self, eif: &String, prio: u64) -> Result<(), CgroupError> {
         self.open_path("net_prio.ifpriomap", true).and_then(|mut file| {
             file.write_all(format!("{} {}", eif, prio).as_ref()).map_err(CgroupError::WriteError)
         })

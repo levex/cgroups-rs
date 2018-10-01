@@ -134,7 +134,7 @@ pub enum Controllers {
 }
 
 impl Controllers {
-    pub fn to_string(self: &Self) -> String {
+    pub fn to_string(&self) -> String {
         match self {
             Controllers::Pids => return "pids".to_string(),
             Controllers::Mem => return "memory".to_string(),
@@ -159,25 +159,25 @@ impl Controllers {
 pub trait Controller {
     /// Apply a set of resources to the Controller, invoking its internal functions to pass the
     /// kernel the information.
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError>;
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError>;
 
     /* meta stuff */
     #[doc(hidden)]
-    fn control_type(self: &Self) -> Controllers;
+    fn control_type(&self) -> Controllers;
     #[doc(hidden)]
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf;
+    fn get_path(&self) -> &PathBuf;
     #[doc(hidden)]
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf;
+    fn get_path_mut(&mut self) -> &mut PathBuf;
     #[doc(hidden)]
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf;
+    fn get_base(&self) -> &PathBuf;
 
     #[doc(hidden)]
-    fn verify_path(self: &Self) -> bool {
+    fn verify_path(&self) -> bool {
         self.get_path().starts_with(self.get_base())
     }
 
     /// Create this controller
-    fn create(self: &Self) {
+    fn create(&self) {
         if self.verify_path() {
             match ::std::fs::create_dir(self.get_path()) {
                 Ok(_) => (),
@@ -187,19 +187,19 @@ pub trait Controller {
     }
 
     /// Does this controller already exist?
-    fn exists(self: &Self) -> bool {
+    fn exists(&self) -> bool {
         self.get_path().exists()
     }
 
     /// Delete the controller.
-    fn delete(self: &Self) {
+    fn delete(&self) {
         if self.get_path().exists() {
             let _ = ::std::fs::remove_dir(self.get_path());
         }
     }
 
     #[doc(hidden)]
-    fn open_path(self: &Self, p: &str, w: bool) -> Result<File, CgroupError> {
+    fn open_path(&self, p: &str, w: bool) -> Result<File, CgroupError> {
         let mut path = self.get_path().clone();
         path.push(p);
 
@@ -221,7 +221,7 @@ pub trait Controller {
     }
 
     #[doc(hidden)]
-    fn path_exists(self: &Self, p: &str) -> bool {
+    fn path_exists(&self, p: &str) -> bool {
         if !self.verify_path() {
             return false;
         }
@@ -230,14 +230,14 @@ pub trait Controller {
     }
 
     /// Attach a task to this controller.
-    fn add_task(self: &Self, pid: &CgroupPid) -> Result<(), CgroupError> {
+    fn add_task(&self, pid: &CgroupPid) -> Result<(), CgroupError> {
         self.open_path("tasks", true).and_then(|mut file| {
             file.write_all(pid.pid.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
     }
 
     /// Get the list of tasks that this controller has.
-    fn tasks(self: &Self) -> Vec<CgroupPid> {
+    fn tasks(&self) -> Vec<CgroupPid> {
         self.open_path("tasks", false).and_then(|file| {
             let bf = BufReader::new(file);
             let mut v = Vec::new();
@@ -261,19 +261,19 @@ pub trait ControllIdentifier {
 /// implemented as well).
 pub trait Hierarchy {
     /// Returns what subsystems are supported by the hierarchy.
-    fn subsystems(self: &Self) -> Vec<Subsystem>;
+    fn subsystems(&self) -> Vec<Subsystem>;
 
     /// Returns the root directory of the hierarchy.
-    fn root(self: &Self) -> PathBuf;
+    fn root(&self) -> PathBuf;
 
     /// Return a handle to the root control group in the hierarchy.
-    fn root_control_group(self: &Self) -> Cgroup;
+    fn root_control_group(&self) -> Cgroup;
 
     /// Checks whether a certain subsystem is supported in the hierarchy.
     ///
     /// This is an internal function and should not be used.
     #[doc(hidden)]
-    fn check_support(self: &Self, sub: Controllers) -> bool;
+    fn check_support(&self, sub: Controllers) -> bool;
 }
 
 /// Resource limits for the memory subsystem.
@@ -495,7 +495,7 @@ impl<'a> From<&'a std::process::Child> for CgroupPid {
 
 
 impl Subsystem {
-    fn enter(self: Self, path: &String) -> Self {
+    fn enter(self, path: &String) -> Self {
         match self {
             Subsystem::Pid(cont) => Subsystem::Pid({
                 let mut c = cont.clone();
@@ -565,7 +565,7 @@ impl Subsystem {
         }
     }
 
-    fn to_controller(self: &Self) -> &dyn Controller {
+    fn to_controller(&self) -> &dyn Controller {
         match self {
             Subsystem::Pid(cont) => cont,
             Subsystem::Mem(cont) => cont,

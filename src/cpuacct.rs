@@ -50,12 +50,12 @@ pub struct CpuAcct {
 }
 
 impl Controller for CpuAcctController {
-    fn control_type(self: &Self) -> Controllers { Controllers::CpuAcct }
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::CpuAcct }
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, _res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
         Ok(())
     }
 }
@@ -113,7 +113,7 @@ impl CpuAcctController {
     }
 
     /// Gathers the statistics that are available in the control group into a `CpuAcct` structure.
-    pub fn cpuacct(self: &Self) -> CpuAcct {
+    pub fn cpuacct(&self) -> CpuAcct {
         CpuAcct {
             stat: self.open_path("cpuacct.stat", false)
                     .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
@@ -138,7 +138,7 @@ impl CpuAcctController {
     }
 
     /// Reset the statistics the kernel has gathered about the control group.
-    pub fn reset(self: &Self) -> Result<(), CgroupError> {
+    pub fn reset(&self) -> Result<(), CgroupError> {
         self.open_path("cpuacct.usage", true).and_then(|mut file| {
             file.write_all(b"0").map_err(CgroupError::WriteError)
         })

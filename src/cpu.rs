@@ -30,12 +30,12 @@ pub struct Cpu {
 }
 
 impl Controller for CpuController {
-    fn control_type(self: &Self) -> Controllers { Controllers::Cpu}
-    fn get_path<'a>(self: &'a Self) -> &'a PathBuf { &self.path }
-    fn get_path_mut<'a>(self: &'a mut Self) -> &'a mut PathBuf { &mut self.path }
-    fn get_base<'a>(self: &'a Self) -> &'a PathBuf { &self.base }
+    fn control_type(&self) -> Controllers { Controllers::Cpu}
+    fn get_path(&self) -> &PathBuf { &self.path }
+    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
+    fn get_base(&self) -> &PathBuf { &self.base }
 
-    fn apply(self: &Self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
         let res: &CpuResources = &res.cpu;
 
@@ -100,7 +100,7 @@ impl CpuController {
     }
 
     /// Returns CPU time statistics based on the processes in the control group.
-    pub fn cpu(self: &Self) -> Cpu {
+    pub fn cpu(&self) -> Cpu {
         Cpu {
             stat: self.open_path("cpu.stat", false).and_then(|mut file| {
                 let mut s = String::new();
@@ -119,7 +119,7 @@ impl CpuController {
     /// For example, setting control group `A`'s `shares` to `100`, and control group `B`'s
     /// `shares` to `200` ensures that control group `B` receives twice as much as CPU bandwidth.
     /// (Assuming both `A` and `B` are of the same parent)
-    pub fn set_shares(self: &Self, shares: u64) -> Result<(), CgroupError> {
+    pub fn set_shares(&self, shares: u64) -> Result<(), CgroupError> {
         self.open_path("cpu.shares", true).and_then(|mut file| {
             file.write_all(shares.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -127,14 +127,14 @@ impl CpuController {
 
     /// Retrieve the CPU bandwidth that this control group (relative to other control groups and
     /// this control group's parent) can use.
-    pub fn shares(self: &Self) -> Result<u64, CgroupError> {
+    pub fn shares(&self) -> Result<u64, CgroupError> {
         self.open_path("cpu.shares", false)
             .and_then(read_u64_from)
     }
 
     /// Specify a period (when using the CFS scheduler) of time in microseconds for how often this
     /// control group's access to the CPU should be reallocated.
-    pub fn set_cfs_period(self: &Self, us: u64) -> Result<(), CgroupError> {
+    pub fn set_cfs_period(&self, us: u64) -> Result<(), CgroupError> {
         self.open_path("cpu.cfs_period_us", true).and_then(|mut file| {
             file.write_all(us.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -142,14 +142,14 @@ impl CpuController {
 
     /// Retrieve the period of time of how often this cgroup's access to the CPU should be
     /// reallocated in microseconds.
-    pub fn cfs_period(self: &Self) -> Result<u64, CgroupError> {
+    pub fn cfs_period(&self) -> Result<u64, CgroupError> {
         self.open_path("cpu.cfs_period_us", false)
             .and_then(read_u64_from)
     }
 
     /// Specify a quota (when using the CFS scheduler) of time in microseconds for which all tasks
     /// in this control group can run during one period (see: `set_cfs_period()`).
-    pub fn set_cfs_quota(self: &Self, us: u64) -> Result<(), CgroupError> {
+    pub fn set_cfs_quota(&self, us: u64) -> Result<(), CgroupError> {
         self.open_path("cpu.cfs_quota_us", true).and_then(|mut file| {
             file.write_all(us.to_string().as_ref()).map_err(CgroupError::WriteError)
         })
@@ -157,7 +157,7 @@ impl CpuController {
     
     /// Retrieve the quota of time for which all tasks in this cgroup can run during one period, in
     /// microseconds.
-    pub fn cfs_quota(self: &Self) -> Result<u64, CgroupError> {
+    pub fn cfs_quota(&self) -> Result<u64, CgroupError> {
         self.open_path("cpu.cfs_quota_us", false)
             .and_then(read_u64_from)
     }

@@ -32,7 +32,7 @@ pub struct V1 {
 }
 
 impl Hierarchy for V1 {
-    fn subsystems(self: &Self) -> Vec<Subsystem> {
+    fn subsystems(&self) -> Vec<Subsystem> {
         let mut subs = vec![];
         if self.check_support(Controllers::Pids) {
             subs.push(Subsystem::Pid(PidController::new(self.root())));
@@ -77,11 +77,11 @@ impl Hierarchy for V1 {
         subs
     }
 
-    fn root_control_group(self: &Self) -> Cgroup {
+    fn root_control_group(&self) -> Cgroup {
         Cgroup::load(self, "".to_string())
     }
 
-    fn check_support(self: &Self, sub: Controllers) -> bool {
+    fn check_support(&self, sub: Controllers) -> bool {
         let root = self.root().read_dir().unwrap();
         for entry in root {
             if let Ok(entry) = entry {
@@ -93,7 +93,7 @@ impl Hierarchy for V1 {
         return false;
     }
 
-    fn root(self: &Self) -> PathBuf {
+    fn root(&self) -> PathBuf {
         PathBuf::from(self.mount_point.clone())
     }
 }
