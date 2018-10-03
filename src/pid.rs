@@ -1,13 +1,15 @@
 //! This module contains the implementation of the `pids` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroups-v1/pids.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/pids.txt)
-use std::path::PathBuf;
-use std::io::{Write, Read};
 use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, Resources, PidResources, Controller, ControllIdentifier, Subsystem, Controllers};
 use CgroupError::*;
+use {
+    CgroupError, ControllIdentifier, Controller, Controllers, PidResources, Resources, Subsystem,
+};
 
 /// A controller that allows controlling the `pids` subsystem of a Cgroup.
 #[derive(Debug, Clone)]
@@ -33,10 +35,18 @@ impl Default for PidMax {
 }
 
 impl Controller for PidController {
-    fn control_type(&self) -> Controllers { Controllers::Pids }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::Pids
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
@@ -45,7 +55,7 @@ impl Controller for PidController {
         if pidres.update_values {
             /* apply pid_max */
             let _ = self.set_pid_max(pidres.maximum_number_of_processes);
-            
+
             /* now, verify */
             if self.get_pid_max() == Ok(pidres.maximum_number_of_processes) {
                 return Ok(());
@@ -78,7 +88,7 @@ impl<'a> From<&'a Subsystem> for &'a PidController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -109,14 +119,12 @@ impl PidController {
         self.open_path("pids.events", false).and_then(|mut file| {
             let mut string = String::new();
             match file.read_to_string(&mut string) {
-                Ok(_) => {
-                    match string.split_whitespace().nth(1) {
-                        Some(elem) => match elem.parse() {
-                            Ok(val) => Ok(val),
-                            Err(_) => Err(CgroupError::ParseError),
-                        },
-                        None => Err(CgroupError::ParseError),
-                    }
+                Ok(_) => match string.split_whitespace().nth(1) {
+                    Some(elem) => match elem.parse() {
+                        Ok(val) => Ok(val),
+                        Err(_) => Err(CgroupError::ParseError),
+                    },
+                    None => Err(CgroupError::ParseError),
                 },
                 Err(e) => Err(CgroupError::ReadError(e)),
             }
@@ -125,7 +133,8 @@ impl PidController {
 
     /// The number of processes currently.
     pub fn get_pid_current(&self) -> Result<u64, CgroupError> {
-        self.open_path("pids.current", false).and_then(read_u64_from)
+        self.open_path("pids.current", false)
+            .and_then(read_u64_from)
     }
 
     /// The maximum number of processes that can exist at one time in the control group.

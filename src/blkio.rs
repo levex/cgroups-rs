@@ -1,13 +1,15 @@
 //! This module contains the implementation of the `blkio` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/blkio-controller.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/blkio-controller.txt)
-use std::path::PathBuf;
-use std::io::{Read, Write};
 use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, BlkIoResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 use CgroupError::*;
+use {
+    BlkIoResources, CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem,
+};
 
 /// A controller that allows controlling the `blkio` subsystem of a Cgroup.
 ///
@@ -102,35 +104,31 @@ fn parse_io_service_total(s: String) -> Result<u64, CgroupError> {
 }
 
 fn parse_blkio_data(s: String) -> Result<Vec<BlkIoData>, CgroupError> {
-    let r = s.chars()
+    let r = s
+        .chars()
         .map(|x| if x == ':' { ' ' } else { x })
         .collect::<String>();
 
-    let r = r.lines()
+    let r = r
+        .lines()
         .flat_map(|x| x.split_whitespace())
         .collect::<Vec<_>>();
 
-    let r = r.chunks(3)
-        .collect::<Vec<_>>();
+    let r = r.chunks(3).collect::<Vec<_>>();
 
     let mut res = Vec::new();
 
-    let err = r.iter()
-        .try_for_each(|x|
-            match x {
-                [major, minor, data] => {
-                  res.push(BlkIoData {
-                    major: major.parse::<i16>().unwrap(),
-                    minor: minor.parse::<i16>().unwrap(),
-                    data: data.parse::<u64>().unwrap(),
-                  });
-                  Ok(())
-                },
-                _ => {
-                    Err(CgroupError::ParseError)
-                }
-           }
-           );
+    let err = r.iter().try_for_each(|x| match x {
+        [major, minor, data] => {
+            res.push(BlkIoData {
+                major: major.parse::<i16>().unwrap(),
+                minor: minor.parse::<i16>().unwrap(),
+                data: data.parse::<u64>().unwrap(),
+            });
+            Ok(())
+        }
+        _ => Err(CgroupError::ParseError),
+    });
 
     if err.is_err() {
         return Err(CgroupError::ParseError);
@@ -256,10 +254,18 @@ pub struct BlkIo {
 }
 
 impl Controller for BlkIoController {
-    fn control_type(&self) -> Controllers { Controllers::BlkIo }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::BlkIo
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
@@ -308,7 +314,7 @@ impl<'a> From<&'a Subsystem> for &'a BlkIoController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -345,172 +351,216 @@ impl BlkIoController {
     /// group's tasks.
     pub fn blkio(&self) -> BlkIo {
         BlkIo {
-            io_merged: self.open_path("blkio.io_merged", false)
+            io_merged: self
+                .open_path("blkio.io_merged", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_merged_total: self.open_path("blkio.io_merged", false)
+            io_merged_total: self
+                .open_path("blkio.io_merged", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_merged_recursive: self.open_path("blkio.io_merged_recursive", false)
+            io_merged_recursive: self
+                .open_path("blkio.io_merged_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_merged_recursive_total: self.open_path("blkio.io_merged_recursive", false)
+            io_merged_recursive_total: self
+                .open_path("blkio.io_merged_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_queued: self.open_path("blkio.io_queued", false)
+            io_queued: self
+                .open_path("blkio.io_queued", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_queued_total: self.open_path("blkio.io_queued", false)
+            io_queued_total: self
+                .open_path("blkio.io_queued", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_queued_recursive: self.open_path("blkio.io_queued_recursive", false)
+            io_queued_recursive: self
+                .open_path("blkio.io_queued_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_queued_recursive_total: self.open_path("blkio.io_queued_recursive", false)
+            io_queued_recursive_total: self
+                .open_path("blkio.io_queued_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_service_bytes: self.open_path("blkio.io_service_bytes", false)
+            io_service_bytes: self
+                .open_path("blkio.io_service_bytes", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_service_bytes_total: self.open_path("blkio.io_service_bytes", false)
+            io_service_bytes_total: self
+                .open_path("blkio.io_service_bytes", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_service_bytes_recursive: self.open_path("blkio.io_service_bytes_recursive", false)
+            io_service_bytes_recursive: self
+                .open_path("blkio.io_service_bytes_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_service_bytes_recursive_total: self.open_path("blkio.io_service_bytes_recursive", false)
+            io_service_bytes_recursive_total: self
+                .open_path("blkio.io_service_bytes_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_serviced: self.open_path("blkio.io_serviced", false)
+            io_serviced: self
+                .open_path("blkio.io_serviced", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_serviced_total: self.open_path("blkio.io_serviced", false)
+            io_serviced_total: self
+                .open_path("blkio.io_serviced", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_serviced_recursive: self.open_path("blkio.io_serviced_recursive", false)
+            io_serviced_recursive: self
+                .open_path("blkio.io_serviced_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_serviced_recursive_total: self.open_path("blkio.io_serviced_recursive", false)
+            io_serviced_recursive_total: self
+                .open_path("blkio.io_serviced_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_service_time: self.open_path("blkio.io_service_time", false)
+            io_service_time: self
+                .open_path("blkio.io_service_time", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_service_time_total: self.open_path("blkio.io_service_time", false)
+            io_service_time_total: self
+                .open_path("blkio.io_service_time", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_service_time_recursive: self.open_path("blkio.io_service_time_recursive", false)
+            io_service_time_recursive: self
+                .open_path("blkio.io_service_time_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_service_time_recursive_total: self.open_path("blkio.io_service_time_recursive", false)
+            io_service_time_recursive_total: self
+                .open_path("blkio.io_service_time_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_wait_time: self.open_path("blkio.io_wait_time", false)
+            io_wait_time: self
+                .open_path("blkio.io_wait_time", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_wait_time_total: self.open_path("blkio.io_wait_time", false)
+            io_wait_time_total: self
+                .open_path("blkio.io_wait_time", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            io_wait_time_recursive: self.open_path("blkio.io_wait_time_recursive", false)
+            io_wait_time_recursive: self
+                .open_path("blkio.io_wait_time_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service)
                 .unwrap_or(Vec::new()),
-            io_wait_time_recursive_total: self.open_path("blkio.io_wait_time_recursive", false)
+            io_wait_time_recursive_total: self
+                .open_path("blkio.io_wait_time_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_io_service_total)
                 .unwrap_or(0),
-            leaf_weight: self.open_path("blkio.leaf_weight", false).and_then(|file| {
-                read_u64_from(file)
-            }).unwrap_or(0u64),
-            leaf_weight_device: self.open_path("blkio.leaf_weight_device", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            sectors: self.open_path("blkio.sectors", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
-            sectors_recursive: self.open_path("blkio.sectors_recursive", false).and_then(|file| {
-                read_string_from(file)
-            }).unwrap_or("".to_string()),
+            leaf_weight: self
+                .open_path("blkio.leaf_weight", false)
+                .and_then(|file| read_u64_from(file))
+                .unwrap_or(0u64),
+            leaf_weight_device: self
+                .open_path("blkio.leaf_weight_device", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
+            sectors: self
+                .open_path("blkio.sectors", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
+            sectors_recursive: self
+                .open_path("blkio.sectors_recursive", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
             throttle: BlkIoThrottle {
-                io_service_bytes: self.open_path("blkio.throttle.io_service_bytes", false)
-                        .and_then(read_string_from)
-                        .and_then(parse_io_service)
-                        .unwrap_or(Vec::new()),
-                io_service_bytes_total: self.open_path("blkio.throttle.io_service_bytes", false)
-                        .and_then(read_string_from)
-                        .and_then(parse_io_service_total)
-                        .unwrap_or(0),
-                io_service_bytes_recursive: self.open_path("blkio.throttle.io_service_bytes_recursive", false)
+                io_service_bytes: self
+                    .open_path("blkio.throttle.io_service_bytes", false)
                     .and_then(read_string_from)
                     .and_then(parse_io_service)
                     .unwrap_or(Vec::new()),
-                io_service_bytes_recursive_total: self.open_path("blkio.throttle.io_service_bytes_recursive", false)
+                io_service_bytes_total: self
+                    .open_path("blkio.throttle.io_service_bytes", false)
                     .and_then(read_string_from)
                     .and_then(parse_io_service_total)
                     .unwrap_or(0),
-                io_serviced: self.open_path("blkio.throttle.io_serviced", false)
+                io_service_bytes_recursive: self
+                    .open_path("blkio.throttle.io_service_bytes_recursive", false)
                     .and_then(read_string_from)
                     .and_then(parse_io_service)
                     .unwrap_or(Vec::new()),
-                io_serviced_total: self.open_path("blkio.throttle.io_serviced", false)
+                io_service_bytes_recursive_total: self
+                    .open_path("blkio.throttle.io_service_bytes_recursive", false)
                     .and_then(read_string_from)
                     .and_then(parse_io_service_total)
                     .unwrap_or(0),
-                io_serviced_recursive: self.open_path("blkio.throttle.io_serviced_recursive", false)
+                io_serviced: self
+                    .open_path("blkio.throttle.io_serviced", false)
                     .and_then(read_string_from)
                     .and_then(parse_io_service)
                     .unwrap_or(Vec::new()),
-                io_serviced_recursive_total: self.open_path("blkio.throttle.io_serviced_recursive", false)
+                io_serviced_total: self
+                    .open_path("blkio.throttle.io_serviced", false)
                     .and_then(read_string_from)
                     .and_then(parse_io_service_total)
                     .unwrap_or(0),
-                read_bps_device: self.open_path("blkio.throttle.read_bps_device", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
-                read_iops_device: self.open_path("blkio.throttle.read_iops_device", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
-                write_bps_device: self.open_path("blkio.throttle.write_bps_device", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
-                write_iops_device: self.open_path("blkio.throttle.write_iops_device", false).and_then(|file| {
-                    read_string_from(file)
-                }).unwrap_or("".to_string()),
+                io_serviced_recursive: self
+                    .open_path("blkio.throttle.io_serviced_recursive", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service)
+                    .unwrap_or(Vec::new()),
+                io_serviced_recursive_total: self
+                    .open_path("blkio.throttle.io_serviced_recursive", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_io_service_total)
+                    .unwrap_or(0),
+                read_bps_device: self
+                    .open_path("blkio.throttle.read_bps_device", false)
+                    .and_then(|file| read_string_from(file))
+                    .unwrap_or("".to_string()),
+                read_iops_device: self
+                    .open_path("blkio.throttle.read_iops_device", false)
+                    .and_then(|file| read_string_from(file))
+                    .unwrap_or("".to_string()),
+                write_bps_device: self
+                    .open_path("blkio.throttle.write_bps_device", false)
+                    .and_then(|file| read_string_from(file))
+                    .unwrap_or("".to_string()),
+                write_iops_device: self
+                    .open_path("blkio.throttle.write_iops_device", false)
+                    .and_then(|file| read_string_from(file))
+                    .unwrap_or("".to_string()),
             },
-            time: self.open_path("blkio.time", false)
+            time: self
+                .open_path("blkio.time", false)
                 .and_then(read_string_from)
                 .and_then(parse_blkio_data)
                 .unwrap_or(Vec::new()),
-            time_recursive: self.open_path("blkio.time_recursive", false)
+            time_recursive: self
+                .open_path("blkio.time_recursive", false)
                 .and_then(read_string_from)
                 .and_then(parse_blkio_data)
                 .unwrap_or(Vec::new()),
-            weight: self.open_path("blkio.weight", false).and_then(|file| {
-                read_u64_from(file)
-            }).unwrap_or(0u64),
-            weight_device: self.open_path("blkio.weight_device", false)
+            weight: self
+                .open_path("blkio.weight", false)
+                .and_then(|file| read_u64_from(file))
+                .unwrap_or(0u64),
+            weight_device: self
+                .open_path("blkio.weight_device", false)
                 .and_then(read_string_from)
                 .and_then(parse_blkio_data)
                 .unwrap_or(Vec::new()),
@@ -520,77 +570,116 @@ impl BlkIoController {
     /// Set the leaf weight on the control group's tasks, i.e., how are they weighted against the
     /// descendant control groups' tasks.
     pub fn set_leaf_weight(&self, w: u64) -> Result<(), CgroupError> {
-        self.open_path("blkio.leaf_weight", true).and_then(|mut file| {
-            file.write_all(w.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("blkio.leaf_weight", true)
+            .and_then(|mut file| {
+                file.write_all(w.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Same as `set_leaf_weight()`, but settable per each block device.
     pub fn set_leaf_weight_for_device(&self, d: String) -> Result<(), CgroupError> {
-        self.open_path("blkio.leaf_weight_device", true).and_then(|mut file| {
-            file.write_all(d.as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("blkio.leaf_weight_device", true)
+            .and_then(|mut file| file.write_all(d.as_ref()).map_err(CgroupError::WriteError))
     }
 
     /// Reset the statistics the kernel has gathered so far and start fresh.
     pub fn reset_stats(&self) -> Result<(), CgroupError> {
-        self.open_path("blkio.leaf_weight_device", true).and_then(|mut file| {
-            file.write_all("1".to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("blkio.leaf_weight_device", true)
+            .and_then(|mut file| {
+                file.write_all("1".to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Throttle the bytes per second rate of read operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_read_bps_for_device(&self, major: u64, minor: u64, bps: u64) -> Result<(), CgroupError> {
-        self.open_path("blkio.throttle.read_bps_device", true).and_then(|mut file| {
-            file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+    pub fn throttle_read_bps_for_device(
+        &self,
+        major: u64,
+        minor: u64,
+        bps: u64,
+    ) -> Result<(), CgroupError> {
+        self.open_path("blkio.throttle.read_bps_device", true)
+            .and_then(|mut file| {
+                file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Throttle the I/O operations per second rate of read operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_read_iops_for_device(&self, major: u64, minor: u64, iops: u64) -> Result<(), CgroupError> {
-        self.open_path("blkio.throttle.read_iops_device", true).and_then(|mut file| {
-            file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+    pub fn throttle_read_iops_for_device(
+        &self,
+        major: u64,
+        minor: u64,
+        iops: u64,
+    ) -> Result<(), CgroupError> {
+        self.open_path("blkio.throttle.read_iops_device", true)
+            .and_then(|mut file| {
+                file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
     /// Throttle the bytes per second rate of write operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_write_bps_for_device(&self, major: u64, minor: u64, bps: u64) -> Result<(), CgroupError> {
-        self.open_path("blkio.throttle.write_bps_device", true).and_then(|mut file| {
-            file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+    pub fn throttle_write_bps_for_device(
+        &self,
+        major: u64,
+        minor: u64,
+        bps: u64,
+    ) -> Result<(), CgroupError> {
+        self.open_path("blkio.throttle.write_bps_device", true)
+            .and_then(|mut file| {
+                file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Throttle the I/O operations per second rate of write operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_write_iops_for_device(&self, major: u64, minor: u64, iops: u64) -> Result<(), CgroupError> {
-        self.open_path("blkio.throttle.write_iops_device", true).and_then(|mut file| {
-            file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+    pub fn throttle_write_iops_for_device(
+        &self,
+        major: u64,
+        minor: u64,
+        iops: u64,
+    ) -> Result<(), CgroupError> {
+        self.open_path("blkio.throttle.write_iops_device", true)
+            .and_then(|mut file| {
+                file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Set the weight of the control group's tasks.
     pub fn set_weight(&self, w: u64) -> Result<(), CgroupError> {
-        self.open_path("blkio.leaf_weight", true).and_then(|mut file| {
-            file.write_all(w.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("blkio.leaf_weight", true)
+            .and_then(|mut file| {
+                file.write_all(w.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Same as `set_weight()`, but settable per each block device.
-    pub fn set_weight_for_device(&self, major: u64, minor: u64, weight: u64) -> Result<(), CgroupError> {
-        self.open_path("blkio.weight_device", true).and_then(|mut file| {
-            file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
-                .map_err(CgroupError::WriteError)
-        })
+    pub fn set_weight_for_device(
+        &self,
+        major: u64,
+        minor: u64,
+        weight: u64,
+    ) -> Result<(), CgroupError> {
+        self.open_path("blkio.weight_device", true)
+            .and_then(|mut file| {
+                file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use blkio::{IoService, parse_io_service, parse_io_service_total};
-    use blkio::{BlkIoData, parse_blkio_data};
-    use ::CgroupError;
+    use blkio::{parse_blkio_data, BlkIoData};
+    use blkio::{parse_io_service, parse_io_service_total, IoService};
+    use CgroupError;
 
     const test_value: &str = "\
 8:32 Read 4280320
@@ -645,75 +734,87 @@ Total 61823067136
 
     #[test]
     fn test_parse_io_service_total() {
-        assert_eq!(parse_io_service_total(test_value.to_string()), Ok(61823067136));
+        assert_eq!(
+            parse_io_service_total(test_value.to_string()),
+            Ok(61823067136)
+        );
     }
 
     #[test]
     fn test_parse_io_service() {
-        assert_eq!(parse_io_service(test_value.to_string()), Ok(vec![
-                    IoService {
-                        major: 8,
-                        minor: 32,
-                        read: 4280320,
-                        write: 0,
-                        sync: 4280320,
-                        async: 0,
-                        total: 4280320,
-                    },
-                    IoService {
-                        major: 8,
-                        minor: 48,
-                        read: 5705479168,
-                        write: 56096055296,
-                        sync: 11213923328,
-                        async: 50587611136,
-                        total: 61801534464,
-                    },
-                    IoService {
-                        major: 8,
-                        minor: 16,
-                        read: 10059776,
-                        write: 0,
-                        sync: 10059776,
-                        async: 0,
-                        total: 10059776,
-                    },
-                    IoService {
-                        major: 8,
-                        minor: 0 ,
-                        read: 7192576,
-                        write: 0,
-                        sync: 7192576,
-                        async: 0,
-                        total: 7192576,
-                    }
-        ]));
-        assert_eq!(parse_io_service(test_wrong_value.to_string()), Err(CgroupError::ParseError));
+        assert_eq!(
+            parse_io_service(test_value.to_string()),
+            Ok(vec![
+                IoService {
+                    major: 8,
+                    minor: 32,
+                    read: 4280320,
+                    write: 0,
+                    sync: 4280320,
+                    async: 0,
+                    total: 4280320,
+                },
+                IoService {
+                    major: 8,
+                    minor: 48,
+                    read: 5705479168,
+                    write: 56096055296,
+                    sync: 11213923328,
+                    async: 50587611136,
+                    total: 61801534464,
+                },
+                IoService {
+                    major: 8,
+                    minor: 16,
+                    read: 10059776,
+                    write: 0,
+                    sync: 10059776,
+                    async: 0,
+                    total: 10059776,
+                },
+                IoService {
+                    major: 8,
+                    minor: 0,
+                    read: 7192576,
+                    write: 0,
+                    sync: 7192576,
+                    async: 0,
+                    total: 7192576,
+                }
+            ])
+        );
+        assert_eq!(
+            parse_io_service(test_wrong_value.to_string()),
+            Err(CgroupError::ParseError)
+        );
     }
 
     #[test]
     fn test_parse_blkio_data() {
-        assert_eq!(parse_blkio_data(test_blkio_data.to_string()), Ok(vec![
-            BlkIoData {
-                major: 8,
-                minor: 48,
-                data: 454480833999,
-            },
-            BlkIoData {
-                major: 8,
-                minor: 32,
-                data: 228392923193,
-            },
-            BlkIoData {
-                major: 8,
-                minor: 16,
-                data: 772456885,
-            },
-            BlkIoData {
-                major: 8,
-                minor: 0,
-                data: 559583764,
-            }
-        ]));
+        assert_eq!(
+            parse_blkio_data(test_blkio_data.to_string()),
+            Ok(vec![
+                BlkIoData {
+                    major: 8,
+                    minor: 48,
+                    data: 454480833999,
+                },
+                BlkIoData {
+                    major: 8,
+                    minor: 32,
+                    data: 228392923193,
+                },
+                BlkIoData {
+                    major: 8,
+                    minor: 16,
+                    data: 772456885,
+                },
+                BlkIoData {
+                    major: 8,
+                    minor: 0,
+                    data: 559583764,
+                }
+            ])
+        );
     }
 }

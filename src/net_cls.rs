@@ -1,13 +1,16 @@
 //! This module contains the implementation of the `net_cls` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/net_cls.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/net_cls.txt)
-use std::path::PathBuf;
-use std::io::{Read, Write};
 use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, NetworkResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 use CgroupError::*;
+use {
+    CgroupError, ControllIdentifier, Controller, Controllers, NetworkResources, Resources,
+    Subsystem,
+};
 
 /// A controller that allows controlling the `net_cls` subsystem of a Cgroup.
 ///
@@ -21,10 +24,18 @@ pub struct NetClsController {
 }
 
 impl Controller for NetClsController {
-    fn control_type(&self) -> Controllers { Controllers::NetCls }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::NetCls
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
@@ -54,7 +65,7 @@ impl<'a> From<&'a Subsystem> for &'a NetClsController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -78,19 +89,19 @@ impl NetClsController {
             path: root,
         }
     }
-    
+
     /// Set the network class id of the outgoing packets of the control group's tasks.
     pub fn set_class(&self, class: u64) -> Result<(), CgroupError> {
-        self.open_path("net_cls.classid", true).and_then(|mut file| {
-            let s = format!("{:#08X}", class);
-            file.write_all(s.as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("net_cls.classid", true)
+            .and_then(|mut file| {
+                let s = format!("{:#08X}", class);
+                file.write_all(s.as_ref()).map_err(CgroupError::WriteError)
+            })
     }
 
     /// Get the network class id of the outgoing packets of the control group's tasks.
     pub fn get_class(&self) -> Result<u64, CgroupError> {
-        self.open_path("net_cls.classid", false).and_then(|file| {
-            read_u64_from(file)
-        })
+        self.open_path("net_cls.classid", false)
+            .and_then(|file| read_u64_from(file))
     }
 }

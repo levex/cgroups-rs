@@ -1,12 +1,12 @@
 //! This module contains the implementation of the `rdma` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/rdma.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/rdma.txt)
-use std::path::PathBuf;
-use std::io::{Write, Read};
 use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `rdma` subsystem of a Cgroup.
 ///
@@ -19,10 +19,18 @@ pub struct RdmaController {
 }
 
 impl Controller for RdmaController {
-    fn control_type(&self) -> Controllers { Controllers::Rdma }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::Rdma
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
         Ok(())
@@ -43,7 +51,7 @@ impl<'a> From<&'a Subsystem> for &'a RdmaController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -77,7 +85,8 @@ impl RdmaController {
     /// Set a maximum usage for each RDMA/IB resource.
     pub fn set_max(&self, max: &String) -> Result<(), CgroupError> {
         self.open_path("rdma.max", true).and_then(|mut file| {
-            file.write_all(max.as_ref()).map_err(CgroupError::WriteError)
+            file.write_all(max.as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 }

@@ -1,7 +1,7 @@
 extern crate cgroups;
 
-use cgroups::{Cgroup, CgroupError};
 use cgroups::cpuset::CpuSetController;
+use cgroups::{Cgroup, CgroupError};
 
 #[test]
 fn test_cpuset_memory_pressure_root_cg() {

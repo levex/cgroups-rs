@@ -2,8 +2,8 @@
 extern crate cgroups;
 use cgroups::{Cgroup, CgroupPid};
 
-extern crate nix;
 extern crate libc;
+extern crate nix;
 
 #[test]
 fn test_tasks_iterator() {
@@ -17,7 +17,7 @@ fn test_tasks_iterator() {
         // Verify that the task is indeed in the control group
         assert_eq!(tasks.next(), Some(CgroupPid::from(pid)));
         assert_eq!(tasks.next(), None);
-        
+
         // Now, try removing it.
         cg.remove_task(CgroupPid::from(pid));
         tasks = cg.tasks().into_iter();

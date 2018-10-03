@@ -1,18 +1,21 @@
 //! This module contains the implementation of the `devices` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/devices.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/devices.txt)
-use std::path::PathBuf;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {DeviceResource, CgroupError, DeviceResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {
+    CgroupError, ControllIdentifier, Controller, Controllers, DeviceResource, DeviceResources,
+    Resources, Subsystem,
+};
 
 /// A controller that allows controlling the `devices` subsystem of a Cgroup.
 ///
 /// In essence, using the devices controller, it is possible to allow or disallow sets of devices to
 /// be used by the control group's tasks.
 #[derive(Debug, Clone)]
-pub struct DevicesController{
+pub struct DevicesController {
     base: PathBuf,
     path: PathBuf,
 }
@@ -29,7 +32,9 @@ pub enum DeviceType {
 }
 
 impl Default for DeviceType {
-    fn default() -> Self { DeviceType::All }
+    fn default() -> Self {
+        DeviceType::All
+    }
 }
 
 impl DeviceType {
@@ -124,10 +129,18 @@ impl DevicePermissions {
 }
 
 impl Controller for DevicesController {
-    fn control_type(&self) -> Controllers { Controllers::Devices }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::Devices
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
@@ -161,7 +174,7 @@ impl<'a> From<&'a Subsystem> for &'a DevicesController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -182,13 +195,31 @@ impl DevicesController {
     ///
     /// When `-1` is passed as `major` or `minor`, the kernel interprets that value as "any",
     /// meaning that it will match any device.
-    pub fn allow_device(&self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
-        let perms = perm.iter().map(DevicePermissions::to_char).collect::<String>();
-        let minor = if minor == -1 { "*".to_string() } else { format!("{}", minor) };
-        let major = if major == -1 { "*".to_string() } else { format!("{}", major) };
+    pub fn allow_device(
+        &self,
+        devtype: DeviceType,
+        major: i64,
+        minor: i64,
+        perm: &Vec<DevicePermissions>,
+    ) -> Result<(), CgroupError> {
+        let perms = perm
+            .iter()
+            .map(DevicePermissions::to_char)
+            .collect::<String>();
+        let minor = if minor == -1 {
+            "*".to_string()
+        } else {
+            format!("{}", minor)
+        };
+        let major = if major == -1 {
+            "*".to_string()
+        } else {
+            format!("{}", major)
+        };
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.allow", true).and_then(|mut file| {
-            file.write_all(final_str.as_ref()).map_err(CgroupError::WriteError)
+            file.write_all(final_str.as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 
@@ -196,13 +227,31 @@ impl DevicesController {
     ///
     /// When `-1` is passed as `major` or `minor`, the kernel interprets that value as "any",
     /// meaning that it will match any device.
-    pub fn deny_device(&self, devtype: DeviceType, major: i64, minor: i64, perm: &Vec<DevicePermissions>) -> Result<(), CgroupError> {
-        let perms = perm.iter().map(DevicePermissions::to_char).collect::<String>();
-        let minor = if minor == -1 { "*".to_string() } else { format!("{}", minor) };
-        let major = if major == -1 { "*".to_string() } else { format!("{}", major) };
+    pub fn deny_device(
+        &self,
+        devtype: DeviceType,
+        major: i64,
+        minor: i64,
+        perm: &Vec<DevicePermissions>,
+    ) -> Result<(), CgroupError> {
+        let perms = perm
+            .iter()
+            .map(DevicePermissions::to_char)
+            .collect::<String>();
+        let minor = if minor == -1 {
+            "*".to_string()
+        } else {
+            format!("{}", minor)
+        };
+        let major = if major == -1 {
+            "*".to_string()
+        } else {
+            format!("{}", major)
+        };
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.deny", true).and_then(|mut file| {
-            file.write_all(final_str.as_ref()).map_err(CgroupError::WriteError)
+            file.write_all(final_str.as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 
