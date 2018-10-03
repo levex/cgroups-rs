@@ -664,7 +664,8 @@ mod tests {
     use memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
-    const good_value: &str = "\
+
+    static GOOD_VALUE: &str = "\
 total=51189 N0=51189 N1=123
 file=50175 N0=50175 N1=123
 anon=1014 N0=1014 N1=123
@@ -675,13 +676,13 @@ hierarchical_anon=770402 N0=770402 N1=123
 hierarchical_unevictable=20 N0=20 N1=123
 ";
 
-    const good_oomcontrol_val: &str = "\
+    static GOOD_OOMCONTROL_VAL: &str = "\
 oom_kill_disable 0
 under_oom 1
 oom_kill 1337
 ";
 
-    static good_memorystat_val: &str = "\
+    static GOOD_MEMORYSTAT_VAL: &str = "\
 cache 178880512
 rss 4206592
 rss_huge 0
@@ -723,7 +724,7 @@ total_unevictable 81920
     #[test]
     fn test_parse_numa_stat() {
         assert_eq!(
-            parse_numa_stat(good_value.to_string()),
+            parse_numa_stat(GOOD_VALUE.to_string()),
             Ok(NumaStat {
                 total_pages: 51189,
                 total_pages_per_node: vec![51189, 123],
@@ -749,7 +750,7 @@ total_unevictable 81920
     #[test]
     fn test_parse_oom_control() {
         assert_eq!(
-            parse_oom_control(good_oomcontrol_val.to_string()),
+            parse_oom_control(GOOD_OOMCONTROL_VAL.to_string()),
             Ok(OomControl {
                 oom_kill_disable: false,
                 under_oom: true,
@@ -761,7 +762,7 @@ total_unevictable 81920
     #[test]
     fn test_parse_memory_stat() {
         assert_eq!(
-            parse_memory_stat(good_memorystat_val.to_string()),
+            parse_memory_stat(GOOD_MEMORYSTAT_VAL.to_string()),
             Ok(MemoryStat {
                 cache: 178880512,
                 rss: 4206592,

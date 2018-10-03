@@ -681,7 +681,7 @@ mod test {
     use blkio::{parse_io_service, parse_io_service_total, IoService};
     use CgroupError;
 
-    const test_value: &str = "\
+    static TEST_VALUE: &str = "\
 8:32 Read 4280320
 8:32 Write 0
 8:32 Sync 4280320
@@ -704,7 +704,8 @@ mod test {
 8:0 Total 7192576
 Total 61823067136
  ";
-    const test_wrong_value: &str = "\
+
+    static TEST_WRONG_VALUE: &str = "\
 8:32 Read 4280320
 8:32 Write 0
 8:32 Async 0
@@ -725,7 +726,8 @@ Total 61823067136
 8:0 Total 7192576
 Total 61823067136
  ";
-    const test_blkio_data: &str = "\
+
+    static TEST_BLKIO_DATA: &str = "\
 8:48 454480833999
 8:32 228392923193
 8:16 772456885
@@ -735,7 +737,7 @@ Total 61823067136
     #[test]
     fn test_parse_io_service_total() {
         assert_eq!(
-            parse_io_service_total(test_value.to_string()),
+            parse_io_service_total(TEST_VALUE.to_string()),
             Ok(61823067136)
         );
     }
@@ -743,7 +745,7 @@ Total 61823067136
     #[test]
     fn test_parse_io_service() {
         assert_eq!(
-            parse_io_service(test_value.to_string()),
+            parse_io_service(TEST_VALUE.to_string()),
             Ok(vec![
                 IoService {
                     major: 8,
@@ -784,7 +786,7 @@ Total 61823067136
             ])
         );
         assert_eq!(
-            parse_io_service(test_wrong_value.to_string()),
+            parse_io_service(TEST_WRONG_VALUE.to_string()),
             Err(CgroupError::ParseError)
         );
     }
@@ -792,7 +794,7 @@ Total 61823067136
     #[test]
     fn test_parse_blkio_data() {
         assert_eq!(
-            parse_blkio_data(test_blkio_data.to_string()),
+            parse_blkio_data(TEST_BLKIO_DATA.to_string()),
             Ok(vec![
                 BlkIoData {
                     major: 8,
