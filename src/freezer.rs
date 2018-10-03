@@ -1,11 +1,11 @@
 //! This module contains the implementation of the `freezer` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/freezer-subsystem.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/freezer-subsystem.txt)
-use std::path::PathBuf;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `freezer` subsystem of a Cgroup.
 ///
@@ -16,7 +16,7 @@ use {CgroupError, Controllers, Controller, Resources, ControllIdentifier, Subsys
 /// Note that if the control group is currently in the `Frozen` or `Freezing` state, then no
 /// processes can be added to it.
 #[derive(Debug, Clone)]
-pub struct FreezerController{
+pub struct FreezerController {
     base: PathBuf,
     path: PathBuf,
 }
@@ -32,10 +32,18 @@ pub enum FreezerState {
 }
 
 impl Controller for FreezerController {
-    fn control_type(&self) -> Controllers { Controllers::Freezer }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::Freezer
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
         Ok(())
@@ -56,7 +64,7 @@ impl<'a> From<&'a Subsystem> for &'a FreezerController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -76,14 +84,16 @@ impl FreezerController {
     /// Freezes the processes in the control group.
     pub fn freeze(&self) -> Result<(), CgroupError> {
         self.open_path("freezer.state", true).and_then(|mut file| {
-            file.write_all("FROZEN".to_string().as_ref()).map_err(CgroupError::WriteError)
+            file.write_all("FROZEN".to_string().as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 
     /// Thaws, that is, unfreezes the processes in the control group.
     pub fn thaw(&self) -> Result<(), CgroupError> {
         self.open_path("freezer.state", true).and_then(|mut file| {
-            file.write_all("THAWED".to_string().as_ref()).map_err(CgroupError::WriteError)
+            file.write_all("THAWED".to_string().as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 

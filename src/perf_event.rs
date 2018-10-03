@@ -1,10 +1,10 @@
 //! This module contains the implementation of the `perf_event` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [tools/perf/Documentation/perf-record.txt](https://raw.githubusercontent.com/torvalds/linux/master/tools/perf/Documentation/perf-record.txt)
 use std::path::PathBuf;
 
-use {CgroupError, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
+use {CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `perf_event` subsystem of a Cgroup.
 ///
@@ -17,10 +17,18 @@ pub struct PerfEventController {
 }
 
 impl Controller for PerfEventController {
-    fn control_type(&self) -> Controllers { Controllers::PerfEvent }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::PerfEvent
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
         Ok(())
@@ -41,7 +49,7 @@ impl<'a> From<&'a Subsystem> for &'a PerfEventController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }

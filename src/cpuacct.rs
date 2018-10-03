@@ -1,12 +1,12 @@
 //! This module contains the implementation of the `cpuacct` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/cpuacct.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/cpuacct.txt)
-use std::path::PathBuf;
-use std::io::{Read, Write};
 use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, Controllers, Resources, Subsystem, ControllIdentifier, Controller};
+use {CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `cpuacct` subsystem of a Cgroup.
 ///
@@ -50,10 +50,18 @@ pub struct CpuAcct {
 }
 
 impl Controller for CpuAcctController {
-    fn control_type(&self) -> Controllers { Controllers::CpuAcct }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::CpuAcct
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
         Ok(())
@@ -74,7 +82,7 @@ impl<'a> From<&'a Subsystem> for &'a CpuAcctController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -101,7 +109,6 @@ fn read_string_from(mut file: File) -> Result<String, CgroupError> {
 }
 
 impl CpuAcctController {
-
     /// Contructs a new `CpuAcctController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
@@ -115,32 +122,44 @@ impl CpuAcctController {
     /// Gathers the statistics that are available in the control group into a `CpuAcct` structure.
     pub fn cpuacct(&self) -> CpuAcct {
         CpuAcct {
-            stat: self.open_path("cpuacct.stat", false)
-                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
-            usage: self.open_path("cpuacct.usage", false)
-                    .and_then(|file| read_u64_from(file))
-                    .unwrap_or(0),
-            usage_all: self.open_path("cpuacct.usage_all", false)
-                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
-            usage_percpu: self.open_path("cpuacct.usage_percpu", false)
-                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
-            usage_percpu_sys: self.open_path("cpuacct.usage_percpu_sys", false)
-                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
-            usage_percpu_user: self.open_path("cpuacct.usage_percpu_user", false)
-                    .and_then(|file| read_string_from(file)).unwrap_or("".to_string()),
-            usage_sys: self.open_path("cpuacct.usage_sys", false)
-                    .and_then(|file| read_u64_from(file))
-                    .unwrap_or(0),
-            usage_user: self.open_path("cpuacct.usage_user", false)
-                    .and_then(|file| read_u64_from(file))
-                    .unwrap_or(0),
+            stat: self
+                .open_path("cpuacct.stat", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
+            usage: self
+                .open_path("cpuacct.usage", false)
+                .and_then(|file| read_u64_from(file))
+                .unwrap_or(0),
+            usage_all: self
+                .open_path("cpuacct.usage_all", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
+            usage_percpu: self
+                .open_path("cpuacct.usage_percpu", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
+            usage_percpu_sys: self
+                .open_path("cpuacct.usage_percpu_sys", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
+            usage_percpu_user: self
+                .open_path("cpuacct.usage_percpu_user", false)
+                .and_then(|file| read_string_from(file))
+                .unwrap_or("".to_string()),
+            usage_sys: self
+                .open_path("cpuacct.usage_sys", false)
+                .and_then(|file| read_u64_from(file))
+                .unwrap_or(0),
+            usage_user: self
+                .open_path("cpuacct.usage_user", false)
+                .and_then(|file| read_u64_from(file))
+                .unwrap_or(0),
         }
     }
 
     /// Reset the statistics the kernel has gathered about the control group.
     pub fn reset(&self) -> Result<(), CgroupError> {
-        self.open_path("cpuacct.usage", true).and_then(|mut file| {
-            file.write_all(b"0").map_err(CgroupError::WriteError)
-        })
+        self.open_path("cpuacct.usage", true)
+            .and_then(|mut file| file.write_all(b"0").map_err(CgroupError::WriteError))
     }
 }

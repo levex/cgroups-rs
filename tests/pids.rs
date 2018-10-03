@@ -1,12 +1,12 @@
 //! Integration tests about the pids subsystem
 extern crate cgroups;
-use cgroups::{CgroupError, CgroupPid, Cgroup, Resources, PidResources};
 use cgroups::pid::{PidController, PidMax};
 use cgroups::Controller;
+use cgroups::{Cgroup, CgroupError, CgroupPid, PidResources, Resources};
 
 extern crate nix;
-use nix::unistd::{Pid, fork, ForkResult};
 use nix::sys::wait::{waitpid, WaitStatus};
+use nix::unistd::{fork, ForkResult, Pid};
 
 extern crate libc;
 use libc::pid_t;
@@ -86,16 +86,14 @@ fn test_pid_events_is_not_zero() {
                 let events = pids.get_pid_events();
                 assert!(events.is_ok());
                 assert_eq!(events.unwrap(), before + 1);
-            },
-            Ok(ForkResult::Child) => {
-                loop {
-                    let pids_max = pids.get_pid_max();
-                    if pids_max.is_ok() && pids_max.unwrap() == PidMax::Value(1) {
-                        if let Err(_) = fork() {
-                            unsafe { libc::exit(0) };
-                        } else {
-                            unsafe { libc::exit(1) };
-                        }
+            }
+            Ok(ForkResult::Child) => loop {
+                let pids_max = pids.get_pid_max();
+                if pids_max.is_ok() && pids_max.unwrap() == PidMax::Value(1) {
+                    if let Err(_) = fork() {
+                        unsafe { libc::exit(0) };
+                    } else {
+                        unsafe { libc::exit(1) };
                     }
                 }
             },

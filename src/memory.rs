@@ -1,13 +1,15 @@
 //! This module contains the implementation of the `memory` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/memory.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)
-use std::path::PathBuf;
-use std::io::{Write, Read};
 use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, Resources, MemoryResources, Controller, Controllers, Subsystem, ControllIdentifier};
 use CgroupError::*;
+use {
+    CgroupError, ControllIdentifier, Controller, Controllers, MemoryResources, Resources, Subsystem,
+};
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
 ///
@@ -15,7 +17,7 @@ use CgroupError::*;
 /// of the tasks in the control group. Additonally, one can also set powerful limits on their
 /// memory usage.
 #[derive(Debug, Clone)]
-pub struct MemController{
+pub struct MemController {
     base: PathBuf,
     path: PathBuf,
 }
@@ -83,55 +85,127 @@ fn parse_numa_stat(s: String) -> Result<NumaStat, CgroupError> {
     // Parse the number of nodes
     let nodes = (s.split_whitespace().collect::<Vec<_>>().len() - 8) / 8;
     let mut ls = s.lines();
-    let total_line   = ls.next().unwrap();
-    let file_line    = ls.next().unwrap();
-    let anon_line    = ls.next().unwrap();
+    let total_line = ls.next().unwrap();
+    let file_line = ls.next().unwrap();
+    let anon_line = ls.next().unwrap();
     let unevict_line = ls.next().unwrap();
-    let hier_total_line   = ls.next().unwrap();
-    let hier_file_line    = ls.next().unwrap();
-    let hier_anon_line    = ls.next().unwrap();
+    let hier_total_line = ls.next().unwrap();
+    let hier_file_line = ls.next().unwrap();
+    let hier_anon_line = ls.next().unwrap();
     let hier_unevict_line = ls.next().unwrap();
 
     Ok(NumaStat {
-        total_pages: total_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        total_pages: total_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         total_pages_per_node: {
             let spl = &total_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
-        file_pages: file_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        file_pages: file_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         file_pages_per_node: {
             let spl = &file_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
-        anon_pages: anon_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        anon_pages: anon_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         anon_pages_per_node: {
             let spl = &anon_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
-        unevictable_pages: unevict_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        unevictable_pages: unevict_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         unevictable_pages_per_node: {
             let spl = &unevict_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
-        hierarchical_total_pages: hier_total_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_total_pages: hier_total_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         hierarchical_total_pages_per_node: {
             let spl = &hier_total_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
-        hierarchical_file_pages: hier_file_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_file_pages: hier_file_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         hierarchical_file_pages_per_node: {
             let spl = &hier_file_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
-        hierarchical_anon_pages: hier_anon_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_anon_pages: hier_anon_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         hierarchical_anon_pages_per_node: {
             let spl = &hier_anon_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
-        hierarchical_unevictable_pages: hier_unevict_line.split(|x| x == ' ' || x == '=').collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0),
+        hierarchical_unevictable_pages: hier_unevict_line
+            .split(|x| x == ' ' || x == '=')
+            .collect::<Vec<_>>()[1]
+            .parse::<u64>()
+            .unwrap_or(0),
         hierarchical_unevictable_pages_per_node: {
             let spl = &hier_unevict_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter().map(|x| x.split("=").collect::<Vec<_>>()[1].parse::<u64>().unwrap_or(0)).collect()
+            spl.iter()
+                .map(|x| {
+                    x.split("=").collect::<Vec<_>>()[1]
+                        .parse::<u64>()
+                        .unwrap_or(0)
+                }).collect()
         },
     })
 }
@@ -177,9 +251,10 @@ pub struct MemoryStat {
 }
 
 fn parse_memory_stat(s: String) -> Result<MemoryStat, CgroupError> {
-    let sp: Vec<&str> = s.split_whitespace()
-                          .filter(|x| x.parse::<u64>().is_ok())
-                          .collect();
+    let sp: Vec<&str> = s
+        .split_whitespace()
+        .filter(|x| x.parse::<u64>().is_ok())
+        .collect();
 
     let mut spl = sp.iter();
     Ok(MemoryStat {
@@ -317,10 +392,18 @@ pub struct Kmem {
 }
 
 impl Controller for MemController {
-    fn control_type(&self) -> Controllers { Controllers::Mem }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::Mem
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
@@ -357,53 +440,79 @@ impl MemController {
     /// kernel Documentation and/or sources.
     pub fn memory_stat(&self) -> Memory {
         Memory {
-            fail_cnt: self.open_path("memory.failcnt", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            limit_in_bytes: self.open_path("memory.limit_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            usage_in_bytes: self.open_path("memory.usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            max_usage_in_bytes: self.open_path("memory.max_usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            move_charge_at_immigrate: self.open_path("memory.move_charge_at_immigrate", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            numa_stat: self.open_path("memory.numa_stat", false)
-                            .and_then(read_string_from)
-                            .and_then(parse_numa_stat)
-                            .unwrap_or(NumaStat::default()),
-            oom_control: self.open_path("memory.oom_control", false)
-                            .and_then(read_string_from)
-                            .and_then(parse_oom_control)
-                            .unwrap_or(OomControl::default()),
-            soft_limit_in_bytes: self.open_path("memory.soft_limit_in_bytes", false)
-                            .and_then(read_u64_from)
-                            .unwrap_or(0),
-            stat: self.open_path("memory.stat", false)
-                            .and_then(read_string_from)
-                            .and_then(parse_memory_stat)
-                            .unwrap_or(MemoryStat::default()),
-            swappiness: self.open_path("memory.swappiness", false)
-                            .and_then(read_u64_from)
-                            .unwrap_or(0),
-            use_hierarchy: self.open_path("memory.use_hierarchy", false)
-                            .and_then(read_u64_from)
-                            .unwrap_or(0)
+            fail_cnt: self
+                .open_path("memory.failcnt", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            limit_in_bytes: self
+                .open_path("memory.limit_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            usage_in_bytes: self
+                .open_path("memory.usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: self
+                .open_path("memory.max_usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            move_charge_at_immigrate: self
+                .open_path("memory.move_charge_at_immigrate", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            numa_stat: self
+                .open_path("memory.numa_stat", false)
+                .and_then(read_string_from)
+                .and_then(parse_numa_stat)
+                .unwrap_or(NumaStat::default()),
+            oom_control: self
+                .open_path("memory.oom_control", false)
+                .and_then(read_string_from)
+                .and_then(parse_oom_control)
+                .unwrap_or(OomControl::default()),
+            soft_limit_in_bytes: self
+                .open_path("memory.soft_limit_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            stat: self
+                .open_path("memory.stat", false)
+                .and_then(read_string_from)
+                .and_then(parse_memory_stat)
+                .unwrap_or(MemoryStat::default()),
+            swappiness: self
+                .open_path("memory.swappiness", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            use_hierarchy: self
+                .open_path("memory.use_hierarchy", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
         }
     }
 
     /// Gathers information about the kernel memory usage of the control group's tasks.
     pub fn kmem_stat(&self) -> Kmem {
         Kmem {
-            fail_cnt: self.open_path("memory.kmem.failcnt", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            limit_in_bytes: self.open_path("memory.kmem.limit_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            usage_in_bytes: self.open_path("memory.kmem.usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            max_usage_in_bytes: self.open_path("memory.kmem.max_usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            slabinfo: self.open_path("memory.kmem.slabinfo", false)
-                            .and_then(read_string_from).unwrap_or("".to_string()),
+            fail_cnt: self
+                .open_path("memory.kmem.failcnt", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            limit_in_bytes: self
+                .open_path("memory.kmem.limit_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            usage_in_bytes: self
+                .open_path("memory.kmem.usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: self
+                .open_path("memory.kmem.max_usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            slabinfo: self
+                .open_path("memory.kmem.slabinfo", false)
+                .and_then(read_string_from)
+                .unwrap_or("".to_string()),
         }
     }
 
@@ -411,14 +520,22 @@ impl MemController {
     /// TCP-related.
     pub fn kmem_tcp_stat(&self) -> Tcp {
         Tcp {
-            fail_cnt: self.open_path("memory.kmem.tcp.failcnt", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            limit_in_bytes: self.open_path("memory.kmem.tcp.limit_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            usage_in_bytes: self.open_path("memory.kmem.tcp.usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            max_usage_in_bytes: self.open_path("memory.kmem.tcp.max_usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
+            fail_cnt: self
+                .open_path("memory.kmem.tcp.failcnt", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            limit_in_bytes: self
+                .open_path("memory.kmem.tcp.limit_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            usage_in_bytes: self
+                .open_path("memory.kmem.tcp.usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: self
+                .open_path("memory.kmem.tcp.max_usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
         }
     }
 
@@ -426,65 +543,83 @@ impl MemController {
     /// (if any).
     pub fn memswap(&self) -> MemSwap {
         MemSwap {
-            fail_cnt: self.open_path("memory.memsw.failcnt", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            limit_in_bytes: self.open_path("memory.memsw.limit_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            usage_in_bytes: self.open_path("memory.memsw.usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
-            max_usage_in_bytes: self.open_path("memory.memsw.max_usage_in_bytes", false)
-                            .and_then(read_u64_from).unwrap_or(0),
+            fail_cnt: self
+                .open_path("memory.memsw.failcnt", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            limit_in_bytes: self
+                .open_path("memory.memsw.limit_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            usage_in_bytes: self
+                .open_path("memory.memsw.usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: self
+                .open_path("memory.memsw.max_usage_in_bytes", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
         }
     }
 
     /// Set the memory usage limit of the control group, in bytes.
     pub fn set_limit(&self, limit: u64) -> Result<(), CgroupError> {
-        self.open_path("memory.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("memory.limit_in_bytes", true)
+            .and_then(|mut file| {
+                file.write_all(limit.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Set the kernel memory limit of the control group, in bytes.
     pub fn set_kmem_limit(&self, limit: u64) -> Result<(), CgroupError> {
-        self.open_path("memory.kmem.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("memory.kmem.limit_in_bytes", true)
+            .and_then(|mut file| {
+                file.write_all(limit.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Set the memory+swap limit of the control group, in bytes.
     pub fn set_memswap_limit(&self, limit: u64) -> Result<(), CgroupError> {
-        self.open_path("memory.memsw.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("memory.memsw.limit_in_bytes", true)
+            .and_then(|mut file| {
+                file.write_all(limit.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
     pub fn set_tcp_limit(&self, limit: u64) -> Result<(), CgroupError> {
-        self.open_path("memory.kmem.tcp.limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("memory.kmem.tcp.limit_in_bytes", true)
+            .and_then(|mut file| {
+                file.write_all(limit.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
-
 
     /// Set the soft limit of the control group, in bytes.
     ///
     /// This limit is enforced when the system is nearing OOM conditions. Contrast this with the
     /// hard limit, which is _always_ enforced.
     pub fn set_soft_limit(&self, limit: u64) -> Result<(), CgroupError> {
-        self.open_path("memory.soft_limit_in_bytes", true).and_then(|mut file| {
-            file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("memory.soft_limit_in_bytes", true)
+            .and_then(|mut file| {
+                file.write_all(limit.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
-
 
     /// Set how likely the kernel is to swap out parts of the address space used by the control
     /// group.
     ///
     /// Note that a value of zero does not imply that the process will not be swapped out.
     pub fn set_swappiness(&self, swp: u64) -> Result<(), CgroupError> {
-        self.open_path("memory.swappiness", true).and_then(|mut file| {
-            file.write_all(swp.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("memory.swappiness", true)
+            .and_then(|mut file| {
+                file.write_all(swp.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 }
 
@@ -502,7 +637,7 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -526,7 +661,9 @@ fn read_string_from(mut file: File) -> Result<String, CgroupError> {
 
 #[cfg(test)]
 mod tests {
-    use memory::{MemoryStat, parse_memory_stat, NumaStat, parse_oom_control, OomControl, parse_numa_stat};
+    use memory::{
+        parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
+    };
     const good_value: &str = "\
 total=51189 N0=51189 N1=123
 file=50175 N0=50175 N1=123
@@ -585,7 +722,8 @@ total_unevictable 81920
 
     #[test]
     fn test_parse_numa_stat() {
-        assert_eq!(parse_numa_stat(good_value.to_string()),
+        assert_eq!(
+            parse_numa_stat(good_value.to_string()),
             Ok(NumaStat {
                 total_pages: 51189,
                 total_pages_per_node: vec![51189, 123],
@@ -604,22 +742,26 @@ total_unevictable 81920
                 hierarchical_anon_pages_per_node: vec![770402, 123],
                 hierarchical_unevictable_pages: 20,
                 hierarchical_unevictable_pages_per_node: vec![20, 123],
-            }));
+            })
+        );
     }
 
     #[test]
     fn test_parse_oom_control() {
-        assert_eq!(parse_oom_control(good_oomcontrol_val.to_string()),
-                   Ok(OomControl {
-                       oom_kill_disable: false,
-                       under_oom: true,
-                       oom_kill: 1337,
-                   }));
+        assert_eq!(
+            parse_oom_control(good_oomcontrol_val.to_string()),
+            Ok(OomControl {
+                oom_kill_disable: false,
+                under_oom: true,
+                oom_kill: 1337,
+            })
+        );
     }
 
     #[test]
     fn test_parse_memory_stat() {
-        assert_eq!(parse_memory_stat(good_memorystat_val.to_string()),
+        assert_eq!(
+            parse_memory_stat(good_memorystat_val.to_string()),
             Ok(MemoryStat {
                 cache: 178880512,
                 rss: 4206592,
@@ -657,6 +799,7 @@ total_unevictable 81920
                 total_inactive_file: 1272135680,
                 total_active_file: 2338816000,
                 total_unevictable: 81920,
-            }));
+            })
+        );
     }
 }

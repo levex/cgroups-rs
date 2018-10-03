@@ -1,16 +1,15 @@
 //! This module handles cgroup operations. Start here!
 
-use {CgroupError, CgroupPid, Resources, ControllIdentifier, Controller, Hierarchy, Subsystem};
+use {CgroupError, CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::convert::From;
-
 
 /// A control group is the central structure to this crate.
 ///
 ///
 /// # What are control groups?
 ///
-/// Lifting over from the Linux kernel sources: 
+/// Lifting over from the Linux kernel sources:
 ///
 /// > Control Groups provide a mechanism for aggregating/partitioning sets of
 /// > tasks, and all their future children, into hierarchical groups with
@@ -26,7 +25,6 @@ pub struct Cgroup<'b> {
 }
 
 impl<'b> Cgroup<'b> {
-
     /// Create this control group.
     fn create(&self) {
         for subsystem in &self.subsystems {
@@ -55,8 +53,11 @@ impl<'b> Cgroup<'b> {
     /// destroyed.
     pub fn load(hier: &Hierarchy, path: String) -> Cgroup {
         let mut subsystems = hier.subsystems();
-        if path != ""  {
-            subsystems = subsystems.into_iter().map(|x| x.enter(&path)).collect::<Vec<_>>();
+        if path != "" {
+            subsystems = subsystems
+                .into_iter()
+                .map(|x| x.enter(&path))
+                .collect::<Vec<_>>();
         }
 
         let cg = Cgroup {
@@ -79,28 +80,28 @@ impl<'b> Cgroup<'b> {
     /// actually removed, and remove the descendants first if not. In the future, this behavior
     /// will change.
     pub fn delete(self) {
-        self.subsystems.into_iter().for_each(|sub| {
-            match sub {
-                Subsystem::Pid(pidc) => pidc.delete(),
-                Subsystem::Mem(c) => c.delete(),
-                Subsystem::CpuSet(c) => c.delete(),
-                Subsystem::CpuAcct(c) => c.delete(),
-                Subsystem::Cpu(c) => c.delete(),
-                Subsystem::Devices(c) => c.delete(),
-                Subsystem::Freezer(c) => c.delete(),
-                Subsystem::NetCls(c) => c.delete(),
-                Subsystem::BlkIo(c) => c.delete(),
-                Subsystem::PerfEvent(c) => c.delete(),
-                Subsystem::NetPrio(c) => c.delete(),
-                Subsystem::HugeTlb(c) => c.delete(),
-                Subsystem::Rdma(c) => c.delete(),
-            }
+        self.subsystems.into_iter().for_each(|sub| match sub {
+            Subsystem::Pid(pidc) => pidc.delete(),
+            Subsystem::Mem(c) => c.delete(),
+            Subsystem::CpuSet(c) => c.delete(),
+            Subsystem::CpuAcct(c) => c.delete(),
+            Subsystem::Cpu(c) => c.delete(),
+            Subsystem::Devices(c) => c.delete(),
+            Subsystem::Freezer(c) => c.delete(),
+            Subsystem::NetCls(c) => c.delete(),
+            Subsystem::BlkIo(c) => c.delete(),
+            Subsystem::PerfEvent(c) => c.delete(),
+            Subsystem::NetPrio(c) => c.delete(),
+            Subsystem::HugeTlb(c) => c.delete(),
+            Subsystem::Rdma(c) => c.delete(),
         });
     }
 
     /// Apply a set of resource limits to the control group.
     pub fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        self.subsystems.iter().try_fold((), |_, e| e.to_controller().apply(res))
+        self.subsystems
+            .iter()
+            .try_fold((), |_, e| e.to_controller().apply(res))
     }
 
     /// Retrieve a container based on type inference.
@@ -114,8 +115,9 @@ impl<'b> Cgroup<'b> {
     ///                             .expect("No cpu controller attached!");
     /// ```
     pub fn controller_of<'a, T>(self: &'a Self) -> Option<&'a T>
-        where &'a T: From<&'a Subsystem>,
-                  T: Controller + ControllIdentifier,
+    where
+        &'a T: From<&'a Subsystem>,
+        T: Controller + ControllIdentifier,
     {
         for i in &self.subsystems {
             if i.to_controller().control_type() == T::controller_type() {
@@ -139,19 +141,25 @@ impl<'b> Cgroup<'b> {
 
     /// Attach a task to the control group.
     pub fn add_task(&self, pid: CgroupPid) -> Result<(), CgroupError> {
-        self.subsystems().iter().try_for_each(|sub| sub.to_controller().add_task(&pid))
+        self.subsystems()
+            .iter()
+            .try_for_each(|sub| sub.to_controller().add_task(&pid))
     }
 
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the
     /// control group.
     pub fn tasks(&self) -> Vec<CgroupPid> {
         /* Collect the tasks from all subsystems */
-        let mut v = self.subsystems().iter()
+        let mut v = self
+            .subsystems()
+            .iter()
             .map(|x| x.to_controller().tasks())
-            .fold(vec![], |mut acc, mut x| { acc.append(&mut x); acc });
+            .fold(vec![], |mut acc, mut x| {
+                acc.append(&mut x);
+                acc
+            });
         v.sort();
         v.dedup();
         v
     }
-
 }

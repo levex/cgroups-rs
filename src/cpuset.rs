@@ -1,16 +1,18 @@
 //! This module contains the implementation of the `cpuset` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/cpusets.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/cpusets.txt)
-use std::path::PathBuf;
-use std::io::{Read, Write};
 use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, CpuResources, Resources, Controller, ControllIdentifier, Subsystem, Controllers};
 use CgroupError::*;
+use {
+    CgroupError, ControllIdentifier, Controller, Controllers, CpuResources, Resources, Subsystem,
+};
 
 /// A controller that allows controlling the `cpuset` subsystem of a Cgroup.
-/// 
+///
 /// In essence, this controller is responsible for restricting the tasks in the control group to a
 /// set of CPUs and/or memory nodes.
 #[derive(Debug, Clone)]
@@ -50,11 +52,11 @@ pub struct CpuSet {
     /// the memory pressure for control groups or not.
     pub memory_pressure_enabled: Option<bool>,
     /// If true, filesystem buffers are spread across evenly between the nodes specified in `mems`.
-    pub memory_spread_page: bool, 
+    pub memory_spread_page: bool,
     /// If true, kernel slab caches for file I/O are spread across evenly between the nodes
     /// specified in `mems`.
-    pub memory_spread_slab: bool, 
-    /// The list of memory nodes the tasks of the control group can use. 
+    pub memory_spread_slab: bool,
+    /// The list of memory nodes the tasks of the control group can use.
     ///
     /// The format is the same as the `cpus`, `effective_cpus` and `effective_mems` fields.
     pub mems: Vec<(u64, u64)>,
@@ -73,14 +75,21 @@ pub struct CpuSet {
     /// |           5          | Immediately balance the load between CPUs even if the system is NUMA |
     /// |           6          | Immediately balance the load between all CPUs |
     pub sched_relax_domain_level: u64,
-
 }
 
 impl Controller for CpuSetController {
-    fn control_type(&self) -> Controllers { Controllers::CpuSet }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::CpuSet
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
@@ -109,7 +118,7 @@ impl<'a> From<&'a Subsystem> for &'a CpuSetController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -184,13 +193,16 @@ impl CpuSetController {
     pub fn cpuset(&self) -> CpuSet {
         CpuSet {
             cpu_exclusive: {
-                self.open_path("cpuset.cpu_exclusive", false).and_then(|file| {
-                    read_u64_from(file)
-                }).map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.cpu_exclusive", false)
+                    .and_then(|file| read_u64_from(file))
+                    .map(|x| x == 1)
+                    .unwrap_or(false)
             },
             cpus: {
-                self.open_path("cpuset.cpus", false).and_then(read_string_from)
-                    .and_then(parse_range).unwrap_or(Vec::new())
+                self.open_path("cpuset.cpus", false)
+                    .and_then(read_string_from)
+                    .and_then(parse_range)
+                    .unwrap_or(Vec::new())
             },
             effective_cpus: {
                 self.open_path("cpuset.effective_cpus", false)
@@ -205,31 +217,45 @@ impl CpuSetController {
                     .unwrap_or(Vec::new())
             },
             mem_exclusive: {
-                self.open_path("cpuset.mem_exclusive", false).and_then(read_u64_from)
-                    .map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.mem_exclusive", false)
+                    .and_then(read_u64_from)
+                    .map(|x| x == 1)
+                    .unwrap_or(false)
             },
             mem_hardwall: {
-                self.open_path("cpuset.mem_hardwall", false).and_then(read_u64_from)
-                    .map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.mem_hardwall", false)
+                    .and_then(read_u64_from)
+                    .map(|x| x == 1)
+                    .unwrap_or(false)
             },
             memory_migrate: {
-                self.open_path("cpuset.memory_migrate", false).and_then(read_u64_from)
-                    .map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.memory_migrate", false)
+                    .and_then(read_u64_from)
+                    .map(|x| x == 1)
+                    .unwrap_or(false)
             },
             memory_pressure: {
-                self.open_path("cpuset.memory_pressure", false).and_then(read_u64_from).unwrap_or(0)
+                self.open_path("cpuset.memory_pressure", false)
+                    .and_then(read_u64_from)
+                    .unwrap_or(0)
             },
             memory_pressure_enabled: {
-                self.open_path("cpuset.memory_pressure_enabled", false).and_then(read_u64_from)
-                    .map(|x| x == 1).ok()
+                self.open_path("cpuset.memory_pressure_enabled", false)
+                    .and_then(read_u64_from)
+                    .map(|x| x == 1)
+                    .ok()
             },
             memory_spread_page: {
-                self.open_path("cpuset.memory_spread_page", false).and_then(read_u64_from)
-                    .map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.memory_spread_page", false)
+                    .and_then(read_u64_from)
+                    .map(|x| x == 1)
+                    .unwrap_or(false)
             },
             memory_spread_slab: {
-                self.open_path("cpuset.memory_spread_slab", false).and_then(read_u64_from)
-                    .map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.memory_spread_slab", false)
+                    .and_then(read_u64_from)
+                    .map(|x| x == 1)
+                    .unwrap_or(false)
             },
             mems: {
                 self.open_path("cpuset.mems", false)
@@ -238,11 +264,14 @@ impl CpuSetController {
                     .unwrap_or(Vec::new())
             },
             sched_load_balance: {
-                self.open_path("cpuset.sched_load_balance", false).and_then(read_u64_from)
-                    .map(|x| x == 1).unwrap_or(false)
+                self.open_path("cpuset.sched_load_balance", false)
+                    .and_then(read_u64_from)
+                    .map(|x| x == 1)
+                    .unwrap_or(false)
             },
             sched_relax_domain_level: {
-                self.open_path("cpuset.sched_relax_domain_level", false).and_then(read_u64_from)
+                self.open_path("cpuset.sched_relax_domain_level", false)
+                    .and_then(read_u64_from)
                     .unwrap_or(0)
             },
         }
@@ -251,25 +280,27 @@ impl CpuSetController {
     /// Control whether the CPUs selected via `set_cpus()` should be exclusive to this control
     /// group or not.
     pub fn set_cpu_exclusive(&self, b: bool) -> Result<(), CgroupError> {
-        self.open_path("cpuset.cpu_exclusive", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.cpu_exclusive", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 
     /// Control whether the memory nodes selected via `set_memss()` should be exclusive to this control
     /// group or not.
     pub fn set_mem_exclusive(&self, b: bool) -> Result<(), CgroupError> {
-        self.open_path("cpuset.mem_exclusive", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.mem_exclusive", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 
     /// Set the CPUs that the tasks in this control group can run on.
@@ -278,7 +309,8 @@ impl CpuSetController {
     /// be represented via dashes.
     pub fn set_cpus(&self, cpus: &String) -> Result<(), CgroupError> {
         self.open_path("cpuset.cpus", true).and_then(|mut file| {
-            file.write_all(cpus.as_ref()).map_err(CgroupError::WriteError)
+            file.write_all(cpus.as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 
@@ -287,7 +319,8 @@ impl CpuSetController {
     /// Syntax is the same as with `set_cpus()`.
     pub fn set_mems(&self, mems: &String) -> Result<(), CgroupError> {
         self.open_path("cpuset.mems", true).and_then(|mut file| {
-            file.write_all(mems.as_ref()).map_err(CgroupError::WriteError)
+            file.write_all(mems.as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 
@@ -297,70 +330,77 @@ impl CpuSetController {
     /// Note that some kernel allocations, most notably those that are made in interrupt handlers
     /// may disregard this.
     pub fn set_hardwall(&self, b: bool) -> Result<(), CgroupError> {
-        self.open_path("cpuset.mem_hardwall", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.mem_hardwall", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 
     /// Controls whether the kernel should attempt to rebalance the load between the CPUs specified in the
     /// `cpus` field of this control group.
     pub fn set_load_balancing(&self, b: bool) -> Result<(), CgroupError> {
-        self.open_path("cpuset.sched_load_balance", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.sched_load_balance", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 
     /// Contorl how much effort the kernel should invest in rebalacing the control group.
     ///
     /// See @CpuSet 's similar field for more information.
     pub fn set_rebalance_relax_domain_level(&self, i: i64) -> Result<(), CgroupError> {
-        self.open_path("cpuset.sched_relax_domain_level", true).and_then(|mut file| {
-            file.write_all(i.to_string().as_ref()).map_err(CgroupError::WriteError)
-        })
+        self.open_path("cpuset.sched_relax_domain_level", true)
+            .and_then(|mut file| {
+                file.write_all(i.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
+            })
     }
 
     /// Control whether when using `set_mems()` the existing memory used by the tasks should be
     /// migrated over to the now-selected nodes.
     pub fn set_memory_migration(&self, b: bool) -> Result<(), CgroupError> {
-        self.open_path("cpuset.memory_migrate", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.memory_migrate", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 
     /// Control whether filesystem buffers should be evenly split across the nodes selected via
     /// `set_mems()`.
     pub fn set_memory_spread_page(&self, b: bool) -> Result<(), CgroupError> {
-        self.open_path("cpuset.memory_spread_page", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.memory_spread_page", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 
     /// Control whether the kernel's slab cache for file I/O should be evenly split across the
     /// nodes selected via `set_mems()`.
     pub fn set_memory_spread_slab(&self, b: bool) -> Result<(), CgroupError> {
-        self.open_path("cpuset.memory_spread_slab", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.memory_spread_slab", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 
     /// Control whether the kernel should collect information to calculate memory pressure for
@@ -372,13 +412,14 @@ impl CpuSetController {
         if !self.path_exists("cpuset.memory_pressure_enabled") {
             return Err(CgroupError::InvalidOperation);
         }
-        self.open_path("cpuset.memory_pressure_enabled", true).and_then(|mut file| {
-            if b {
-                file.write_all(b"1").map_err(CgroupError::WriteError)
-            } else {
-                file.write_all(b"0").map_err(CgroupError::WriteError)
-            }
-        })
+        self.open_path("cpuset.memory_pressure_enabled", true)
+            .and_then(|mut file| {
+                if b {
+                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                } else {
+                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                }
+            })
     }
 }
 
@@ -387,20 +428,22 @@ mod tests {
     use cpuset;
     #[test]
     fn test_parse_range() {
-        let test_cases = vec!["1,2,4-6,9".to_string(),
-                              "".to_string(),
-                              "1".to_string(),
-                              "1-111".to_string(),
-                              "1,2,3,4".to_string(),
-                              "1-5,6-7,8-9".to_string()
-                             ];
-        let expecteds = vec![vec![(1, 1), (2, 2), (4, 6), (9, 9)],
-                             vec![],
-                             vec![(1, 1)],
-                             vec![(1, 111)],
-                             vec![(1, 1), (2, 2), (3, 3), (4, 4)],
-                             vec![(1, 5), (6, 7), (8, 9)]
-                            ];
+        let test_cases = vec![
+            "1,2,4-6,9".to_string(),
+            "".to_string(),
+            "1".to_string(),
+            "1-111".to_string(),
+            "1,2,3,4".to_string(),
+            "1-5,6-7,8-9".to_string(),
+        ];
+        let expecteds = vec![
+            vec![(1, 1), (2, 2), (4, 6), (9, 9)],
+            vec![],
+            vec![(1, 1)],
+            vec![(1, 111)],
+            vec![(1, 1), (2, 2), (3, 3), (4, 4)],
+            vec![(1, 5), (6, 7), (8, 9)],
+        ];
 
         for (i, case) in test_cases.into_iter().enumerate() {
             let range = cpuset::parse_range(case.clone());

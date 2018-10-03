@@ -3,28 +3,27 @@
 //! Currently, we only support the cgroupv1 hierarchy, but in the future we will add support for
 //! the Unified Hierarchy.
 
+use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 
+use blkio::BlkIoController;
+use cpu::CpuController;
+use cpuacct::CpuAcctController;
+use cpuset::CpuSetController;
+use devices::DevicesController;
+use freezer::FreezerController;
+use hugetlb::HugeTlbController;
+use memory::MemController;
+use net_cls::NetClsController;
+use net_prio::NetPrioController;
+use perf_event::PerfEventController;
+use pid::PidController;
+use rdma::RdmaController;
 use {Controllers, Hierarchy, Subsystem};
-use ::pid::PidController;
-use ::memory::MemController;
-use ::cpuset::CpuSetController;
-use ::cpuacct::CpuAcctController;
-use ::cpu::CpuController;
-use ::freezer::FreezerController;
-use ::devices::DevicesController;
-use ::net_cls::NetClsController;
-use ::blkio::BlkIoController;
-use ::perf_event::PerfEventController;
-use ::net_prio::NetPrioController;
-use ::hugetlb::HugeTlbController;
-use ::rdma::RdmaController;
 
-use ::cgroup::Cgroup;
-
+use cgroup::Cgroup;
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
 pub struct V1 {

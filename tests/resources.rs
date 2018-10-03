@@ -1,8 +1,8 @@
 //! Integration test about setting resources using `apply()`
 extern crate cgroups;
 
-use cgroups::{Cgroup, Resources, PidResources};
 use cgroups::pid::{PidController, PidMax};
+use cgroups::{Cgroup, PidResources, Resources};
 
 #[test]
 fn pid_resources() {

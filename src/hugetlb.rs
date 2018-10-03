@@ -1,14 +1,16 @@
 //! This module contains the implementation of the `hugetlb` cgroup subsystem.
-//! 
+//!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/hugetlb.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/hugetlb.txt)
-use std::path::PathBuf;
 use std::fs::File;
-use std::io::{Write, Read};
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use {CgroupError, HugePageResources, Controllers, Controller, Resources, ControllIdentifier, Subsystem};
 use CgroupError::*;
-
+use {
+    CgroupError, ControllIdentifier, Controller, Controllers, HugePageResources, Resources,
+    Subsystem,
+};
 
 /// A controller that allows controlling the `hugetlb` subsystem of a Cgroup.
 ///
@@ -21,10 +23,18 @@ pub struct HugeTlbController {
 }
 
 impl Controller for HugeTlbController {
-    fn control_type(&self) -> Controllers { Controllers::HugeTlb }
-    fn get_path(&self) -> &PathBuf { &self.path }
-    fn get_path_mut(&mut self) -> &mut PathBuf { &mut self.path }
-    fn get_base(&self) -> &PathBuf { &self.base }
+    fn control_type(&self) -> Controllers {
+        Controllers::HugeTlb
+    }
+    fn get_path(&self) -> &PathBuf {
+        &self.path
+    }
+    fn get_path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+    fn get_base(&self) -> &PathBuf {
+        &self.base
+    }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
         /* get the resources that apply to this controller */
@@ -56,7 +66,7 @@ impl<'a> From<&'a Subsystem> for &'a HugeTlbController {
                 _ => {
                     assert_eq!(1, 0);
                     ::std::mem::uninitialized()
-                },
+                }
             }
         }
     }
@@ -110,8 +120,10 @@ impl HugeTlbController {
     /// Get the maximum observed usage of memory that is backed by hugepages of a certain size
     /// (`hugetlb_size`).
     pub fn max_usage_in_bytes(&self, hugetlb_size: &String) -> Result<u64, CgroupError> {
-        self.open_path(&format!("hugetlb.{}.max_usage_in_bytes", hugetlb_size), false)
-            .and_then(read_u64_from)
+        self.open_path(
+            &format!("hugetlb.{}.max_usage_in_bytes", hugetlb_size),
+            false,
+        ).and_then(read_u64_from)
     }
 
     /// Set the limit (in bytes) of how much memory can be backed by hugepages of a certain size
@@ -119,7 +131,8 @@ impl HugeTlbController {
     pub fn set_limit_in_bytes(&self, hugetlb_size: &String, limit: u64) -> Result<(), CgroupError> {
         self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), false)
             .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref()).map_err(CgroupError::WriteError)
+                file.write_all(limit.to_string().as_ref())
+                    .map_err(CgroupError::WriteError)
             })
     }
 }

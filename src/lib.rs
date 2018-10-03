@@ -1,35 +1,35 @@
-use std::path::PathBuf;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
 
-pub mod hierarchies;
-pub mod pid;
-pub mod memory;
-pub mod cpuset;
-pub mod cpuacct;
-pub mod cpu;
-pub mod devices;
-pub mod cgroup;
-pub mod freezer;
-pub mod net_cls;
 pub mod blkio;
-pub mod perf_event;
-pub mod net_prio;
+pub mod cgroup;
+pub mod cpu;
+pub mod cpuacct;
+pub mod cpuset;
+pub mod devices;
+pub mod freezer;
+pub mod hierarchies;
 pub mod hugetlb;
+pub mod memory;
+pub mod net_cls;
+pub mod net_prio;
+pub mod perf_event;
+pub mod pid;
 pub mod rdma;
 
-use pid::PidController;
-use memory::MemController;
-use cpuset::CpuSetController;
-use cpuacct::CpuAcctController;
-use cpu::CpuController;
-use freezer::FreezerController;
-use devices::DevicesController;
-use net_cls::NetClsController;
 use blkio::BlkIoController;
-use perf_event::PerfEventController;
-use net_prio::NetPrioController;
+use cpu::CpuController;
+use cpuacct::CpuAcctController;
+use cpuset::CpuSetController;
+use devices::DevicesController;
+use freezer::FreezerController;
 use hugetlb::HugeTlbController;
+use memory::MemController;
+use net_cls::NetClsController;
+use net_prio::NetPrioController;
+use perf_event::PerfEventController;
+use pid::PidController;
 use rdma::RdmaController;
 
 pub use cgroup::Cgroup;
@@ -95,22 +95,34 @@ impl PartialEq for CgroupError {
         match self {
             CgroupError::WriteError(_) => if let CgroupError::WriteError(_) = other {
                 return true;
-            } else { return false },
+            } else {
+                return false;
+            },
             CgroupError::ReadError(_) => if let CgroupError::ReadError(_) = other {
                 return true;
-            } else { return false },
+            } else {
+                return false;
+            },
             CgroupError::ParseError => if let CgroupError::ParseError = other {
                 return true;
-            } else { return false },
+            } else {
+                return false;
+            },
             CgroupError::InvalidOperation => if let CgroupError::InvalidOperation = other {
                 return true;
-            } else { return false },
+            } else {
+                return false;
+            },
             CgroupError::InvalidPath => if let CgroupError::InvalidPath = other {
                 return true;
-            } else { return false },
+            } else {
+                return false;
+            },
             CgroupError::Unknown => if let CgroupError::Unknown = other {
                 return true;
-            } else { return false },
+            } else {
+                return false;
+            },
         }
     }
 }
@@ -232,23 +244,25 @@ pub trait Controller {
     /// Attach a task to this controller.
     fn add_task(&self, pid: &CgroupPid) -> Result<(), CgroupError> {
         self.open_path("tasks", true).and_then(|mut file| {
-            file.write_all(pid.pid.to_string().as_ref()).map_err(CgroupError::WriteError)
+            file.write_all(pid.pid.to_string().as_ref())
+                .map_err(CgroupError::WriteError)
         })
     }
 
     /// Get the list of tasks that this controller has.
     fn tasks(&self) -> Vec<CgroupPid> {
-        self.open_path("tasks", false).and_then(|file| {
-            let bf = BufReader::new(file);
-            let mut v = Vec::new();
-            for line in bf.lines() {
-                if let Ok(line) = line {
-                    let n = line.trim().parse().unwrap_or(0u64);
-                    v.push(n);
+        self.open_path("tasks", false)
+            .and_then(|file| {
+                let bf = BufReader::new(file);
+                let mut v = Vec::new();
+                for line in bf.lines() {
+                    if let Ok(line) = line {
+                        let n = line.trim().parse().unwrap_or(0u64);
+                        v.push(n);
+                    }
                 }
-            }
-            Ok(v.into_iter().map(CgroupPid::from).collect())
-        }).unwrap_or(vec![])
+                Ok(v.into_iter().map(CgroupPid::from).collect())
+            }).unwrap_or(vec![])
     }
 }
 
@@ -479,20 +493,15 @@ pub struct CgroupPid {
 
 impl From<u64> for CgroupPid {
     fn from(u: u64) -> CgroupPid {
-        CgroupPid {
-            pid: u,
-        }
+        CgroupPid { pid: u }
     }
 }
 
 impl<'a> From<&'a std::process::Child> for CgroupPid {
     fn from(u: &std::process::Child) -> CgroupPid {
-        CgroupPid {
-            pid: u.id() as u64,
-        }
+        CgroupPid { pid: u.id() as u64 }
     }
 }
-
 
 impl Subsystem {
     fn enter(self, path: &String) -> Self {
