@@ -237,7 +237,7 @@ pub struct BlkIo {
     /// control group's tasks.
     pub leaf_weight: u64,
     /// Same as `leaf_weight`, but per-block-device.
-    pub leaf_weight_device: String,
+    pub leaf_weight_device: Vec<BlkIoData>,
     /// Total number of sectors transferred between the block devices and the control group's
     /// tasks.
     pub sectors: String,
@@ -479,8 +479,9 @@ impl BlkIoController {
                 .unwrap_or(0u64),
             leaf_weight_device: self
                 .open_path("blkio.leaf_weight_device", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .and_then(parse_blkio_data)
+                .unwrap_or(Vec::new()),
             sectors: self
                 .open_path("blkio.sectors", false)
                 .and_then(|file| read_string_from(file))
