@@ -240,9 +240,9 @@ pub struct BlkIo {
     pub leaf_weight_device: Vec<BlkIoData>,
     /// Total number of sectors transferred between the block devices and the control group's
     /// tasks.
-    pub sectors: String,
+    pub sectors: Vec<BlkIoData>,
     /// Same as `sectors`, but contains all descendant control groups.
-    pub sectors_recursive: String,
+    pub sectors_recursive: Vec<BlkIoData>,
     /// Similar statistics, but as seen by the throttle policy.
     pub throttle: BlkIoThrottle,
     /// The time the control group had access to the I/O devices.
@@ -484,12 +484,14 @@ impl BlkIoController {
                 .unwrap_or(Vec::new()),
             sectors: self
                 .open_path("blkio.sectors", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .and_then(parse_blkio_data)
+                .unwrap_or(Vec::new()),
             sectors_recursive: self
                 .open_path("blkio.sectors_recursive", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .and_then(parse_blkio_data)
+                .unwrap_or(Vec::new()),
             throttle: BlkIoThrottle {
                 io_service_bytes: self
                     .open_path("blkio.throttle.io_service_bytes", false)
