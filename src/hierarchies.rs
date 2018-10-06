@@ -109,10 +109,10 @@ impl V1 {
 }
 
 fn find_v1_mount() -> Option<String> {
-    /* Open mountinfo so we can get a parseable mount list */
+    // Open mountinfo so we can get a parseable mount list
     let mountinfo_path = Path::new("/proc/self/mountinfo");
 
-    /* If /proc isn't mounted, or something else happens, then bail out */
+    // If /proc isn't mounted, or something else happens, then bail out
     if mountinfo_path.exists() == false {
         return None;
     }

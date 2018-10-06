@@ -121,10 +121,8 @@ impl<'b> Cgroup<'b> {
     {
         for i in &self.subsystems {
             if i.to_controller().control_type() == T::controller_type() {
-                /*
-                 * N.B.:
-                 * https://play.rust-lang.org/?gist=978b2846bacebdaa00be62374f4f4334&version=stable&mode=debug&edition=2015
-                 */
+                // N.B.:
+                // https://play.rust-lang.org/?gist=978b2846bacebdaa00be62374f4f4334&version=stable&mode=debug&edition=2015
                 return Some(i.into());
             }
         }
@@ -149,7 +147,7 @@ impl<'b> Cgroup<'b> {
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the
     /// control group.
     pub fn tasks(&self) -> Vec<CgroupPid> {
-        /* Collect the tasks from all subsystems */
+        // Collect the tasks from all subsystems
         let mut v = self
             .subsystems()
             .iter()

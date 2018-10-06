@@ -92,7 +92,7 @@ impl Controller for CpuSetController {
     }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        /* get the resources that apply to this controller */
+        // get the resources that apply to this controller
         let res: &CpuResources = &res.cpu;
 
         if res.update_values {
@@ -148,12 +148,12 @@ fn parse_range(s: String) -> Result<Vec<(u64, u64)>, CgroupError> {
         return Ok(fin);
     }
 
-    /* first split by commas */
+    // first split by commas
     let comma_split = s.split(",");
 
     for sp in comma_split {
         if sp.contains("-") {
-            /* this is a true range */
+            // this is a true range
             let dash_split = sp.split("-").collect::<Vec<_>>();
             if dash_split.len() != 2 {
                 return Err(CgroupError::ParseError);
@@ -165,7 +165,7 @@ fn parse_range(s: String) -> Result<Vec<(u64, u64)>, CgroupError> {
             }
             fin.push((first.unwrap(), second.unwrap()));
         } else {
-            /* this is just a single number */
+            // this is just a single number
             let num = sp.parse::<u64>();
             if num.is_err() {
                 return Err(CgroupError::ParseError);

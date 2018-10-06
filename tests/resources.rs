@@ -18,7 +18,7 @@ fn pid_resources() {
         };
         cg.apply(&res);
 
-        /* verify */
+        // verify
         let pidcontroller: &PidController = cg.controller_of().unwrap();
         let pid_max = pidcontroller.get_pid_max();
         assert_eq!(pid_max.is_ok(), true);

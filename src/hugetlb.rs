@@ -37,7 +37,7 @@ impl Controller for HugeTlbController {
     }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        /* get the resources that apply to this controller */
+        // get the resources that apply to this controller
         let res: &HugePageResources = &res.hugepages;
 
         if res.update_values {
@@ -93,7 +93,7 @@ impl HugeTlbController {
 
     /// Whether the system supports `hugetlb_size` hugepages.
     pub fn size_supported(&self, _hugetlb_size: String) -> bool {
-        /* TODO */
+        // TODO
         true
     }
 

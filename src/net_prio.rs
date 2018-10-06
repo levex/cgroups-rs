@@ -39,7 +39,7 @@ impl Controller for NetPrioController {
     }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        /* get the resources that apply to this controller */
+        // get the resources that apply to this controller
         let res: &NetworkResources = &res.network;
 
         if res.update_values {

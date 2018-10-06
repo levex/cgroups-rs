@@ -325,7 +325,7 @@ pub struct Memory {
     pub max_usage_in_bytes: u64,
     /// Whether moving charges at immigrate is allowed.
     pub move_charge_at_immigrate: u64,
-    /* TODO: parse this */
+    // TODO: parse this
     /// Contains various statistics about the NUMA locality of the control group's tasks.
     ///
     /// The format of this field (as lifted from the kernel sources):
@@ -342,7 +342,7 @@ pub struct Memory {
     /// Allows setting a limit to memory usage which is enforced when the system (note, _not_ the
     /// control group) detects memory pressure.
     pub soft_limit_in_bytes: u64,
-    /* TODO: parse this */
+    // TODO: parse this
     /// Contains a wide array of statistics about the memory usage of the tasks in the control
     /// group.
     pub stat: MemoryStat,
@@ -406,7 +406,7 @@ impl Controller for MemController {
     }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        /* get the resources that apply to this controller */
+        // get the resources that apply to this controller
         let memres: &MemoryResources = &res.memory;
 
         if memres.update_values {

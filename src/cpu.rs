@@ -35,35 +35,41 @@ impl Controller for CpuController {
     fn control_type(&self) -> Controllers {
         Controllers::Cpu
     }
+
     fn get_path(&self) -> &PathBuf {
         &self.path
     }
+
     fn get_path_mut(&mut self) -> &mut PathBuf {
         &mut self.path
     }
+
     fn get_base(&self) -> &PathBuf {
         &self.base
     }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        /* get the resources that apply to this controller */
+        // get the resources that apply to this controller
         let res: &CpuResources = &res.cpu;
 
         if res.update_values {
-            /* apply pid_max */
+            // apply pid_max
             let _ = self.set_shares(res.shares);
             if self.shares() != Ok(res.shares as u64) {
                 return Err(CgroupError::Unknown);
             }
+
             let _ = self.set_cfs_period(res.period);
             if self.cfs_period() != Ok(res.period as u64) {
                 return Err(CgroupError::Unknown);
             }
+
             let _ = self.set_cfs_quota(res.quota as u64);
             if self.cfs_quota() != Ok(res.quota as u64) {
                 return Err(CgroupError::Unknown);
             }
-            /* TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported */
+
+            // TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported
         }
 
         Ok(())

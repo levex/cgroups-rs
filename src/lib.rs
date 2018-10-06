@@ -143,7 +143,7 @@ pub trait Controller {
     /// kernel the information.
     fn apply(&self, res: &Resources) -> Result<(), CgroupError>;
 
-    /* meta stuff */
+    // meta stuff
     #[doc(hidden)]
     fn control_type(&self) -> Controllers;
     #[doc(hidden)]
@@ -302,14 +302,14 @@ pub struct PidResources {
 pub struct CpuResources {
     /// Whether values should be applied to the controller.
     pub update_values: bool,
-    /* cpuset */
+    // cpuset
     /// A comma-separated list of CPU IDs where the task in the control group can run. Dashes
     /// between numbers indicate ranges.
     pub cpus: String,
     /// Same syntax as the `cpus` field of this structure, but applies to memory nodes instead of
     /// processors.
     pub mems: String,
-    /* cpu */
+    // cpu
     /// Weight of how much of the total CPU time should this control group get. Note that this is
     /// hierarchical, so this is weighted against the siblings of this control group.
     pub shares: u64,

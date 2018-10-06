@@ -268,7 +268,7 @@ impl Controller for BlkIoController {
     }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        /* get the resources that apply to this controller */
+        // get the resources that apply to this controller
         let res: &BlkIoResources = &res.blkio;
 
         if res.update_values {
