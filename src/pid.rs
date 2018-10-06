@@ -49,14 +49,14 @@ impl Controller for PidController {
     }
 
     fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
-        /* get the resources that apply to this controller */
+        // get the resources that apply to this controller
         let pidres: &PidResources = &res.pid;
 
         if pidres.update_values {
-            /* apply pid_max */
+            // apply pid_max
             let _ = self.set_pid_max(pidres.maximum_number_of_processes);
 
-            /* now, verify */
+            // now, verify
             if self.get_pid_max() == Ok(pidres.maximum_number_of_processes) {
                 return Ok(());
             } else {
@@ -68,11 +68,11 @@ impl Controller for PidController {
     }
 }
 
-/*impl<'a> ControllIdentifier for &'a PidController {
-    fn controller_type() -> Controllers {
-        Controllers::Pids
-    }
-}*/
+// impl<'a> ControllIdentifier for &'a PidController {
+//     fn controller_type() -> Controllers {
+//         Controllers::Pids
+//     }
+// }
 
 impl ControllIdentifier for PidController {
     fn controller_type() -> Controllers {
