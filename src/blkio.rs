@@ -165,14 +165,14 @@ pub struct BlkIoThrottle {
     pub io_serviced_recursive_total: u64,
     /// The upper limit of bytes per second rate of read operation on the block devices by the
     /// control group's tasks.
-    pub read_bps_device: String,
+    pub read_bps_device: Vec<BlkIoData>,
     /// The upper limit of I/O operation per second, when said operation is a read operation.
-    pub read_iops_device: String,
+    pub read_iops_device: Vec<BlkIoData>,
     /// The upper limit of bytes per second rate of write operation on the block devices by the
     /// control group's tasks.
-    pub write_bps_device: String,
+    pub write_bps_device: Vec<BlkIoData>,
     /// The upper limit of I/O operation per second, when said operation is a write operation.
-    pub write_iops_device: String,
+    pub write_iops_device: Vec<BlkIoData>,
 }
 
 /// Statistics and state of the block devices.
@@ -535,20 +535,24 @@ impl BlkIoController {
                     .unwrap_or(0),
                 read_bps_device: self
                     .open_path("blkio.throttle.read_bps_device", false)
-                    .and_then(|file| read_string_from(file))
-                    .unwrap_or("".to_string()),
+                    .and_then(read_string_from)
+                    .and_then(parse_blkio_data)
+                    .unwrap_or(Vec::new()),
                 read_iops_device: self
                     .open_path("blkio.throttle.read_iops_device", false)
-                    .and_then(|file| read_string_from(file))
-                    .unwrap_or("".to_string()),
+                    .and_then(read_string_from)
+                    .and_then(parse_blkio_data)
+                    .unwrap_or(Vec::new()),
                 write_bps_device: self
                     .open_path("blkio.throttle.write_bps_device", false)
-                    .and_then(|file| read_string_from(file))
-                    .unwrap_or("".to_string()),
+                    .and_then(read_string_from)
+                    .and_then(parse_blkio_data)
+                    .unwrap_or(Vec::new()),
                 write_iops_device: self
                     .open_path("blkio.throttle.write_iops_device", false)
-                    .and_then(|file| read_string_from(file))
-                    .unwrap_or("".to_string()),
+                    .and_then(read_string_from)
+                    .and_then(parse_blkio_data)
+                    .unwrap_or(Vec::new()),
             },
             time: self
                 .open_path("blkio.time", false)
