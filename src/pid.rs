@@ -10,7 +10,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, PidResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, PidResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `pids` subsystem of a Cgroup.
@@ -36,7 +36,7 @@ impl Default for PidMax {
     }
 }
 
-impl Controller for PidController {
+impl ControllerInternal for PidController {
     fn control_type(&self) -> Controllers {
         Controllers::Pids
     }

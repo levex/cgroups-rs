@@ -9,7 +9,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, DeviceResource, DeviceResources,
+    ControllIdentifier, ControllerInternal, Controllers, DeviceResource, DeviceResources,
     Resources, Subsystem,
 };
 
@@ -131,7 +131,7 @@ impl DevicePermissions {
     }
 }
 
-impl Controller for DevicesController {
+impl ControllerInternal for DevicesController {
     fn control_type(&self) -> Controllers {
         Controllers::Devices
     }

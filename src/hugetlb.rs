@@ -10,7 +10,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, HugePageResources, Resources,
+    ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources,
     Subsystem,
 };
 
@@ -24,7 +24,7 @@ pub struct HugeTlbController {
     path: PathBuf,
 }
 
-impl Controller for HugeTlbController {
+impl ControllerInternal for HugeTlbController {
     fn control_type(&self) -> Controllers {
         Controllers::HugeTlb
     }

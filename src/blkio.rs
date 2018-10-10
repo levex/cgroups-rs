@@ -10,7 +10,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    BlkIoResources, ControllIdentifier, Controller, Controllers, Resources, Subsystem,
+    BlkIoResources, ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `blkio` subsystem of a Cgroup.
@@ -255,7 +255,7 @@ pub struct BlkIo {
     pub weight_device: Vec<BlkIoData>,
 }
 
-impl Controller for BlkIoController {
+impl ControllerInternal for BlkIoController {
     fn control_type(&self) -> Controllers {
         Controllers::BlkIo
     }

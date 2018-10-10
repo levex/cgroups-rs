@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use error::*;
 use error::ErrorKind::*;
 
-use {ControllIdentifier, Controller, Controllers, Resources, Subsystem};
+use {ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `freezer` subsystem of a Cgroup.
 ///
@@ -34,7 +34,7 @@ pub enum FreezerState {
     Frozen,
 }
 
-impl Controller for FreezerController {
+impl ControllerInternal for FreezerController {
     fn control_type(&self) -> Controllers {
         Controllers::Freezer
     }

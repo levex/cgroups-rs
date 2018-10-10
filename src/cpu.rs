@@ -11,7 +11,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, CpuResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `cpu` subsystem of a Cgroup.
@@ -34,7 +34,7 @@ pub struct Cpu {
     pub stat: String,
 }
 
-impl Controller for CpuController {
+impl ControllerInternal for CpuController {
     fn control_type(&self) -> Controllers {
         Controllers::Cpu
     }
