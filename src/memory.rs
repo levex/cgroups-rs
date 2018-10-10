@@ -6,9 +6,11 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use CgroupError::*;
+use error::*;
+use error::ErrorKind::*;
+
 use {
-    CgroupError, ControllIdentifier, Controller, Controllers, MemoryResources, Resources, Subsystem,
+    ControllIdentifier, Controller, Controllers, MemoryResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
@@ -33,7 +35,7 @@ pub struct OomControl {
     pub oom_kill: u64,
 }
 
-fn parse_oom_control(s: String) -> Result<OomControl, CgroupError> {
+fn parse_oom_control(s: String) -> Result<OomControl> {
     let spl = s.split_whitespace().collect::<Vec<_>>();
 
     Ok(OomControl {
@@ -81,7 +83,7 @@ pub struct NumaStat {
     pub hierarchical_unevictable_pages_per_node: Vec<u64>,
 }
 
-fn parse_numa_stat(s: String) -> Result<NumaStat, CgroupError> {
+fn parse_numa_stat(s: String) -> Result<NumaStat> {
     // Parse the number of nodes
     let nodes = (s.split_whitespace().collect::<Vec<_>>().len() - 8) / 8;
     let mut ls = s.lines();
@@ -250,7 +252,7 @@ pub struct MemoryStat {
     pub total_unevictable: u64,
 }
 
-fn parse_memory_stat(s: String) -> Result<MemoryStat, CgroupError> {
+fn parse_memory_stat(s: String) -> Result<MemoryStat> {
     let sp: Vec<&str> = s
         .split_whitespace()
         .filter(|x| x.parse::<u64>().is_ok())
@@ -405,7 +407,7 @@ impl Controller for MemController {
         &self.base
     }
 
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let memres: &MemoryResources = &res.memory;
 
@@ -563,38 +565,38 @@ impl MemController {
     }
 
     /// Set the memory usage limit of the control group, in bytes.
-    pub fn set_limit(&self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_limit(&self, limit: u64) -> Result<()> {
         self.open_path("memory.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Set the kernel memory limit of the control group, in bytes.
-    pub fn set_kmem_limit(&self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_kmem_limit(&self, limit: u64) -> Result<()> {
         self.open_path("memory.kmem.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Set the memory+swap limit of the control group, in bytes.
-    pub fn set_memswap_limit(&self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_memswap_limit(&self, limit: u64) -> Result<()> {
         self.open_path("memory.memsw.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
-    pub fn set_tcp_limit(&self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_tcp_limit(&self, limit: u64) -> Result<()> {
         self.open_path("memory.kmem.tcp.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
@@ -602,11 +604,11 @@ impl MemController {
     ///
     /// This limit is enforced when the system is nearing OOM conditions. Contrast this with the
     /// hard limit, which is _always_ enforced.
-    pub fn set_soft_limit(&self, limit: u64) -> Result<(), CgroupError> {
+    pub fn set_soft_limit(&self, limit: u64) -> Result<()> {
         self.open_path("memory.soft_limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
@@ -614,11 +616,11 @@ impl MemController {
     /// group.
     ///
     /// Note that a value of zero does not imply that the process will not be swapped out.
-    pub fn set_swappiness(&self, swp: u64) -> Result<(), CgroupError> {
+    pub fn set_swappiness(&self, swp: u64) -> Result<()> {
         self.open_path("memory.swappiness", true)
             .and_then(|mut file| {
                 file.write_all(swp.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 }
@@ -643,19 +645,19 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|_| ParseError),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
-fn read_string_from(mut file: File) -> Result<String, CgroupError> {
+fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
@@ -723,9 +725,10 @@ total_unevictable 81920
 
     #[test]
     fn test_parse_numa_stat() {
+        let ok = parse_numa_stat(GOOD_VALUE.to_string()).unwrap();
         assert_eq!(
-            parse_numa_stat(GOOD_VALUE.to_string()),
-            Ok(NumaStat {
+            ok,
+            NumaStat {
                 total_pages: 51189,
                 total_pages_per_node: vec![51189, 123],
                 file_pages: 50175,
@@ -743,27 +746,29 @@ total_unevictable 81920
                 hierarchical_anon_pages_per_node: vec![770402, 123],
                 hierarchical_unevictable_pages: 20,
                 hierarchical_unevictable_pages_per_node: vec![20, 123],
-            })
+            }
         );
     }
 
     #[test]
     fn test_parse_oom_control() {
+        let ok = parse_oom_control(GOOD_OOMCONTROL_VAL.to_string()).unwrap();
         assert_eq!(
-            parse_oom_control(GOOD_OOMCONTROL_VAL.to_string()),
-            Ok(OomControl {
+            ok,
+            OomControl {
                 oom_kill_disable: false,
                 under_oom: true,
                 oom_kill: 1337,
-            })
+            }
         );
     }
 
     #[test]
     fn test_parse_memory_stat() {
+        let ok = parse_memory_stat(GOOD_MEMORYSTAT_VAL.to_string()).unwrap();
         assert_eq!(
-            parse_memory_stat(GOOD_MEMORYSTAT_VAL.to_string()),
-            Ok(MemoryStat {
+            ok,
+            MemoryStat {
                 cache: 178880512,
                 rss: 4206592,
                 rss_huge: 0,
@@ -800,7 +805,7 @@ total_unevictable 81920
                 total_inactive_file: 1272135680,
                 total_active_file: 2338816000,
                 total_unevictable: 81920,
-            })
+            }
         );
     }
 }
