@@ -265,7 +265,7 @@ impl DevicesController {
                     s.lines().fold(Ok(Vec::new()), |acc, line| {
                         let ls = line.to_string().split(|c| c == ' ' || c == ':').map(|x| x.to_string()).collect::<Vec<String>>();
                         if acc.is_err() || ls.len() != 4 {
-                            println!("line 204: acc: {:?}, ls: {:?}", acc, ls);
+                            error!("allowed_devices: acc: {:?}, ls: {:?}", acc, ls);
                             Err(CgroupError::ParseError)
                         } else {
                             let devtype = DeviceType::from_char(ls[0].chars().nth(0));
@@ -278,7 +278,7 @@ impl DevicesController {
                                 minor = Ok(-1);
                             }
                             if devtype.is_none() || major.is_err() || minor.is_err() || !DevicePermissions::is_valid(&ls[3]) {
-                                println!("line 211: acc: {:?}, ls: {:?}, devtype: {:?}, major {:?} minor {:?} ls3 {:?}",
+                                error!("allowed_devices: acc: {:?}, ls: {:?}, devtype: {:?}, major {:?} minor {:?} ls3 {:?}",
                                          acc, ls, devtype, major, minor, &ls[3]);
                                 Err(CgroupError::ParseError)
                             } else {

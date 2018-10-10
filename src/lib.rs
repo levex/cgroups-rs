@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -163,7 +166,7 @@ pub trait Controller {
         if self.verify_path() {
             match ::std::fs::create_dir(self.get_path()) {
                 Ok(_) => (),
-                Err(e) => println!("error create_dir {:?}", e),
+                Err(e) => warn!("error create_dir {:?}", e),
             }
         }
     }

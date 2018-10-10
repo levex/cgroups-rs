@@ -5,10 +5,11 @@ repository = "https://github.com/levex/cgroups-rs"
 keywords = ["linux", "cgroup", "containers", "isolation"]
 categories = ["os", "api-bindings", "os::unix-apis"]
 license = "MIT OR Apache-2.0"
-version = "0.0.3"
-authors = ["Levente Kurusa <lkurusa@acm.org>"]
+version = "0.1.0"
+authors = ["Levente Kurusa <lkurusa@acm.org>", "Sam Wilson <tecywiz121@hotmail.com>"]
 
 [dependencies]
+log = "0.4"
 
 [dev-dependencies]
 nix = "0.11.0"
