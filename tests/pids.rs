@@ -34,7 +34,6 @@ fn test_pids_current_is_zero() {
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
         let current = pidcontroller.get_pid_current();
-        assert!(current.is_ok());
         assert_eq!(current.unwrap(), 0);
     }
     cg.delete();
@@ -60,7 +59,6 @@ fn test_pid_events_is_not_zero() {
     {
         let pids: &PidController = cg.controller_of().unwrap();
         let before = pids.get_pid_events();
-        assert!(before.is_ok());
         let before = before.unwrap();
 
         match fork() {

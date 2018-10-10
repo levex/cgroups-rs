@@ -127,7 +127,7 @@ fn find_v1_mount() -> Option<String> {
         let fstype = more_fields[0];
         if fstype == "tmpfs" && more_fields[2].contains("ro") {
             let cgroups_mount = fields.nth(4).unwrap();
-            println!("found cgroups at {:?}", cgroups_mount);
+            info!("found cgroups at {:?}", cgroups_mount);
             return Some(cgroups_mount.to_string());
         }
     }
