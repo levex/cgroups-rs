@@ -6,9 +6,11 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use CgroupError::*;
+use error::*;
+use error::ErrorKind::*;
+
 use {
-    BlkIoResources, CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem,
+    BlkIoResources, ControllIdentifier, Controller, Controllers, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `blkio` subsystem of a Cgroup.
@@ -51,7 +53,7 @@ pub struct IoService {
     pub total: u64,
 }
 
-fn parse_io_service(s: String) -> Result<Vec<IoService>, CgroupError> {
+fn parse_io_service(s: String) -> Result<Vec<IoService>> {
     s.lines()
         .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 3)
         .map(|x| {
@@ -83,7 +85,7 @@ fn parse_io_service(s: String) -> Result<Vec<IoService>, CgroupError> {
         })
         .fold(Ok(Vec::new()), |acc, x| {
             if acc.is_err() || x.is_none() {
-                Err(CgroupError::ParseError)
+                Err(Error::new(ParseError))
             } else {
                 let mut acc = acc.unwrap();
                 acc.push(x.unwrap());
@@ -92,18 +94,18 @@ fn parse_io_service(s: String) -> Result<Vec<IoService>, CgroupError> {
         })
 }
 
-fn parse_io_service_total(s: String) -> Result<u64, CgroupError> {
+fn parse_io_service_total(s: String) -> Result<u64> {
     s.lines()
         .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 2)
-        .fold(Err(CgroupError::ParseError), |_, x| {
+        .fold(Err(Error::new(ParseError)), |_, x| {
             match x.split_whitespace().collect::<Vec<_>>().as_slice() {
-                ["Total", val] => val.parse::<u64>().map_err(|_| CgroupError::ParseError),
-                _ => Err(CgroupError::ParseError),
+                ["Total", val] => val.parse::<u64>().map_err(|_| Error::new(ParseError)),
+                _ => Err(Error::new(ParseError)),
             }
         })
 }
 
-fn parse_blkio_data(s: String) -> Result<Vec<BlkIoData>, CgroupError> {
+fn parse_blkio_data(s: String) -> Result<Vec<BlkIoData>> {
     let r = s
         .chars()
         .map(|x| if x == ':' { ' ' } else { x })
@@ -127,11 +129,11 @@ fn parse_blkio_data(s: String) -> Result<Vec<BlkIoData>, CgroupError> {
             });
             Ok(())
         }
-        _ => Err(CgroupError::ParseError),
+        _ => Err(Error::new(ParseError)),
     });
 
     if err.is_err() {
-        return Err(CgroupError::ParseError);
+        return Err(Error::new(ParseError));
     } else {
         return Ok(res);
     }
@@ -267,7 +269,7 @@ impl Controller for BlkIoController {
         &self.base
     }
 
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &BlkIoResources = &res.blkio;
 
@@ -320,19 +322,19 @@ impl<'a> From<&'a Subsystem> for &'a BlkIoController {
     }
 }
 
-fn read_string_from(mut file: File) -> Result<String, CgroupError> {
+fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
-fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|_| ParseError),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
@@ -569,26 +571,26 @@ impl BlkIoController {
 
     /// Set the leaf weight on the control group's tasks, i.e., how are they weighted against the
     /// descendant control groups' tasks.
-    pub fn set_leaf_weight(&self, w: u64) -> Result<(), CgroupError> {
+    pub fn set_leaf_weight(&self, w: u64) -> Result<()> {
         self.open_path("blkio.leaf_weight", true)
             .and_then(|mut file| {
                 file.write_all(w.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Same as `set_leaf_weight()`, but settable per each block device.
-    pub fn set_leaf_weight_for_device(&self, d: String) -> Result<(), CgroupError> {
+    pub fn set_leaf_weight_for_device(&self, d: String) -> Result<()> {
         self.open_path("blkio.leaf_weight_device", true)
-            .and_then(|mut file| file.write_all(d.as_ref()).map_err(CgroupError::WriteError))
+            .and_then(|mut file| file.write_all(d.as_ref()).map_err(|e| Error::with_cause(WriteFailed, e)))
     }
 
     /// Reset the statistics the kernel has gathered so far and start fresh.
-    pub fn reset_stats(&self) -> Result<(), CgroupError> {
+    pub fn reset_stats(&self) -> Result<()> {
         self.open_path("blkio.leaf_weight_device", true)
             .and_then(|mut file| {
                 file.write_all("1".to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
@@ -599,11 +601,11 @@ impl BlkIoController {
         major: u64,
         minor: u64,
         bps: u64,
-    ) -> Result<(), CgroupError> {
+    ) -> Result<()> {
         self.open_path("blkio.throttle.read_bps_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
@@ -614,11 +616,11 @@ impl BlkIoController {
         major: u64,
         minor: u64,
         iops: u64,
-    ) -> Result<(), CgroupError> {
+    ) -> Result<()> {
         self.open_path("blkio.throttle.read_iops_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
     /// Throttle the bytes per second rate of write operation affecting the block device
@@ -628,11 +630,11 @@ impl BlkIoController {
         major: u64,
         minor: u64,
         bps: u64,
-    ) -> Result<(), CgroupError> {
+    ) -> Result<()> {
         self.open_path("blkio.throttle.write_bps_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
@@ -643,20 +645,20 @@ impl BlkIoController {
         major: u64,
         minor: u64,
         iops: u64,
-    ) -> Result<(), CgroupError> {
+    ) -> Result<()> {
         self.open_path("blkio.throttle.write_iops_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Set the weight of the control group's tasks.
-    pub fn set_weight(&self, w: u64) -> Result<(), CgroupError> {
+    pub fn set_weight(&self, w: u64) -> Result<()> {
         self.open_path("blkio.leaf_weight", true)
             .and_then(|mut file| {
                 file.write_all(w.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
@@ -666,11 +668,11 @@ impl BlkIoController {
         major: u64,
         minor: u64,
         weight: u64,
-    ) -> Result<(), CgroupError> {
+    ) -> Result<()> {
         self.open_path("blkio.weight_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 }
@@ -679,7 +681,7 @@ impl BlkIoController {
 mod test {
     use blkio::{parse_blkio_data, BlkIoData};
     use blkio::{parse_io_service, parse_io_service_total, IoService};
-    use CgroupError;
+    use error::*;
 
     static TEST_VALUE: &str = "\
 8:32 Read 4280320
@@ -736,17 +738,19 @@ Total 61823067136
 
     #[test]
     fn test_parse_io_service_total() {
+        let ok = parse_io_service_total(TEST_VALUE.to_string()).unwrap();
         assert_eq!(
-            parse_io_service_total(TEST_VALUE.to_string()),
-            Ok(61823067136)
+            ok,
+            61823067136
         );
     }
 
     #[test]
     fn test_parse_io_service() {
+        let ok = parse_io_service(TEST_VALUE.to_string()).unwrap();
         assert_eq!(
-            parse_io_service(TEST_VALUE.to_string()),
-            Ok(vec![
+            ok,
+            vec![
                 IoService {
                     major: 8,
                     minor: 32,
@@ -783,19 +787,20 @@ Total 61823067136
                     async: 0,
                     total: 7192576,
                 }
-            ])
+            ]
         );
+        let err = parse_io_service(TEST_WRONG_VALUE.to_string()).unwrap_err();
         assert_eq!(
-            parse_io_service(TEST_WRONG_VALUE.to_string()),
-            Err(CgroupError::ParseError)
+            err.kind(),
+            &ErrorKind::ParseError,
         );
     }
 
     #[test]
     fn test_parse_blkio_data() {
         assert_eq!(
-            parse_blkio_data(TEST_BLKIO_DATA.to_string()),
-            Ok(vec![
+            parse_blkio_data(TEST_BLKIO_DATA.to_string()).unwrap(),
+            vec![
                 BlkIoData {
                     major: 8,
                     minor: 48,
@@ -816,7 +821,7 @@ Total 61823067136
                     minor: 0,
                     data: 559583764,
                 }
-            ])
+            ]
         );
     }
 }

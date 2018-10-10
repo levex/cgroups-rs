@@ -2,7 +2,7 @@
 extern crate cgroups;
 use cgroups::pid::{PidController, PidMax};
 use cgroups::Controller;
-use cgroups::{Cgroup, CgroupError, CgroupPid, PidResources, Resources};
+use cgroups::{Cgroup, CgroupPid, PidResources, Resources};
 
 extern crate nix;
 use nix::sys::wait::{waitpid, WaitStatus};

@@ -1,6 +1,8 @@
 //! This module handles cgroup operations. Start here!
 
-use {CgroupError, CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
+use error::*;
+
+use {CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::convert::From;
 
@@ -98,7 +100,7 @@ impl<'b> Cgroup<'b> {
     }
 
     /// Apply a set of resource limits to the control group.
-    pub fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    pub fn apply(&self, res: &Resources) -> Result<()> {
         self.subsystems
             .iter()
             .try_fold((), |_, e| e.to_controller().apply(res))
@@ -138,7 +140,7 @@ impl<'b> Cgroup<'b> {
     }
 
     /// Attach a task to the control group.
-    pub fn add_task(&self, pid: CgroupPid) -> Result<(), CgroupError> {
+    pub fn add_task(&self, pid: CgroupPid) -> Result<()> {
         self.subsystems()
             .iter()
             .try_for_each(|sub| sub.to_controller().add_task(&pid))

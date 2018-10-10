@@ -1,7 +1,8 @@
 extern crate cgroups;
 
 use cgroups::cpuset::CpuSetController;
-use cgroups::{Cgroup, CgroupError};
+use cgroups::error::ErrorKind;
+use cgroups::Cgroup;
 
 #[test]
 fn test_cpuset_memory_pressure_root_cg() {
@@ -12,8 +13,7 @@ fn test_cpuset_memory_pressure_root_cg() {
 
         // This is not a root control group, so it should fail via InvalidOperation.
         let res = cpuset.set_enable_memory_pressure(true);
-        assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), CgroupError::InvalidOperation);
+        assert_eq!(res.unwrap_err().kind(), &ErrorKind::InvalidOperation);
     }
     cg.delete();
 }

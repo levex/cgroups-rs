@@ -7,9 +7,11 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 
-use CgroupError::*;
+use error::*;
+use error::ErrorKind::*;
+
 use {
-    CgroupError, ControllIdentifier, Controller, Controllers, NetworkResources, Resources,
+    ControllIdentifier, Controller, Controllers, NetworkResources, Resources,
     Subsystem,
 };
 
@@ -38,7 +40,7 @@ impl Controller for NetPrioController {
         &self.base
     }
 
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &NetworkResources = &res.network;
 
@@ -72,11 +74,11 @@ impl<'a> From<&'a Subsystem> for &'a NetPrioController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|_| ParseError),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
@@ -99,7 +101,7 @@ impl NetPrioController {
     }
 
     /// A map of priorities for each network interface.
-    pub fn ifpriomap(&self) -> Result<HashMap<String, u64>, CgroupError> {
+    pub fn ifpriomap(&self) -> Result<HashMap<String, u64>> {
         self.open_path("net_prio.ifpriomap", false)
             .and_then(|file| {
                 let bf = BufReader::new(file);
@@ -113,15 +115,16 @@ impl NetPrioController {
                         let ifname = sp.nth(0);
                         let ifprio = sp.nth(1);
                         if ifname.is_none() || ifprio.is_none() {
-                            Err(CgroupError::ParseError)
+                            Err(Error::new(ParseError))
                         } else {
                             let ifname = ifname.unwrap();
                             let ifprio = ifprio.unwrap().trim().parse();
-                            if ifprio.is_err() {
-                                Err(CgroupError::ParseError)
-                            } else {
-                                acc.insert(ifname.to_string(), ifprio.unwrap());
-                                Ok(acc)
+                            match ifprio {
+                                Err(e) => Err(Error::with_cause(ParseError, e)),
+                                Ok(_) => {
+                                    acc.insert(ifname.to_string(), ifprio.unwrap());
+                                    Ok(acc)
+                                }
                             }
                         }
                     }
@@ -130,11 +133,11 @@ impl NetPrioController {
     }
 
     /// Set the priority of the network traffic on `eif` to be `prio`.
-    pub fn set_if_prio(&self, eif: &String, prio: u64) -> Result<(), CgroupError> {
+    pub fn set_if_prio(&self, eif: &String, prio: u64) -> Result<()> {
         self.open_path("net_prio.ifpriomap", true)
             .and_then(|mut file| {
                 file.write_all(format!("{} {}", eif, prio).as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 }

@@ -5,7 +5,10 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use {CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem};
+use error::*;
+use error::ErrorKind::*;
+
+use {ControllIdentifier, Controller, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `freezer` subsystem of a Cgroup.
 ///
@@ -45,7 +48,7 @@ impl Controller for FreezerController {
         &self.base
     }
 
-    fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, _res: &Resources) -> Result<()> {
         Ok(())
     }
 }
@@ -82,23 +85,23 @@ impl FreezerController {
     }
 
     /// Freezes the processes in the control group.
-    pub fn freeze(&self) -> Result<(), CgroupError> {
+    pub fn freeze(&self) -> Result<()> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("FROZEN".to_string().as_ref())
-                .map_err(CgroupError::WriteError)
+                .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
     /// Thaws, that is, unfreezes the processes in the control group.
-    pub fn thaw(&self) -> Result<(), CgroupError> {
+    pub fn thaw(&self) -> Result<()> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("THAWED".to_string().as_ref())
-                .map_err(CgroupError::WriteError)
+                .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
     /// Retrieve the state of processes in the control group.
-    pub fn state(&self) -> Result<FreezerState, CgroupError> {
+    pub fn state(&self) -> Result<FreezerState> {
         self.open_path("freezer.state", false).and_then(|mut file| {
             let mut s = String::new();
             let res = file.read_to_string(&mut s);
@@ -107,9 +110,9 @@ impl FreezerController {
                     "FROZEN" => Ok(FreezerState::Frozen),
                     "THAWED" => Ok(FreezerState::Thawed),
                     "FREEZING" => Ok(FreezerState::Freezing),
-                    _ => Err(CgroupError::ParseError),
+                    _ => Err(Error::new(ParseError)),
                 },
-                Err(e) => Err(CgroupError::ReadError(e)),
+                Err(e) => Err(Error::with_cause(ReadFailed, e)),
             }
         })
     }

@@ -6,7 +6,10 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use {CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem};
+use error::*;
+use error::ErrorKind::*;
+
+use {ControllIdentifier, Controller, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `cpuacct` subsystem of a Cgroup.
 ///
@@ -63,7 +66,7 @@ impl Controller for CpuAcctController {
         &self.base
     }
 
-    fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, _res: &Resources) -> Result<()> {
         Ok(())
     }
 }
@@ -88,23 +91,23 @@ impl<'a> From<&'a Subsystem> for &'a CpuAcctController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     let res = file.read_to_string(&mut string);
     match res {
         Ok(_) => match string.trim().parse() {
             Ok(e) => Ok(e),
-            Err(_) => Err(CgroupError::ParseError),
+            Err(e) => Err(Error::with_cause(ParseError, e)),
         },
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
-fn read_string_from(mut file: File) -> Result<String, CgroupError> {
+fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
@@ -158,8 +161,8 @@ impl CpuAcctController {
     }
 
     /// Reset the statistics the kernel has gathered about the control group.
-    pub fn reset(&self) -> Result<(), CgroupError> {
+    pub fn reset(&self) -> Result<()> {
         self.open_path("cpuacct.usage", true)
-            .and_then(|mut file| file.write_all(b"0").map_err(CgroupError::WriteError))
+            .and_then(|mut file| file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e)))
     }
 }

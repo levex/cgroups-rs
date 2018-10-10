@@ -4,7 +4,9 @@
 //!  [tools/perf/Documentation/perf-record.txt](https://raw.githubusercontent.com/torvalds/linux/master/tools/perf/Documentation/perf-record.txt)
 use std::path::PathBuf;
 
-use {CgroupError, ControllIdentifier, Controller, Controllers, Resources, Subsystem};
+use error::*;
+
+use {ControllIdentifier, Controller, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `perf_event` subsystem of a Cgroup.
 ///
@@ -30,7 +32,7 @@ impl Controller for PerfEventController {
         &self.base
     }
 
-    fn apply(&self, _res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, _res: &Resources) -> Result<()> {
         Ok(())
     }
 }

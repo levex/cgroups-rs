@@ -6,9 +6,11 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use CgroupError::*;
+use error::*;
+use error::ErrorKind::*;
+
 use {
-    CgroupError, ControllIdentifier, Controller, Controllers, PidResources, Resources, Subsystem,
+    ControllIdentifier, Controller, Controllers, PidResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `pids` subsystem of a Cgroup.
@@ -48,7 +50,7 @@ impl Controller for PidController {
         &self.base
     }
 
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let pidres: &PidResources = &res.pid;
 
@@ -57,10 +59,10 @@ impl Controller for PidController {
             let _ = self.set_pid_max(pidres.maximum_number_of_processes);
 
             // now, verify
-            if self.get_pid_max() == Ok(pidres.maximum_number_of_processes) {
+            if self.get_pid_max()? == pidres.maximum_number_of_processes {
                 return Ok(());
             } else {
-                return Err(CgroupError::Unknown);
+                return Err(Error::new(Other));
             }
         }
 
@@ -94,11 +96,11 @@ impl<'a> From<&'a Subsystem> for &'a PidController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|_| ParseError),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
@@ -115,30 +117,30 @@ impl PidController {
     }
 
     /// The number of times `fork` failed because the limit was hit.
-    pub fn get_pid_events(&self) -> Result<u64, CgroupError> {
+    pub fn get_pid_events(&self) -> Result<u64> {
         self.open_path("pids.events", false).and_then(|mut file| {
             let mut string = String::new();
             match file.read_to_string(&mut string) {
                 Ok(_) => match string.split_whitespace().nth(1) {
                     Some(elem) => match elem.parse() {
                         Ok(val) => Ok(val),
-                        Err(_) => Err(CgroupError::ParseError),
+                        Err(e) => Err(Error::with_cause(ParseError, e)),
                     },
-                    None => Err(CgroupError::ParseError),
+                    None => Err(Error::new(ParseError)),
                 },
-                Err(e) => Err(CgroupError::ReadError(e)),
+                Err(e) => Err(Error::with_cause(ReadFailed, e)),
             }
         })
     }
 
     /// The number of processes currently.
-    pub fn get_pid_current(&self) -> Result<u64, CgroupError> {
+    pub fn get_pid_current(&self) -> Result<u64> {
         self.open_path("pids.current", false)
             .and_then(read_u64_from)
     }
 
     /// The maximum number of processes that can exist at one time in the control group.
-    pub fn get_pid_max(&self) -> Result<PidMax, CgroupError> {
+    pub fn get_pid_max(&self) -> Result<PidMax> {
         self.open_path("pids.max", false).and_then(|mut file| {
             let mut string = String::new();
             let res = file.read_to_string(&mut string);
@@ -148,10 +150,10 @@ impl PidController {
                 } else {
                     match string.trim().parse() {
                         Ok(val) => Ok(PidMax::Value(val)),
-                        Err(_) => Err(CgroupError::ParseError),
+                        Err(e) => Err(Error::with_cause(ParseError, e)),
                     }
                 },
-                Err(e) => Err(CgroupError::ReadError(e)),
+                Err(e) => Err(Error::with_cause(ReadFailed, e)),
             }
         })
     }
@@ -161,7 +163,7 @@ impl PidController {
     /// Note that if `get_pid_current()` returns a higher number than what you
     /// are about to set (`max_pid`), then no processess will be killed. Additonally, attaching
     /// extra processes to a control group disregards the limit.
-    pub fn set_pid_max(&self, max_pid: PidMax) -> Result<(), CgroupError> {
+    pub fn set_pid_max(&self, max_pid: PidMax) -> Result<()> {
         self.open_path("pids.max", true).and_then(|mut file| {
             let string_to_write = match max_pid {
                 PidMax::Max => "max".to_string(),
@@ -169,7 +171,7 @@ impl PidController {
             };
             match file.write_all(string_to_write.as_ref()) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(CgroupError::WriteError(e)),
+                Err(e) => Err(Error::with_cause(WriteFailed, e)),
             }
         })
     }

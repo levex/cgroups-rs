@@ -5,8 +5,11 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
+use error::*;
+use error::ErrorKind::*;
+
 use {
-    CgroupError, ControllIdentifier, Controller, Controllers, DeviceResource, DeviceResources,
+    ControllIdentifier, Controller, Controllers, DeviceResource, DeviceResources,
     Resources, Subsystem,
 };
 
@@ -142,7 +145,7 @@ impl Controller for DevicesController {
         &self.base
     }
 
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &DeviceResources = &res.devices;
 
@@ -201,7 +204,7 @@ impl DevicesController {
         major: i64,
         minor: i64,
         perm: &Vec<DevicePermissions>,
-    ) -> Result<(), CgroupError> {
+    ) -> Result<()> {
         let perms = perm
             .iter()
             .map(DevicePermissions::to_char)
@@ -219,7 +222,7 @@ impl DevicesController {
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.allow", true).and_then(|mut file| {
             file.write_all(final_str.as_ref())
-                .map_err(CgroupError::WriteError)
+                .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
@@ -233,7 +236,7 @@ impl DevicesController {
         major: i64,
         minor: i64,
         perm: &Vec<DevicePermissions>,
-    ) -> Result<(), CgroupError> {
+    ) -> Result<()> {
         let perms = perm
             .iter()
             .map(DevicePermissions::to_char)
@@ -251,12 +254,12 @@ impl DevicesController {
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.deny", true).and_then(|mut file| {
             file.write_all(final_str.as_ref())
-                .map_err(CgroupError::WriteError)
+                .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
     /// Get the current list of allowed devices.
-    pub fn allowed_devices(&self) -> Result<Vec<DeviceResource>, CgroupError> {
+    pub fn allowed_devices(&self) -> Result<Vec<DeviceResource>> {
         self.open_path("devices.list", false).and_then(|mut file| {
             let mut s = String::new();
             let res = file.read_to_string(&mut s);
@@ -266,7 +269,7 @@ impl DevicesController {
                         let ls = line.to_string().split(|c| c == ' ' || c == ':').map(|x| x.to_string()).collect::<Vec<String>>();
                         if acc.is_err() || ls.len() != 4 {
                             error!("allowed_devices: acc: {:?}, ls: {:?}", acc, ls);
-                            Err(CgroupError::ParseError)
+                            Err(Error::new(ParseError))
                         } else {
                             let devtype = DeviceType::from_char(ls[0].chars().nth(0));
                             let mut major = ls[1].parse::<i64>();
@@ -280,7 +283,7 @@ impl DevicesController {
                             if devtype.is_none() || major.is_err() || minor.is_err() || !DevicePermissions::is_valid(&ls[3]) {
                                 error!("allowed_devices: acc: {:?}, ls: {:?}, devtype: {:?}, major {:?} minor {:?} ls3 {:?}",
                                          acc, ls, devtype, major, minor, &ls[3]);
-                                Err(CgroupError::ParseError)
+                                Err(Error::new(ParseError))
                             } else {
                                 let access = DevicePermissions::from_string(&ls[3]);
                                 let mut acc = acc.unwrap();
@@ -296,7 +299,7 @@ impl DevicesController {
                         }
                     })
                 },
-                Err(e) => Err(CgroupError::ReadError(e)),
+                Err(e) => Err(Error::with_cause(ReadFailed, e)),
             }
         })
     }

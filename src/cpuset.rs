@@ -6,9 +6,11 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use CgroupError::*;
+use error::*;
+use error::ErrorKind::*;
+
 use {
-    CgroupError, ControllIdentifier, Controller, Controllers, CpuResources, Resources, Subsystem,
+    ControllIdentifier, Controller, Controllers, CpuResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `cpuset` subsystem of a Cgroup.
@@ -91,7 +93,7 @@ impl Controller for CpuSetController {
         &self.base
     }
 
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &CpuResources = &res.cpu;
 
@@ -124,24 +126,24 @@ impl<'a> From<&'a Subsystem> for &'a CpuSetController {
     }
 }
 
-fn read_string_from(mut file: File) -> Result<String, CgroupError> {
+fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
-fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|_| ParseError),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
 /// Parse a string like "1,2,4-5,8" into a list of (start, end) tuples.
-fn parse_range(s: String) -> Result<Vec<(u64, u64)>, CgroupError> {
+fn parse_range(s: String) -> Result<Vec<(u64, u64)>> {
     let mut fin = Vec::new();
 
     if s == "".to_string() {
@@ -156,19 +158,19 @@ fn parse_range(s: String) -> Result<Vec<(u64, u64)>, CgroupError> {
             // this is a true range
             let dash_split = sp.split("-").collect::<Vec<_>>();
             if dash_split.len() != 2 {
-                return Err(CgroupError::ParseError);
+                return Err(Error::new(ParseError));
             }
             let first = dash_split[0].parse::<u64>();
             let second = dash_split[1].parse::<u64>();
             if first.is_err() || second.is_err() {
-                return Err(CgroupError::ParseError);
+                return Err(Error::new(ParseError));
             }
             fin.push((first.unwrap(), second.unwrap()));
         } else {
             // this is just a single number
             let num = sp.parse::<u64>();
             if num.is_err() {
-                return Err(CgroupError::ParseError);
+                return Err(Error::new(ParseError));
             }
             fin.push((num.clone().unwrap(), num.clone().unwrap()));
         }
@@ -279,26 +281,26 @@ impl CpuSetController {
 
     /// Control whether the CPUs selected via `set_cpus()` should be exclusive to this control
     /// group or not.
-    pub fn set_cpu_exclusive(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_cpu_exclusive(&self, b: bool) -> Result<()> {
         self.open_path("cpuset.cpu_exclusive", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
 
     /// Control whether the memory nodes selected via `set_memss()` should be exclusive to this control
     /// group or not.
-    pub fn set_mem_exclusive(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_mem_exclusive(&self, b: bool) -> Result<()> {
         self.open_path("cpuset.mem_exclusive", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -307,20 +309,20 @@ impl CpuSetController {
     ///
     /// Syntax is a comma separated list of CPUs, with an additional extension that ranges can
     /// be represented via dashes.
-    pub fn set_cpus(&self, cpus: &String) -> Result<(), CgroupError> {
+    pub fn set_cpus(&self, cpus: &String) -> Result<()> {
         self.open_path("cpuset.cpus", true).and_then(|mut file| {
             file.write_all(cpus.as_ref())
-                .map_err(CgroupError::WriteError)
+                .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
     /// Set the memory nodes that the tasks in this control group can use.
     ///
     /// Syntax is the same as with `set_cpus()`.
-    pub fn set_mems(&self, mems: &String) -> Result<(), CgroupError> {
+    pub fn set_mems(&self, mems: &String) -> Result<()> {
         self.open_path("cpuset.mems", true).and_then(|mut file| {
             file.write_all(mems.as_ref())
-                .map_err(CgroupError::WriteError)
+                .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
@@ -329,26 +331,26 @@ impl CpuSetController {
     ///
     /// Note that some kernel allocations, most notably those that are made in interrupt handlers
     /// may disregard this.
-    pub fn set_hardwall(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_hardwall(&self, b: bool) -> Result<()> {
         self.open_path("cpuset.mem_hardwall", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
 
     /// Controls whether the kernel should attempt to rebalance the load between the CPUs specified in the
     /// `cpus` field of this control group.
-    pub fn set_load_balancing(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_load_balancing(&self, b: bool) -> Result<()> {
         self.open_path("cpuset.sched_load_balance", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -356,49 +358,49 @@ impl CpuSetController {
     /// Contorl how much effort the kernel should invest in rebalacing the control group.
     ///
     /// See @CpuSet 's similar field for more information.
-    pub fn set_rebalance_relax_domain_level(&self, i: i64) -> Result<(), CgroupError> {
+    pub fn set_rebalance_relax_domain_level(&self, i: i64) -> Result<()> {
         self.open_path("cpuset.sched_relax_domain_level", true)
             .and_then(|mut file| {
                 file.write_all(i.to_string().as_ref())
-                    .map_err(CgroupError::WriteError)
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Control whether when using `set_mems()` the existing memory used by the tasks should be
     /// migrated over to the now-selected nodes.
-    pub fn set_memory_migration(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_memory_migration(&self, b: bool) -> Result<()> {
         self.open_path("cpuset.memory_migrate", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
 
     /// Control whether filesystem buffers should be evenly split across the nodes selected via
     /// `set_mems()`.
-    pub fn set_memory_spread_page(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_memory_spread_page(&self, b: bool) -> Result<()> {
         self.open_path("cpuset.memory_spread_page", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
 
     /// Control whether the kernel's slab cache for file I/O should be evenly split across the
     /// nodes selected via `set_mems()`.
-    pub fn set_memory_spread_slab(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_memory_spread_slab(&self, b: bool) -> Result<()> {
         self.open_path("cpuset.memory_spread_slab", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -408,16 +410,16 @@ impl CpuSetController {
     ///
     /// Note: This will fail with `InvalidOperation` if the current congrol group is not the root
     /// control group.
-    pub fn set_enable_memory_pressure(&self, b: bool) -> Result<(), CgroupError> {
+    pub fn set_enable_memory_pressure(&self, b: bool) -> Result<()> {
         if !self.path_exists("cpuset.memory_pressure_enabled") {
-            return Err(CgroupError::InvalidOperation);
+            return Err(Error::new(InvalidOperation));
         }
         self.open_path("cpuset.memory_pressure_enabled", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(CgroupError::WriteError)
+                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(CgroupError::WriteError)
+                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }

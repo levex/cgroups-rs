@@ -6,9 +6,11 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use CgroupError::*;
+use error::*;
+use error::ErrorKind::*;
+
 use {
-    CgroupError, ControllIdentifier, Controller, Controllers, NetworkResources, Resources,
+    ControllIdentifier, Controller, Controllers, NetworkResources, Resources,
     Subsystem,
 };
 
@@ -37,14 +39,14 @@ impl Controller for NetClsController {
         &self.base
     }
 
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError> {
+    fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &NetworkResources = &res.network;
 
         if res.update_values {
             let _ = self.set_class(res.class_id);
-            if self.get_class() != Ok(res.class_id) {
-                return Err(CgroupError::Unknown);
+            if self.get_class()? != res.class_id {
+                return Err(Error::new(Other));
             }
         }
         return Ok(());
@@ -71,11 +73,11 @@ impl<'a> From<&'a Subsystem> for &'a NetClsController {
     }
 }
 
-fn read_u64_from(mut file: File) -> Result<u64, CgroupError> {
+fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|_| ParseError),
-        Err(e) => Err(CgroupError::ReadError(e)),
+        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
@@ -91,16 +93,16 @@ impl NetClsController {
     }
 
     /// Set the network class id of the outgoing packets of the control group's tasks.
-    pub fn set_class(&self, class: u64) -> Result<(), CgroupError> {
+    pub fn set_class(&self, class: u64) -> Result<()> {
         self.open_path("net_cls.classid", true)
             .and_then(|mut file| {
                 let s = format!("{:#08X}", class);
-                file.write_all(s.as_ref()).map_err(CgroupError::WriteError)
+                file.write_all(s.as_ref()).map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Get the network class id of the outgoing packets of the control group's tasks.
-    pub fn get_class(&self) -> Result<u64, CgroupError> {
+    pub fn get_class(&self) -> Result<u64> {
         self.open_path("net_cls.classid", false)
             .and_then(|file| read_u64_from(file))
     }

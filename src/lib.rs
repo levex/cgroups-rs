@@ -11,6 +11,7 @@ pub mod cpu;
 pub mod cpuacct;
 pub mod cpuset;
 pub mod devices;
+pub mod error;
 pub mod freezer;
 pub mod hierarchies;
 pub mod hugetlb;
@@ -26,6 +27,7 @@ use cpu::CpuController;
 use cpuacct::CpuAcctController;
 use cpuset::CpuSetController;
 use devices::DevicesController;
+use error::*;
 use freezer::FreezerController;
 use hugetlb::HugeTlbController;
 use memory::MemController;
@@ -66,38 +68,6 @@ pub enum Subsystem {
     HugeTlb(HugeTlbController),
     /// Controller for the `Rdma` subsystem, see `RdmaController` for more information.
     Rdma(RdmaController),
-}
-
-/// The different types of errors that can occur while manipulating control groups.
-#[derive(Debug)]
-pub enum CgroupError {
-    /// An error occured while writing to a control group file.
-    WriteError(std::io::Error),
-    /// An error occured while trying to read from a control group file.
-    ReadError(std::io::Error),
-    /// An error occured while trying to parse a value from a control group file.
-    ///
-    /// In the future, there will be some information attached to this field.
-    ParseError,
-    /// You tried to do something invalid.
-    ///
-    /// This could be because you tried to set a value in a control group that is not a root
-    /// control group. Or, when using unified hierarchy, you tried to add a task in a leaf node.
-    InvalidOperation,
-    /// The path of the control group was invalid.
-    ///
-    /// This could be caused by trying to escape the control group filesystem via a string of "..".
-    /// This crate checks against this and operations will fail with this error.
-    InvalidPath,
-    /// An unknown error has occured.
-    Unknown,
-}
-
-impl PartialEq for CgroupError {
-    fn eq(&self, other: &CgroupError) -> bool {
-        use std::mem::discriminant;
-        discriminant(&self) == discriminant(&other)
-    }
 }
 
 #[doc(hidden)]
@@ -144,7 +114,7 @@ impl Controllers {
 pub trait Controller {
     /// Apply a set of resources to the Controller, invoking its internal functions to pass the
     /// kernel the information.
-    fn apply(&self, res: &Resources) -> Result<(), CgroupError>;
+    fn apply(&self, res: &Resources) -> Result<()>;
 
     // meta stuff
     #[doc(hidden)]
@@ -157,17 +127,21 @@ pub trait Controller {
     fn get_base(&self) -> &PathBuf;
 
     #[doc(hidden)]
-    fn verify_path(&self) -> bool {
-        self.get_path().starts_with(self.get_base())
+    fn verify_path(&self) -> Result<()> {
+        if self.get_path().starts_with(self.get_base()) {
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::InvalidPath))
+        }
     }
 
     /// Create this controller
     fn create(&self) {
-        if self.verify_path() {
-            match ::std::fs::create_dir(self.get_path()) {
-                Ok(_) => (),
-                Err(e) => warn!("error create_dir {:?}", e),
-            }
+        self.verify_path().expect("path should be valid");
+
+        match ::std::fs::create_dir(self.get_path()) {
+            Ok(_) => (),
+            Err(e) => warn!("error create_dir {:?}", e),
         }
     }
 
@@ -184,22 +158,20 @@ pub trait Controller {
     }
 
     #[doc(hidden)]
-    fn open_path(&self, p: &str, w: bool) -> Result<File, CgroupError> {
+    fn open_path(&self, p: &str, w: bool) -> Result<File> {
         let mut path = self.get_path().clone();
         path.push(p);
 
-        if !self.verify_path() {
-            return Err(CgroupError::InvalidPath);
-        }
+        self.verify_path()?;
 
         if w {
             match File::create(&path) {
-                Err(e) => return Err(CgroupError::WriteError(e)),
+                Err(e) => return Err(Error::with_cause(ErrorKind::WriteFailed, e)),
                 Ok(file) => return Ok(file),
             }
         } else {
             match File::open(&path) {
-                Err(e) => return Err(CgroupError::ReadError(e)),
+                Err(e) => return Err(Error::with_cause(ErrorKind::ReadFailed, e)),
                 Ok(file) => return Ok(file),
             }
         }
@@ -207,7 +179,7 @@ pub trait Controller {
 
     #[doc(hidden)]
     fn path_exists(&self, p: &str) -> bool {
-        if !self.verify_path() {
+        if let Err(_) = self.verify_path() {
             return false;
         }
 
@@ -215,10 +187,10 @@ pub trait Controller {
     }
 
     /// Attach a task to this controller.
-    fn add_task(&self, pid: &CgroupPid) -> Result<(), CgroupError> {
+    fn add_task(&self, pid: &CgroupPid) -> Result<()> {
         self.open_path("tasks", true).and_then(|mut file| {
             file.write_all(pid.pid.to_string().as_ref())
-                .map_err(CgroupError::WriteError)
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
