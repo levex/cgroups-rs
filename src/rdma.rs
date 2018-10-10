@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use error::*;
 use error::ErrorKind::*;
 
-use {ControllIdentifier, Controller, Controllers, Resources, Subsystem};
+use {ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `rdma` subsystem of a Cgroup.
 ///
@@ -21,7 +21,7 @@ pub struct RdmaController {
     path: PathBuf,
 }
 
-impl Controller for RdmaController {
+impl ControllerInternal for RdmaController {
     fn control_type(&self) -> Controllers {
         Controllers::Rdma
     }

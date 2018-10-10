@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use error::*;
 use error::ErrorKind::*;
 
-use {ControllIdentifier, Controller, Controllers, Resources, Subsystem};
+use {ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `cpuacct` subsystem of a Cgroup.
 ///
@@ -52,7 +52,7 @@ pub struct CpuAcct {
     pub usage_user: u64,
 }
 
-impl Controller for CpuAcctController {
+impl ControllerInternal for CpuAcctController {
     fn control_type(&self) -> Controllers {
         Controllers::CpuAcct
     }

@@ -11,7 +11,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, NetworkResources, Resources,
+    ControllIdentifier, ControllerInternal, Controllers, NetworkResources, Resources,
     Subsystem,
 };
 
@@ -26,7 +26,7 @@ pub struct NetPrioController {
     path: PathBuf,
 }
 
-impl Controller for NetPrioController {
+impl ControllerInternal for NetPrioController {
     fn control_type(&self) -> Controllers {
         Controllers::NetPrio
     }

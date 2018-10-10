@@ -108,31 +108,95 @@ impl Controllers {
     }
 }
 
+mod sealed {
+    use super::*;
+
+    pub trait ControllerInternal {
+        fn apply(&self, res: &Resources) -> Result<()>;
+
+        // meta stuff
+        fn control_type(&self) -> Controllers;
+        fn get_path(&self) -> &PathBuf;
+        fn get_path_mut(&mut self) -> &mut PathBuf;
+        fn get_base(&self) -> &PathBuf;
+
+        fn verify_path(&self) -> Result<()> {
+            if self.get_path().starts_with(self.get_base()) {
+                Ok(())
+            } else {
+                Err(Error::new(ErrorKind::InvalidPath))
+            }
+        }
+
+        fn open_path(&self, p: &str, w: bool) -> Result<File> {
+            let mut path = self.get_path().clone();
+            path.push(p);
+
+            self.verify_path()?;
+
+            if w {
+                match File::create(&path) {
+                    Err(e) => return Err(Error::with_cause(ErrorKind::WriteFailed, e)),
+                    Ok(file) => return Ok(file),
+                }
+            } else {
+                match File::open(&path) {
+                    Err(e) => return Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                    Ok(file) => return Ok(file),
+                }
+            }
+        }
+
+        #[doc(hidden)]
+        fn path_exists(&self, p: &str) -> bool {
+            if let Err(_) = self.verify_path() {
+                return false;
+            }
+
+            std::path::Path::new(p).exists()
+        }
+
+    }
+}
+
+pub(crate) use sealed::ControllerInternal;
+
 /// A Controller is a subsystem attached to the control group.
 ///
 /// Implementors are able to control certain aspects of a control group.
 pub trait Controller {
+    #[doc(hidden)]
+    fn control_type(&self) -> Controllers;
+
     /// Apply a set of resources to the Controller, invoking its internal functions to pass the
     /// kernel the information.
     fn apply(&self, res: &Resources) -> Result<()>;
 
-    // meta stuff
-    #[doc(hidden)]
-    fn control_type(&self) -> Controllers;
-    #[doc(hidden)]
-    fn get_path(&self) -> &PathBuf;
-    #[doc(hidden)]
-    fn get_path_mut(&mut self) -> &mut PathBuf;
-    #[doc(hidden)]
-    fn get_base(&self) -> &PathBuf;
+    /// Create this controller
+    fn create(&self);
 
-    #[doc(hidden)]
-    fn verify_path(&self) -> Result<()> {
-        if self.get_path().starts_with(self.get_base()) {
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::InvalidPath))
-        }
+    /// Does this controller already exist?
+    fn exists(&self) -> bool;
+
+    /// Delete the controller.
+    fn delete(&self);
+
+    /// Attach a task to this controller.
+    fn add_task(&self, pid: &CgroupPid) -> Result<()>;
+
+    /// Get the list of tasks that this controller has.
+    fn tasks(&self) -> Vec<CgroupPid>;
+}
+
+impl<T> Controller for T where T: ControllerInternal {
+    fn control_type(&self) -> Controllers {
+        ControllerInternal::control_type(self)
+    }
+
+    /// Apply a set of resources to the Controller, invoking its internal functions to pass the
+    /// kernel the information.
+    fn apply(&self, res: &Resources) -> Result<()> {
+        ControllerInternal::apply(self, res)
     }
 
     /// Create this controller
@@ -155,35 +219,6 @@ pub trait Controller {
         if self.get_path().exists() {
             let _ = ::std::fs::remove_dir(self.get_path());
         }
-    }
-
-    #[doc(hidden)]
-    fn open_path(&self, p: &str, w: bool) -> Result<File> {
-        let mut path = self.get_path().clone();
-        path.push(p);
-
-        self.verify_path()?;
-
-        if w {
-            match File::create(&path) {
-                Err(e) => return Err(Error::with_cause(ErrorKind::WriteFailed, e)),
-                Ok(file) => return Ok(file),
-            }
-        } else {
-            match File::open(&path) {
-                Err(e) => return Err(Error::with_cause(ErrorKind::ReadFailed, e)),
-                Ok(file) => return Ok(file),
-            }
-        }
-    }
-
-    #[doc(hidden)]
-    fn path_exists(&self, p: &str) -> bool {
-        if let Err(_) = self.verify_path() {
-            return false;
-        }
-
-        std::path::Path::new(p).exists()
     }
 
     /// Attach a task to this controller.

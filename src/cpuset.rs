@@ -10,7 +10,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, CpuResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `cpuset` subsystem of a Cgroup.
@@ -79,7 +79,7 @@ pub struct CpuSet {
     pub sched_relax_domain_level: u64,
 }
 
-impl Controller for CpuSetController {
+impl ControllerInternal for CpuSetController {
     fn control_type(&self) -> Controllers {
         Controllers::CpuSet
     }

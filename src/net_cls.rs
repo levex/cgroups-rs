@@ -10,7 +10,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, NetworkResources, Resources,
+    ControllIdentifier, ControllerInternal, Controllers, NetworkResources, Resources,
     Subsystem,
 };
 
@@ -25,7 +25,7 @@ pub struct NetClsController {
     path: PathBuf,
 }
 
-impl Controller for NetClsController {
+impl ControllerInternal for NetClsController {
     fn control_type(&self) -> Controllers {
         Controllers::NetCls
     }

@@ -10,7 +10,7 @@ use error::*;
 use error::ErrorKind::*;
 
 use {
-    ControllIdentifier, Controller, Controllers, MemoryResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
@@ -393,7 +393,7 @@ pub struct Kmem {
     pub slabinfo: String,
 }
 
-impl Controller for MemController {
+impl ControllerInternal for MemController {
     fn control_type(&self) -> Controllers {
         Controllers::Mem
     }

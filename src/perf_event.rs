@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use error::*;
 
-use {ControllIdentifier, Controller, Controllers, Resources, Subsystem};
+use {ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `perf_event` subsystem of a Cgroup.
 ///
@@ -18,7 +18,7 @@ pub struct PerfEventController {
     path: PathBuf,
 }
 
-impl Controller for PerfEventController {
+impl ControllerInternal for PerfEventController {
     fn control_type(&self) -> Controllers {
         Controllers::PerfEvent
     }
