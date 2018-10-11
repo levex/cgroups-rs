@@ -562,6 +562,42 @@ impl MemController {
         }
     }
 
+    /// Reset the fail counter
+    pub fn reset_fail_count(&self) -> Result<()> {
+        self.open_path("memory.failcnt", true)
+            .and_then(|mut file| {
+                file.write_all("0".to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
+
+    /// Reset the kernel memory fail counter
+    pub fn reset_kmem_fail_count(&self) -> Result<()> {
+        self.open_path("memory.kmem.failcnt", true)
+            .and_then(|mut file| {
+                file.write_all("0".to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
+
+    /// Reset the TCP related fail counter
+    pub fn reset_tcp_fail_count(&self) -> Result<()> {
+        self.open_path("memory.kmem.tcp.failcnt", true)
+            .and_then(|mut file| {
+                file.write_all("0".to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
+
+    /// Reset the memory+swap fail counter
+    pub fn reset_memswap_fail_count(&self) -> Result<()> {
+        self.open_path("memory.memsw.failcnt", true)
+            .and_then(|mut file| {
+                file.write_all("0".to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
+
     /// Set the memory usage limit of the control group, in bytes.
     pub fn set_limit(&self, limit: u64) -> Result<()> {
         self.open_path("memory.limit_in_bytes", true)
