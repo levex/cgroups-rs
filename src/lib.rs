@@ -168,6 +168,9 @@ pub trait Controller {
     #[doc(hidden)]
     fn control_type(&self) -> Controllers;
 
+    /// The file system path to the controller.
+    fn path(&self) -> &Path;
+
     /// Apply a set of resources to the Controller, invoking its internal functions to pass the
     /// kernel the information.
     fn apply(&self, res: &Resources) -> Result<()>;
@@ -191,6 +194,10 @@ pub trait Controller {
 impl<T> Controller for T where T: ControllerInternal {
     fn control_type(&self) -> Controllers {
         ControllerInternal::control_type(self)
+    }
+
+    fn path(&self) -> &Path {
+        self.get_path()
     }
 
     /// Apply a set of resources to the Controller, invoking its internal functions to pass the
