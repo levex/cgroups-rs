@@ -5,6 +5,7 @@ use error::*;
 use {CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::convert::From;
+use std::path::Path;
 
 /// A control group is the central structure to this crate.
 ///
@@ -40,7 +41,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn new(hier: &Hierarchy, path: String) -> Cgroup {
+    pub fn new<P: AsRef<Path>>(hier: &Hierarchy, path: P) -> Cgroup {
         let cg = Cgroup::load(hier, path);
         cg.create();
         cg
@@ -53,12 +54,13 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn load(hier: &Hierarchy, path: String) -> Cgroup {
+    pub fn load<P: AsRef<Path>>(hier: &Hierarchy, path: P) -> Cgroup {
+        let path = path.as_ref();
         let mut subsystems = hier.subsystems();
-        if path != "" {
+        if path.as_os_str() != "" {
             subsystems = subsystems
                 .into_iter()
-                .map(|x| x.enter(&path))
+                .map(|x| x.enter(path))
                 .collect::<Vec<_>>();
         }
 
