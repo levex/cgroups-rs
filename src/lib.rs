@@ -3,7 +3,7 @@ extern crate log;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub mod blkio;
 pub mod cgroup;
@@ -491,7 +491,7 @@ impl<'a> From<&'a std::process::Child> for CgroupPid {
 }
 
 impl Subsystem {
-    fn enter(self, path: &String) -> Self {
+    fn enter(self, path: &Path) -> Self {
         match self {
             Subsystem::Pid(cont) => Subsystem::Pid({
                 let mut c = cont.clone();
