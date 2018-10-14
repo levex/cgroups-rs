@@ -287,6 +287,7 @@ impl<'a> HugepagesResourceBuilder<'a> {
     }
 }
 
+/// A builder that configures the blkio controller of a control group.
 pub struct BlkIoResourcesBuilder<'a> {
     cgroup: CgroupBuilder<'a>,
     throttling_iops: bool,
@@ -297,6 +298,7 @@ impl<'a> BlkIoResourcesBuilder<'a> {
     gen_setter!(blkio, BlkIoController, set_weight, weight, u16);
     gen_setter!(blkio, BlkIoController, set_leaf_weight, leaf_weight, u16);
 
+    /// Set the weight of a certain device.
     pub fn weight_device(mut self,
                          major: u64,
                          minor: u64,
@@ -313,16 +315,19 @@ impl<'a> BlkIoResourcesBuilder<'a> {
         self
     }
 
+    /// Start configuring the I/O operations per second metric.
     pub fn throttle_iops(mut self) -> BlkIoResourcesBuilder<'a> {
         self.throttling_iops = true;
         self
     }
 
+    /// Start configuring the bytes per second metric.
     pub fn throttle_bps(mut self) -> BlkIoResourcesBuilder<'a> {
         self.throttling_iops = false;
         self
     }
 
+    /// Limit the read rate of the current metric for a certain device.
     pub fn read(mut self, major: u64, minor: u64, rate: u64)
         -> BlkIoResourcesBuilder<'a> {
         self.cgroup.resources.blkio.update_values = true;
@@ -339,6 +344,7 @@ impl<'a> BlkIoResourcesBuilder<'a> {
         self
     }
 
+    /// Limit the write rate of the current metric for a certain device.
     pub fn write(mut self, major: u64, minor: u64, rate: u64)
         -> BlkIoResourcesBuilder<'a> {
         self.cgroup.resources.blkio.update_values = true;
@@ -355,6 +361,7 @@ impl<'a> BlkIoResourcesBuilder<'a> {
         self
     }
 
+    /// Finish the construction of the blkio resources of a control group.
     pub fn done(self) -> CgroupBuilder<'a> {
         self.cgroup
     }
