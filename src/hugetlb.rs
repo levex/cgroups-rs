@@ -94,34 +94,34 @@ impl HugeTlbController {
     }
 
     /// Whether the system supports `hugetlb_size` hugepages.
-    pub fn size_supported(&self, _hugetlb_size: String) -> bool {
+    pub fn size_supported(&self, _hugetlb_size: &str) -> bool {
         // TODO
         true
     }
 
     /// Check how many times has the limit of `hugetlb_size` hugepages been hit.
-    pub fn failcnt(&self, hugetlb_size: &String) -> Result<u64> {
+    pub fn failcnt(&self, hugetlb_size: &str) -> Result<u64> {
         self.open_path(&format!("hugetlb.{}.failcnt", hugetlb_size), false)
             .and_then(read_u64_from)
     }
 
     /// Get the limit (in bytes) of how much memory can be backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn limit_in_bytes(&self, hugetlb_size: &String) -> Result<u64> {
+    pub fn limit_in_bytes(&self, hugetlb_size: &str) -> Result<u64> {
         self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), false)
             .and_then(read_u64_from)
     }
 
     /// Get the current usage of memory that is backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn usage_in_bytes(&self, hugetlb_size: &String) -> Result<u64> {
+    pub fn usage_in_bytes(&self, hugetlb_size: &str) -> Result<u64> {
         self.open_path(&format!("hugetlb.{}.usage_in_bytes", hugetlb_size), false)
             .and_then(read_u64_from)
     }
 
     /// Get the maximum observed usage of memory that is backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn max_usage_in_bytes(&self, hugetlb_size: &String) -> Result<u64> {
+    pub fn max_usage_in_bytes(&self, hugetlb_size: &str) -> Result<u64> {
         self.open_path(
             &format!("hugetlb.{}.max_usage_in_bytes", hugetlb_size),
             false,
@@ -130,7 +130,7 @@ impl HugeTlbController {
 
     /// Set the limit (in bytes) of how much memory can be backed by hugepages of a certain size
     /// (`hugetlb_size`).
-    pub fn set_limit_in_bytes(&self, hugetlb_size: &String, limit: u64) -> Result<()> {
+    pub fn set_limit_in_bytes(&self, hugetlb_size: &str, limit: u64) -> Result<()> {
         self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), false)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())

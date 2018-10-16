@@ -94,7 +94,7 @@ impl DevicePermissions {
     }
 
     /// Checks whether the string is a valid descriptor of DevicePermissions.
-    pub fn is_valid(s: &String) -> bool {
+    pub fn is_valid(s: &str) -> bool {
         if s == "" {
             return false;
         }
@@ -116,18 +116,18 @@ impl DevicePermissions {
     }
 
     /// Convert a string into DevicePermissions.
-    ///
-    /// NOTE: This function makes no effort in verifying the String.
-    pub fn from_string(s: &String) -> Vec<DevicePermissions> {
+    pub fn from_str(s: &str) -> Result<Vec<DevicePermissions>> {
         let mut v = Vec::new();
         if s == "" {
-            return v;
+            return Ok(v);
         }
         for e in s.chars() {
-            v.push(DevicePermissions::from_char(e).unwrap());
+            let perm = DevicePermissions::from_char(e)
+                .ok_or_else(|| Error::new(ParseError))?;
+            v.push(perm);
         }
 
-        v
+        Ok(v)
     }
 }
 
@@ -285,7 +285,7 @@ impl DevicesController {
                                          acc, ls, devtype, major, minor, &ls[3]);
                                 Err(Error::new(ParseError))
                             } else {
-                                let access = DevicePermissions::from_string(&ls[3]);
+                                let access = DevicePermissions::from_str(&ls[3])?;
                                 let mut acc = acc.unwrap();
                                 acc.push(DeviceResource {
                                     allow: true,
