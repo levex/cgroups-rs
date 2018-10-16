@@ -309,7 +309,7 @@ impl CpuSetController {
     ///
     /// Syntax is a comma separated list of CPUs, with an additional extension that ranges can
     /// be represented via dashes.
-    pub fn set_cpus(&self, cpus: &String) -> Result<()> {
+    pub fn set_cpus(&self, cpus: &str) -> Result<()> {
         self.open_path("cpuset.cpus", true).and_then(|mut file| {
             file.write_all(cpus.as_ref())
                 .map_err(|e| Error::with_cause(WriteFailed, e))
@@ -319,7 +319,7 @@ impl CpuSetController {
     /// Set the memory nodes that the tasks in this control group can use.
     ///
     /// Syntax is the same as with `set_cpus()`.
-    pub fn set_mems(&self, mems: &String) -> Result<()> {
+    pub fn set_mems(&self, mems: &str) -> Result<()> {
         self.open_path("cpuset.mems", true).and_then(|mut file| {
             file.write_all(mems.as_ref())
                 .map_err(|e| Error::with_cause(WriteFailed, e))

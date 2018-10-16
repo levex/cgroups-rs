@@ -133,7 +133,7 @@ impl NetPrioController {
     }
 
     /// Set the priority of the network traffic on `eif` to be `prio`.
-    pub fn set_if_prio(&self, eif: &String, prio: u64) -> Result<()> {
+    pub fn set_if_prio(&self, eif: &str, prio: u64) -> Result<()> {
         self.open_path("net_prio.ifpriomap", true)
             .and_then(|mut file| {
                 file.write_all(format!("{} {}", eif, prio).as_ref())
