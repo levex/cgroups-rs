@@ -279,6 +279,7 @@ impl ControllerInternal for BlkIoController {
 
             for dev in &res.weight_device {
                 let _ = self.set_weight_for_device(dev.major, dev.minor, dev.weight as u64);
+                let _ = self.set_leaf_weight_for_device(dev.major, dev.minor, dev.leaf_weight as u64);
             }
 
             for dev in &res.throttle_read_bps_device {
@@ -587,14 +588,22 @@ impl BlkIoController {
     }
 
     /// Same as `set_leaf_weight()`, but settable per each block device.
-    pub fn set_leaf_weight_for_device(&self, d: String) -> Result<()> {
+    pub fn set_leaf_weight_for_device(
+        &self,
+        major: u64,
+        minor: u64,
+        weight: u64,
+    ) -> Result<()> {
         self.open_path("blkio.leaf_weight_device", true)
-            .and_then(|mut file| file.write_all(d.as_ref()).map_err(|e| Error::with_cause(WriteFailed, e)))
+            .and_then(|mut file| {
+                file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
     }
 
     /// Reset the statistics the kernel has gathered so far and start fresh.
     pub fn reset_stats(&self) -> Result<()> {
-        self.open_path("blkio.leaf_weight_device", true)
+        self.open_path("blkio.reset_stats", true)
             .and_then(|mut file| {
                 file.write_all("1".to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
@@ -662,7 +671,7 @@ impl BlkIoController {
 
     /// Set the weight of the control group's tasks.
     pub fn set_weight(&self, w: u64) -> Result<()> {
-        self.open_path("blkio.leaf_weight", true)
+        self.open_path("blkio.weight", true)
             .and_then(|mut file| {
                 file.write_all(w.to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))

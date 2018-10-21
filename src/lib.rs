@@ -21,6 +21,7 @@ pub mod net_prio;
 pub mod perf_event;
 pub mod pid;
 pub mod rdma;
+pub mod cgroup_builder;
 
 use blkio::BlkIoController;
 use cpu::CpuController;
