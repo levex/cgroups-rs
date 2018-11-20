@@ -1,25 +1,43 @@
 # cgroups-rs ![Build](https://travis-ci.org/levex/cgroups-rs.svg?branch=master)
 Native Rust library for managing control groups under Linux
 
-# Example
+Right now the crate only support the original, V1 hierarchy, however support
+is planned for the Unified hierarchy.
 
-## Create a control group, and limit the pid resource
+# Examples
+
+## Create a control group using the builder pattern
 
 ``` rust
 // Acquire a handle for the V1 cgroup hierarchy.
 let hier = ::hierarchies::V1::new();
-// Create a control group named "example" in the hierarchy.
-let cg = Cgroup::new(&hier, String::from("example"), 0);
-{
-    // Get a handle to the pids controller of the control group.
-    let pids: &PidController = cg.controller_of().expect("No pids controller in V1 hierarchy!");
-    // Set the maximum amount of processes in the cgroup.
-    pids.set_pid_max(PidMax::Value(10));
-    // Check that this has had the desired effect by reading the value back from the kernel.
-    assert_eq!(pids.get_pid_max(), Some(PidMax::Value(10)));
-}
-// Once done, delete the control group (and its associated controllers).
+
+// Use the builder pattern (see the documentation to create the control group)
+//
+// This creates a control group named "example" in the V1 hierarchy.
+let cg: Cgroup = CgroupBuilder::new("example", &v1)
+	.cpu()
+		.shares(85)
+		.done()
+	.build();
+
+// Now `cg` is a control group that gets 85% of the CPU time in relative to
+// other control groups.
+
+// Get a handle to the CPU controller.
+let cpus: &CpuController = cg.controller_of().unwrap();
+cpus.add_task(1234u64);
+
+// [...]
+
+// Finally, clean up and delete the control group.
 cg.delete();
+
+// Note that `Cgroup` does not implement `Drop` and therefore when the
+// structure is dropped, the Cgroup will stay around. This is because, later
+// you can then re-create the `Cgroup` using `load()`. We aren't too set on
+// this behavior, so it might change in the feature. Rest assured, it will be a
+// major version change.
 ```
 
 # Disclaimer
@@ -27,7 +45,7 @@ cg.delete();
 This crate is licensed under:
 
 - MIT License (see LICENSE-MIT); or
-- Apache 2.0 LIcense (see LICENSE-Apache-2.0),
+- Apache 2.0 License (see LICENSE-Apache-2.0),
 
 at your option.
 
