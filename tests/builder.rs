@@ -1,5 +1,4 @@
 //! Some simple tests covering the builder pattern for control groups.
-extern crate cgroups;
 use cgroups::*;
 use cgroups::cpu::*;
 use cgroups::devices::*;

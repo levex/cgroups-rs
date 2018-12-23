@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate log;
+use log::*;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};

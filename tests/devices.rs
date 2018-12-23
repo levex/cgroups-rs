@@ -1,6 +1,5 @@
 //! Integration tests about the devices subsystem
 
-extern crate cgroups;
 use cgroups::devices::{DevicePermissions, DeviceType, DevicesController};
 use cgroups::{Cgroup, DeviceResource};
 

@@ -1,6 +1,4 @@
 //! Integration test about setting resources using `apply()`
-extern crate cgroups;
-
 use cgroups::pid::{PidController, PidMax};
 use cgroups::{Cgroup, PidResources, Resources};
 

@@ -1,5 +1,3 @@
-extern crate cgroups;
-
 use cgroups::cpuset::CpuSetController;
 use cgroups::error::ErrorKind;
 use cgroups::Cgroup;

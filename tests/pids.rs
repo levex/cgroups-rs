@@ -1,14 +1,11 @@
 //! Integration tests about the pids subsystem
-extern crate cgroups;
 use cgroups::pid::{PidController, PidMax};
 use cgroups::Controller;
 use cgroups::{Cgroup, CgroupPid, PidResources, Resources};
 
-extern crate nix;
 use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::{fork, ForkResult, Pid};
 
-extern crate libc;
 use libc::pid_t;
 
 use std::thread;

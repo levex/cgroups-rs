@@ -5,6 +5,8 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
+use log::*;
+
 use crate::error::*;
 use crate::error::ErrorKind::*;
 

@@ -1,9 +1,5 @@
 //! Simple unit tests about the control groups system.
-extern crate cgroups;
 use cgroups::{Cgroup, CgroupPid};
-
-extern crate libc;
-extern crate nix;
 
 #[test]
 fn test_tasks_iterator() {

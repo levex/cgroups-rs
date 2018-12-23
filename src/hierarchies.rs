@@ -8,6 +8,8 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
+use log::*;
+
 use crate::blkio::BlkIoController;
 use crate::cpu::CpuController;
 use crate::cpuacct::CpuAcctController;
