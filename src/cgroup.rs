@@ -1,8 +1,8 @@
 //! This module handles cgroup operations. Start here!
 
-use error::*;
+use crate::error::*;
 
-use {CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
+use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::convert::From;
 use std::path::Path;

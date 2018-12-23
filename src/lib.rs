@@ -23,22 +23,22 @@ pub mod pid;
 pub mod rdma;
 pub mod cgroup_builder;
 
-use blkio::BlkIoController;
-use cpu::CpuController;
-use cpuacct::CpuAcctController;
-use cpuset::CpuSetController;
-use devices::DevicesController;
-use error::*;
-use freezer::FreezerController;
-use hugetlb::HugeTlbController;
-use memory::MemController;
-use net_cls::NetClsController;
-use net_prio::NetPrioController;
-use perf_event::PerfEventController;
-use pid::PidController;
-use rdma::RdmaController;
+use crate::blkio::BlkIoController;
+use crate::cpu::CpuController;
+use crate::cpuacct::CpuAcctController;
+use crate::cpuset::CpuSetController;
+use crate::devices::DevicesController;
+use crate::error::*;
+use crate::freezer::FreezerController;
+use crate::hugetlb::HugeTlbController;
+use crate::memory::MemController;
+use crate::net_cls::NetClsController;
+use crate::net_prio::NetPrioController;
+use crate::perf_event::PerfEventController;
+use crate::pid::PidController;
+use crate::rdma::RdmaController;
 
-pub use cgroup::Cgroup;
+pub use crate::cgroup::Cgroup;
 
 /// Contains all the subsystems that are available in this crate.
 #[derive(Debug)]
@@ -160,7 +160,7 @@ mod sealed {
     }
 }
 
-pub(crate) use sealed::ControllerInternal;
+pub(crate) use crate::sealed::ControllerInternal;
 
 /// A Controller is a subsystem attached to the control group.
 ///
@@ -347,13 +347,13 @@ pub struct DeviceResource {
     /// If true, access to the device is allowed, otherwise it's denied.
     pub allow: bool,
     /// `'c'` for character device, `'b'` for block device; or `'a'` for all devices.
-    pub devtype: ::devices::DeviceType,
+    pub devtype: crate::devices::DeviceType,
     /// The major number of the device.
     pub major: i64,
     /// The minor number of the device.
     pub minor: i64,
     /// Sequence of `'r'`, `'w'` or `'m'`, each denoting read, write or mknod permissions.
-    pub access: Vec<::devices::DevicePermissions>,
+    pub access: Vec<crate::devices::DevicePermissions>,
 }
 
 /// Limit the usage of devices for the control group's tasks.

@@ -6,10 +6,10 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use error::*;
-use error::ErrorKind::*;
+use crate::error::*;
+use crate::error::ErrorKind::*;
 
-use {
+use crate::{
     ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
 };
 
@@ -85,7 +85,7 @@ pub struct NumaStat {
 
 fn parse_numa_stat(s: String) -> Result<NumaStat> {
     // Parse the number of nodes
-    let nodes = (s.split_whitespace().collect::<Vec<_>>().len() - 8) / 8;
+    let _nodes = (s.split_whitespace().collect::<Vec<_>>().len() - 8) / 8;
     let mut ls = s.lines();
     let total_line = ls.next().unwrap();
     let file_line = ls.next().unwrap();
@@ -697,7 +697,7 @@ fn read_string_from(mut file: File) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use memory::{
+    use crate::memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
 

@@ -6,10 +6,10 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use error::*;
-use error::ErrorKind::*;
+use crate::error::*;
+use crate::error::ErrorKind::*;
 
-use {
+use crate::{
     BlkIoResources, ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem,
 };
 
@@ -48,7 +48,7 @@ pub struct IoService {
     /// How many items were synchronously transferred.
     pub sync: u64,
     /// How many items were asynchronously transferred.
-    pub async: u64,
+    pub r#async: u64,
     /// Total number of items transferred.
     pub total: u64,
 }
@@ -77,7 +77,7 @@ fn parse_io_service(s: String) -> Result<Vec<IoService>> {
                         read: read_val.parse::<u64>().unwrap(),
                         write: write_val.parse::<u64>().unwrap(),
                         sync: sync_val.parse::<u64>().unwrap(),
-                        async: async_val.parse::<u64>().unwrap(),
+                        r#async: async_val.parse::<u64>().unwrap(),
                         total: total_val.parse::<u64>().unwrap(),
                     }),
                _ => None,
@@ -695,9 +695,9 @@ impl BlkIoController {
 
 #[cfg(test)]
 mod test {
-    use blkio::{parse_blkio_data, BlkIoData};
-    use blkio::{parse_io_service, parse_io_service_total, IoService};
-    use error::*;
+    use crate::blkio::{parse_blkio_data, BlkIoData};
+    use crate::blkio::{parse_io_service, parse_io_service_total, IoService};
+    use crate::error::*;
 
     static TEST_VALUE: &str = "\
 8:32 Read 4280320
@@ -773,7 +773,7 @@ Total 61823067136
                     read: 4280320,
                     write: 0,
                     sync: 4280320,
-                    async: 0,
+                    r#async: 0,
                     total: 4280320,
                 },
                 IoService {
@@ -782,7 +782,7 @@ Total 61823067136
                     read: 5705479168,
                     write: 56096055296,
                     sync: 11213923328,
-                    async: 50587611136,
+                    r#async: 50587611136,
                     total: 61801534464,
                 },
                 IoService {
@@ -791,7 +791,7 @@ Total 61823067136
                     read: 10059776,
                     write: 0,
                     sync: 10059776,
-                    async: 0,
+                    r#async: 0,
                     total: 10059776,
                 },
                 IoService {
@@ -800,7 +800,7 @@ Total 61823067136
                     read: 7192576,
                     write: 0,
                     sync: 7192576,
-                    async: 0,
+                    r#async: 0,
                     total: 7192576,
                 }
             ]

@@ -8,22 +8,22 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use blkio::BlkIoController;
-use cpu::CpuController;
-use cpuacct::CpuAcctController;
-use cpuset::CpuSetController;
-use devices::DevicesController;
-use freezer::FreezerController;
-use hugetlb::HugeTlbController;
-use memory::MemController;
-use net_cls::NetClsController;
-use net_prio::NetPrioController;
-use perf_event::PerfEventController;
-use pid::PidController;
-use rdma::RdmaController;
-use {Controllers, Hierarchy, Subsystem};
+use crate::blkio::BlkIoController;
+use crate::cpu::CpuController;
+use crate::cpuacct::CpuAcctController;
+use crate::cpuset::CpuSetController;
+use crate::devices::DevicesController;
+use crate::freezer::FreezerController;
+use crate::hugetlb::HugeTlbController;
+use crate::memory::MemController;
+use crate::net_cls::NetClsController;
+use crate::net_prio::NetPrioController;
+use crate::perf_event::PerfEventController;
+use crate::pid::PidController;
+use crate::rdma::RdmaController;
+use crate::{Controllers, Hierarchy, Subsystem};
 
-use cgroup::Cgroup;
+use crate::cgroup::Cgroup;
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
 pub struct V1 {

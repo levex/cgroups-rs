@@ -4,9 +4,9 @@
 //!  [tools/perf/Documentation/perf-record.txt](https://raw.githubusercontent.com/torvalds/linux/master/tools/perf/Documentation/perf-record.txt)
 use std::path::PathBuf;
 
-use error::*;
+use crate::error::*;
 
-use {ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
+use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `perf_event` subsystem of a Cgroup.
 ///

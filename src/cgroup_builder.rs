@@ -53,9 +53,9 @@
 //!          .done()
 //!      .build();
 //! ```
-use error::*;
+use crate::error::*;
 
-use {pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource,  Cgroup, DeviceResource, Hierarchy, HugePageResource, NetworkPriority, Resources};
+use crate::{pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource,  Cgroup, DeviceResource, Hierarchy, HugePageResource, NetworkPriority, Resources};
 
 macro_rules! gen_setter {
     ($res:ident, $cont:ident, $func:ident, $name:ident, $ty:ty) => {
@@ -215,9 +215,9 @@ impl<'a> DeviceResourceBuilder<'a> {
     pub fn device(mut self,
                   major: i64,
                   minor: i64,
-                  devtype: ::devices::DeviceType,
+                  devtype: crate::devices::DeviceType,
                   allow: bool,
-                  access: Vec<::devices::DevicePermissions>)
+                  access: Vec<crate::devices::DevicePermissions>)
             -> DeviceResourceBuilder<'a> {
         self.cgroup.resources.devices.update_values = true;
         self.cgroup.resources.devices.devices.push(DeviceResource {

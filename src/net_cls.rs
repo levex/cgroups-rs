@@ -6,10 +6,10 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use error::*;
-use error::ErrorKind::*;
+use crate::error::*;
+use crate::error::ErrorKind::*;
 
-use {
+use crate::{
     ControllIdentifier, ControllerInternal, Controllers, NetworkResources, Resources,
     Subsystem,
 };

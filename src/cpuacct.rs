@@ -6,10 +6,10 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use error::*;
-use error::ErrorKind::*;
+use crate::error::*;
+use crate::error::ErrorKind::*;
 
-use {ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
+use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `cpuacct` subsystem of a Cgroup.
 ///

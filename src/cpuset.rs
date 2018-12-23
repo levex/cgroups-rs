@@ -6,10 +6,10 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use error::*;
-use error::ErrorKind::*;
+use crate::error::*;
+use crate::error::ErrorKind::*;
 
-use {
+use crate::{
     ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
 };
 
@@ -427,7 +427,7 @@ impl CpuSetController {
 
 #[cfg(test)]
 mod tests {
-    use cpuset;
+    use crate::cpuset;
     #[test]
     fn test_parse_range() {
         let test_cases = vec![
