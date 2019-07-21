@@ -2,12 +2,11 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/freezer-subsystem.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/freezer-subsystem.txt)
+
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `freezer` subsystem of a Cgroup.
@@ -88,7 +87,7 @@ impl FreezerController {
     pub fn freeze(&self) -> Result<()> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("FROZEN".to_string().as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -96,7 +95,7 @@ impl FreezerController {
     pub fn thaw(&self) -> Result<()> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("THAWED".to_string().as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -110,9 +109,9 @@ impl FreezerController {
                     "FROZEN" => Ok(FreezerState::Frozen),
                     "THAWED" => Ok(FreezerState::Thawed),
                     "FREEZING" => Ok(FreezerState::Freezing),
-                    _ => Err(Error::new(ParseError)),
+                    _ => Err(Error::new(ErrorKind::ParseError)),
                 },
-                Err(e) => Err(Error::with_cause(ReadFailed, e)),
+                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
             }
         })
     }

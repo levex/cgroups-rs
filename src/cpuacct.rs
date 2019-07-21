@@ -2,13 +2,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/cpuacct.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/cpuacct.txt)
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `cpuacct` subsystem of a Cgroup.
@@ -97,9 +96,9 @@ fn read_u64_from(mut file: File) -> Result<u64> {
     match res {
         Ok(_) => match string.trim().parse() {
             Ok(e) => Ok(e),
-            Err(e) => Err(Error::with_cause(ParseError, e)),
+            Err(e) => Err(Error::with_cause(ErrorKind::ParseError, e)),
         },
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -107,7 +106,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -164,7 +163,7 @@ impl CpuAcctController {
     pub fn reset(&self) -> Result<()> {
         self.open_path("cpuacct.usage", true).and_then(|mut file| {
             file.write_all(b"0")
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 }

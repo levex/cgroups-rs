@@ -1,4 +1,5 @@
 //! This module allows the user to create a control group using the Builder pattern.
+//!
 //! # Example
 //!
 //! The following example demonstrates how the control group builder looks like.  The user

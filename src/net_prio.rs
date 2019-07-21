@@ -2,14 +2,13 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/net_prio.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/net_prio.txt)
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, NetworkResources, Resources, Subsystem,
 };
@@ -79,8 +78,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -117,12 +116,12 @@ impl NetPrioController {
                         let ifname = sp.nth(0);
                         let ifprio = sp.nth(1);
                         if ifname.is_none() || ifprio.is_none() {
-                            Err(Error::new(ParseError))
+                            Err(Error::new(ErrorKind::ParseError))
                         } else {
                             let ifname = ifname.unwrap();
                             let ifprio = ifprio.unwrap().trim().parse();
                             match ifprio {
-                                Err(e) => Err(Error::with_cause(ParseError, e)),
+                                Err(e) => Err(Error::with_cause(ErrorKind::ParseError, e)),
                                 Ok(_) => {
                                     acc.insert(ifname.to_string(), ifprio.unwrap());
                                     Ok(acc)
@@ -139,7 +138,7 @@ impl NetPrioController {
         self.open_path("net_prio.ifpriomap", true)
             .and_then(|mut file| {
                 file.write_all(format!("{} {}", eif, prio).as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 }

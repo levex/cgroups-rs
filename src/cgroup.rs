@@ -1,11 +1,10 @@
 //! This module handles cgroup operations. Start here!
 
-use crate::error::*;
-
-use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
-
 use std::convert::From;
 use std::path::Path;
+
+use crate::error::Result;
+use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 /// A control group is the central structure to this crate.
 ///

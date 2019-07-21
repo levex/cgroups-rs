@@ -1,4 +1,5 @@
 //! Integration test about setting resources using `apply()`
+
 use cgroups::pid::{PidController, PidMax};
 use cgroups::{Cgroup, PidResources, Resources};
 

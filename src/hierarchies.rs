@@ -4,28 +4,26 @@
 //! the Unified Hierarchy.
 
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use log::*;
-
-use crate::blkio::BlkIoController;
-use crate::cpu::CpuController;
-use crate::cpuacct::CpuAcctController;
-use crate::cpuset::CpuSetController;
-use crate::devices::DevicesController;
-use crate::freezer::FreezerController;
-use crate::hugetlb::HugeTlbController;
-use crate::memory::MemController;
-use crate::net_cls::NetClsController;
-use crate::net_prio::NetPrioController;
-use crate::perf_event::PerfEventController;
-use crate::pid::PidController;
-use crate::rdma::RdmaController;
-use crate::{Controllers, Hierarchy, Subsystem};
-
-use crate::cgroup::Cgroup;
+use crate::{
+    blkio::BlkIoController,
+    cgroup::Cgroup,
+    cpu::CpuController,
+    cpuacct::CpuAcctController,
+    cpuset::CpuSetController,
+    devices::DevicesController,
+    freezer::FreezerController,
+    hugetlb::HugeTlbController,
+    memory::MemController,
+    net_cls::NetClsController,
+    net_prio::NetPrioController,
+    perf_event::PerfEventController,
+    pid::PidController,
+    rdma::RdmaController,
+    {Controllers, Hierarchy, Subsystem},
+};
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
 pub struct V1 {
@@ -129,7 +127,7 @@ fn find_v1_mount() -> Option<String> {
         let fstype = more_fields[0];
         if fstype == "tmpfs" && more_fields[2].contains("ro") {
             let cgroups_mount = fields.nth(4).unwrap();
-            info!("found cgroups at {:?}", cgroups_mount);
+            log::info!("found cgroups at {:?}", cgroups_mount);
             return Some(cgroups_mount.to_string());
         }
     }

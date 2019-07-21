@@ -2,13 +2,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/hugetlb.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/hugetlb.txt)
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources, Subsystem,
 };
@@ -45,7 +44,7 @@ impl ControllerInternal for HugeTlbController {
             for i in &res.limits {
                 let _ = self.set_limit_in_bytes(&i.size, i.limit);
                 if self.limit_in_bytes(&i.size)? != i.limit {
-                    return Err(Error::new(Other));
+                    return Err(Error::new(ErrorKind::Other));
                 }
             }
         }
@@ -79,8 +78,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -137,7 +136,7 @@ impl HugeTlbController {
         self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 }

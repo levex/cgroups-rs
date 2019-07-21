@@ -2,13 +2,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/cpusets.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/cpusets.txt)
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
 };
@@ -130,7 +129,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -140,8 +139,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -161,19 +160,19 @@ fn parse_range(s: String) -> Result<Vec<(u64, u64)>> {
             // this is a true range
             let dash_split = sp.split("-").collect::<Vec<_>>();
             if dash_split.len() != 2 {
-                return Err(Error::new(ParseError));
+                return Err(Error::new(ErrorKind::ParseError));
             }
             let first = dash_split[0].parse::<u64>();
             let second = dash_split[1].parse::<u64>();
             if first.is_err() || second.is_err() {
-                return Err(Error::new(ParseError));
+                return Err(Error::new(ErrorKind::ParseError));
             }
             fin.push((first.unwrap(), second.unwrap()));
         } else {
             // this is just a single number
             let num = sp.parse::<u64>();
             if num.is_err() {
-                return Err(Error::new(ParseError));
+                return Err(Error::new(ErrorKind::ParseError));
             }
             fin.push((num.clone().unwrap(), num.clone().unwrap()));
         }
@@ -289,10 +288,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -304,10 +303,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -319,7 +318,7 @@ impl CpuSetController {
     pub fn set_cpus(&self, cpus: &str) -> Result<()> {
         self.open_path("cpuset.cpus", true).and_then(|mut file| {
             file.write_all(cpus.as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -329,7 +328,7 @@ impl CpuSetController {
     pub fn set_mems(&self, mems: &str) -> Result<()> {
         self.open_path("cpuset.mems", true).and_then(|mut file| {
             file.write_all(mems.as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -343,10 +342,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -358,10 +357,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -373,7 +372,7 @@ impl CpuSetController {
         self.open_path("cpuset.sched_relax_domain_level", true)
             .and_then(|mut file| {
                 file.write_all(i.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -384,10 +383,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -399,10 +398,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -414,10 +413,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -429,16 +428,16 @@ impl CpuSetController {
     /// control group.
     pub fn set_enable_memory_pressure(&self, b: bool) -> Result<()> {
         if !self.path_exists("cpuset.memory_pressure_enabled") {
-            return Err(Error::new(InvalidOperation));
+            return Err(Error::new(ErrorKind::InvalidOperation));
         }
         self.open_path("cpuset.memory_pressure_enabled", true)
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
                 }
             })
     }

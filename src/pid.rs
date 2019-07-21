@@ -2,13 +2,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroups-v1/pids.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/pids.txt)
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, PidResources, Resources, Subsystem,
 };
@@ -62,7 +61,7 @@ impl ControllerInternal for PidController {
             if self.get_pid_max()? == pidres.maximum_number_of_processes {
                 return Ok(());
             } else {
-                return Err(Error::new(Other));
+                return Err(Error::new(ErrorKind::Other));
             }
         }
 
@@ -102,8 +101,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -127,11 +126,11 @@ impl PidController {
                 Ok(_) => match string.split_whitespace().nth(1) {
                     Some(elem) => match elem.parse() {
                         Ok(val) => Ok(val),
-                        Err(e) => Err(Error::with_cause(ParseError, e)),
+                        Err(e) => Err(Error::with_cause(ErrorKind::ParseError, e)),
                     },
-                    None => Err(Error::new(ParseError)),
+                    None => Err(Error::new(ErrorKind::ParseError)),
                 },
-                Err(e) => Err(Error::with_cause(ReadFailed, e)),
+                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
             }
         })
     }
@@ -154,11 +153,11 @@ impl PidController {
                     } else {
                         match string.trim().parse() {
                             Ok(val) => Ok(PidMax::Value(val)),
-                            Err(e) => Err(Error::with_cause(ParseError, e)),
+                            Err(e) => Err(Error::with_cause(ErrorKind::ParseError, e)),
                         }
                     }
                 }
-                Err(e) => Err(Error::with_cause(ReadFailed, e)),
+                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
             }
         })
     }
@@ -176,7 +175,7 @@ impl PidController {
             };
             match file.write_all(string_to_write.as_ref()) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(Error::with_cause(WriteFailed, e)),
+                Err(e) => Err(Error::with_cause(ErrorKind::WriteFailed, e)),
             }
         })
     }

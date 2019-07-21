@@ -2,13 +2,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/memory.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
 };
@@ -574,7 +573,7 @@ impl MemController {
     pub fn reset_fail_count(&self) -> Result<()> {
         self.open_path("memory.failcnt", true).and_then(|mut file| {
             file.write_all("0".to_string().as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -583,7 +582,7 @@ impl MemController {
         self.open_path("memory.kmem.failcnt", true)
             .and_then(|mut file| {
                 file.write_all("0".to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -592,7 +591,7 @@ impl MemController {
         self.open_path("memory.kmem.tcp.failcnt", true)
             .and_then(|mut file| {
                 file.write_all("0".to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -601,7 +600,7 @@ impl MemController {
         self.open_path("memory.memsw.failcnt", true)
             .and_then(|mut file| {
                 file.write_all("0".to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -610,7 +609,7 @@ impl MemController {
         self.open_path("memory.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -619,7 +618,7 @@ impl MemController {
         self.open_path("memory.kmem.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -628,7 +627,7 @@ impl MemController {
         self.open_path("memory.memsw.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -637,7 +636,7 @@ impl MemController {
         self.open_path("memory.kmem.tcp.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -649,7 +648,7 @@ impl MemController {
         self.open_path("memory.soft_limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -661,7 +660,7 @@ impl MemController {
         self.open_path("memory.swappiness", true)
             .and_then(|mut file| {
                 file.write_all(swp.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 }
@@ -692,8 +691,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -701,7 +700,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 

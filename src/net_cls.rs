@@ -2,13 +2,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/net_cls.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/net_cls.txt)
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, NetworkResources, Resources, Subsystem,
 };
@@ -45,7 +44,7 @@ impl ControllerInternal for NetClsController {
         if res.update_values {
             let _ = self.set_class(res.class_id);
             if self.get_class()? != res.class_id {
-                return Err(Error::new(Other));
+                return Err(Error::new(ErrorKind::Other));
             }
         }
         return Ok(());
@@ -78,8 +77,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -100,7 +99,7 @@ impl NetClsController {
             .and_then(|mut file| {
                 let s = format!("{:#08X}", class);
                 file.write_all(s.as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
             })
     }
 

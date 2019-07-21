@@ -2,14 +2,11 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/devices.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/devices.txt)
+
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use log::*;
-
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, DeviceResource, DeviceResources,
     Resources, Subsystem,
@@ -124,7 +121,7 @@ impl DevicePermissions {
             return Ok(v);
         }
         for e in s.chars() {
-            let perm = DevicePermissions::from_char(e).ok_or_else(|| Error::new(ParseError))?;
+            let perm = DevicePermissions::from_char(e).ok_or_else(|| Error::new(ErrorKind::ParseError))?;
             v.push(perm);
         }
 
@@ -223,7 +220,7 @@ impl DevicesController {
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.allow", true).and_then(|mut file| {
             file.write_all(final_str.as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -255,7 +252,7 @@ impl DevicesController {
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.deny", true).and_then(|mut file| {
             file.write_all(final_str.as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -269,8 +266,8 @@ impl DevicesController {
                     s.lines().fold(Ok(Vec::new()), |acc, line| {
                         let ls = line.to_string().split(|c| c == ' ' || c == ':').map(|x| x.to_string()).collect::<Vec<String>>();
                         if acc.is_err() || ls.len() != 4 {
-                            error!("allowed_devices: acc: {:?}, ls: {:?}", acc, ls);
-                            Err(Error::new(ParseError))
+                            log::error!("allowed_devices: acc: {:?}, ls: {:?}", acc, ls);
+                            Err(Error::new(ErrorKind::ParseError))
                         } else {
                             let devtype = DeviceType::from_char(ls[0].chars().nth(0));
                             let mut major = ls[1].parse::<i64>();
@@ -282,9 +279,9 @@ impl DevicesController {
                                 minor = Ok(-1);
                             }
                             if devtype.is_none() || major.is_err() || minor.is_err() || !DevicePermissions::is_valid(&ls[3]) {
-                                error!("allowed_devices: acc: {:?}, ls: {:?}, devtype: {:?}, major {:?} minor {:?} ls3 {:?}",
+                                log::error!("allowed_devices: acc: {:?}, ls: {:?}, devtype: {:?}, major {:?} minor {:?} ls3 {:?}",
                                          acc, ls, devtype, major, minor, &ls[3]);
-                                Err(Error::new(ParseError))
+                                Err(Error::new(ErrorKind::ParseError))
                             } else {
                                 let access = DevicePermissions::from_str(&ls[3])?;
                                 let mut acc = acc.unwrap();
@@ -300,7 +297,7 @@ impl DevicesController {
                         }
                     })
                 },
-                Err(e) => Err(Error::with_cause(ReadFailed, e)),
+                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
             }
         })
     }

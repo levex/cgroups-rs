@@ -1,17 +1,20 @@
 //! Some simple tests covering the builder pattern for control groups.
-use cgroups::blkio::*;
-use cgroups::cgroup_builder::*;
-use cgroups::cpu::*;
-use cgroups::devices::*;
-use cgroups::hugetlb::*;
-use cgroups::memory::*;
-use cgroups::net_cls::*;
-use cgroups::pid::*;
-use cgroups::*;
+
+use cgroups::{
+    blkio::BlkIoController,
+    cgroup_builder::CgroupBuilder,
+    cpu::CpuController,
+    devices::{DevicePermissions, DeviceType, DevicesController},
+    hugetlb::HugeTlbController,
+    memory::MemController,
+    net_cls::NetClsController,
+    pid::{PidController, PidMax},
+    Cgroup, DeviceResource,
+};
 
 #[test]
 pub fn test_cpu_res_build() {
-    let v1 = crate::hierarchies::V1::new();
+    let v1 = cgroups::hierarchies::V1::new();
     let cg: Cgroup<'_> = CgroupBuilder::new("test_cpu_res_build", &v1)
         .cpu()
         .shares(85)
@@ -29,7 +32,7 @@ pub fn test_cpu_res_build() {
 
 #[test]
 pub fn test_memory_res_build() {
-    let v1 = crate::hierarchies::V1::new();
+    let v1 = cgroups::hierarchies::V1::new();
     let cg: Cgroup<'_> = CgroupBuilder::new("test_memory_res_build", &v1)
         .memory()
         .kernel_memory_limit(128 * 1024 * 1024)
@@ -50,7 +53,7 @@ pub fn test_memory_res_build() {
 
 #[test]
 pub fn test_pid_res_build() {
-    let v1 = crate::hierarchies::V1::new();
+    let v1 = cgroups::hierarchies::V1::new();
     let cg: Cgroup<'_> = CgroupBuilder::new("test_pid_res_build", &v1)
         .pid()
         .maximum_number_of_processes(PidMax::Value(123))
@@ -69,7 +72,7 @@ pub fn test_pid_res_build() {
 #[test]
 #[ignore] // ignore this test for now, not sure why my kernel doesn't like it
 pub fn test_devices_res_build() {
-    let v1 = crate::hierarchies::V1::new();
+    let v1 = cgroups::hierarchies::V1::new();
     let cg: Cgroup<'_> = CgroupBuilder::new("test_devices_res_build", &v1)
         .devices()
         .device(1, 6, DeviceType::Char, true, vec![DevicePermissions::Read])
@@ -95,7 +98,7 @@ pub fn test_devices_res_build() {
 
 #[test]
 pub fn test_network_res_build() {
-    let v1 = crate::hierarchies::V1::new();
+    let v1 = cgroups::hierarchies::V1::new();
     let cg: Cgroup<'_> = CgroupBuilder::new("test_network_res_build", &v1)
         .network()
         .class_id(1337)
@@ -112,7 +115,7 @@ pub fn test_network_res_build() {
 
 #[test]
 pub fn test_hugepages_res_build() {
-    let v1 = crate::hierarchies::V1::new();
+    let v1 = cgroups::hierarchies::V1::new();
     let cg: Cgroup<'_> = CgroupBuilder::new("test_hugepages_res_build", &v1)
         .hugepages()
         .limit("2MB".to_string(), 4 * 2 * 1024 * 1024)
@@ -132,7 +135,7 @@ pub fn test_hugepages_res_build() {
 
 #[test]
 pub fn test_blkio_res_build() {
-    let v1 = crate::hierarchies::V1::new();
+    let v1 = cgroups::hierarchies::V1::new();
     let cg: Cgroup<'_> = CgroupBuilder::new("test_blkio_res_build", &v1)
         .blkio()
         .weight(100)

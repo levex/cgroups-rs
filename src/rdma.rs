@@ -2,13 +2,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/rdma.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/rdma.txt)
+
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
-use crate::error::*;
-
+use crate::error::{Error, ErrorKind, Result};
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
 /// A controller that allows controlling the `rdma` subsystem of a Cgroup.
@@ -64,7 +63,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -89,7 +88,7 @@ impl RdmaController {
     pub fn set_max(&self, max: &str) -> Result<()> {
         self.open_path("rdma.max", true).and_then(|mut file| {
             file.write_all(max.as_ref())
-                .map_err(|e| Error::with_cause(WriteFailed, e))
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
     }
 }

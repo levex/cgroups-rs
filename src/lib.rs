@@ -1,5 +1,3 @@
-use log::*;
-
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -22,22 +20,23 @@ pub mod perf_event;
 pub mod pid;
 pub mod rdma;
 
-use crate::blkio::BlkIoController;
-use crate::cpu::CpuController;
-use crate::cpuacct::CpuAcctController;
-use crate::cpuset::CpuSetController;
-use crate::devices::DevicesController;
-use crate::error::*;
-use crate::freezer::FreezerController;
-use crate::hugetlb::HugeTlbController;
-use crate::memory::MemController;
-use crate::net_cls::NetClsController;
-use crate::net_prio::NetPrioController;
-use crate::perf_event::PerfEventController;
-use crate::pid::PidController;
-use crate::rdma::RdmaController;
-
 pub use crate::cgroup::Cgroup;
+use crate::{
+    blkio::BlkIoController,
+    cpu::CpuController,
+    cpuacct::CpuAcctController,
+    cpuset::CpuSetController,
+    devices::DevicesController,
+    error::{Error, ErrorKind, Result},
+    freezer::FreezerController,
+    hugetlb::HugeTlbController,
+    memory::MemController,
+    net_cls::NetClsController,
+    net_prio::NetPrioController,
+    perf_event::PerfEventController,
+    pid::PidController,
+    rdma::RdmaController,
+};
 
 /// Contains all the subsystems that are available in this crate.
 #[derive(Debug)]
@@ -214,7 +213,7 @@ where
 
         match ::std::fs::create_dir(self.get_path()) {
             Ok(_) => (),
-            Err(e) => warn!("error create_dir {:?}", e),
+            Err(e) => log::warn!("error create_dir {:?}", e),
         }
     }
 
