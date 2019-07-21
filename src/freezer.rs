@@ -5,8 +5,8 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 

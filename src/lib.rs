@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 pub mod blkio;
 pub mod cgroup;
+pub mod cgroup_builder;
 pub mod cpu;
 pub mod cpuacct;
 pub mod cpuset;
@@ -20,7 +21,6 @@ pub mod net_prio;
 pub mod perf_event;
 pub mod pid;
 pub mod rdma;
-pub mod cgroup_builder;
 
 use crate::blkio::BlkIoController;
 use crate::cpu::CpuController;
@@ -155,7 +155,6 @@ mod sealed {
 
             std::path::Path::new(p).exists()
         }
-
     }
 }
 
@@ -191,7 +190,10 @@ pub trait Controller {
     fn tasks(&self) -> Vec<CgroupPid>;
 }
 
-impl<T> Controller for T where T: ControllerInternal {
+impl<T> Controller for T
+where
+    T: ControllerInternal,
+{
     fn control_type(&self) -> Controllers {
         ControllerInternal::control_type(self)
     }
@@ -249,7 +251,8 @@ impl<T> Controller for T where T: ControllerInternal {
                     }
                 }
                 Ok(v.into_iter().map(CgroupPid::from).collect())
-            }).unwrap_or(vec![])
+            })
+            .unwrap_or(vec![])
     }
 }
 

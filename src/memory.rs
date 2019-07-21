@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
@@ -109,7 +109,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         file_pages: file_line
             .split(|x| x == ' ' || x == '=')
@@ -123,7 +124,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         anon_pages: anon_line
             .split(|x| x == ' ' || x == '=')
@@ -137,7 +139,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         unevictable_pages: unevict_line
             .split(|x| x == ' ' || x == '=')
@@ -151,7 +154,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_total_pages: hier_total_line
             .split(|x| x == ' ' || x == '=')
@@ -165,7 +169,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_file_pages: hier_file_line
             .split(|x| x == ' ' || x == '=')
@@ -179,7 +184,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_anon_pages: hier_anon_line
             .split(|x| x == ' ' || x == '=')
@@ -193,7 +199,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_unevictable_pages: hier_unevict_line
             .split(|x| x == ' ' || x == '=')
@@ -207,7 +214,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
     })
 }
@@ -564,11 +572,10 @@ impl MemController {
 
     /// Reset the fail counter
     pub fn reset_fail_count(&self) -> Result<()> {
-        self.open_path("memory.failcnt", true)
-            .and_then(|mut file| {
-                file.write_all("0".to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path("memory.failcnt", true).and_then(|mut file| {
+            file.write_all("0".to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Reset the kernel memory fail counter
@@ -682,7 +689,10 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }

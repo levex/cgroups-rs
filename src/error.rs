@@ -63,10 +63,7 @@ impl StdError for Error {
 
 impl Error {
     pub(crate) fn new(kind: ErrorKind) -> Self {
-        Self {
-            kind,
-            cause: None,
-        }
+        Self { kind, cause: None }
     }
 
     pub(crate) fn with_cause<E>(kind: ErrorKind, cause: E) -> Self

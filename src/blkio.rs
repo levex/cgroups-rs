@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     BlkIoResources, ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem,
@@ -279,7 +279,8 @@ impl ControllerInternal for BlkIoController {
 
             for dev in &res.weight_device {
                 let _ = self.set_weight_for_device(dev.major, dev.minor, dev.weight as u64);
-                let _ = self.set_leaf_weight_for_device(dev.major, dev.minor, dev.leaf_weight as u64);
+                let _ =
+                    self.set_leaf_weight_for_device(dev.major, dev.minor, dev.leaf_weight as u64);
             }
 
             for dev in &res.throttle_read_bps_device {
@@ -334,7 +335,10 @@ fn read_string_from(mut file: File) -> Result<String> {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -588,12 +592,7 @@ impl BlkIoController {
     }
 
     /// Same as `set_leaf_weight()`, but settable per each block device.
-    pub fn set_leaf_weight_for_device(
-        &self,
-        major: u64,
-        minor: u64,
-        weight: u64,
-    ) -> Result<()> {
+    pub fn set_leaf_weight_for_device(&self, major: u64, minor: u64, weight: u64) -> Result<()> {
         self.open_path("blkio.leaf_weight_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
@@ -612,12 +611,7 @@ impl BlkIoController {
 
     /// Throttle the bytes per second rate of read operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_read_bps_for_device(
-        &self,
-        major: u64,
-        minor: u64,
-        bps: u64,
-    ) -> Result<()> {
+    pub fn throttle_read_bps_for_device(&self, major: u64, minor: u64, bps: u64) -> Result<()> {
         self.open_path("blkio.throttle.read_bps_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
@@ -627,12 +621,7 @@ impl BlkIoController {
 
     /// Throttle the I/O operations per second rate of read operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_read_iops_for_device(
-        &self,
-        major: u64,
-        minor: u64,
-        iops: u64,
-    ) -> Result<()> {
+    pub fn throttle_read_iops_for_device(&self, major: u64, minor: u64, iops: u64) -> Result<()> {
         self.open_path("blkio.throttle.read_iops_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
@@ -641,12 +630,7 @@ impl BlkIoController {
     }
     /// Throttle the bytes per second rate of write operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_write_bps_for_device(
-        &self,
-        major: u64,
-        minor: u64,
-        bps: u64,
-    ) -> Result<()> {
+    pub fn throttle_write_bps_for_device(&self, major: u64, minor: u64, bps: u64) -> Result<()> {
         self.open_path("blkio.throttle.write_bps_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
@@ -656,12 +640,7 @@ impl BlkIoController {
 
     /// Throttle the I/O operations per second rate of write operation affecting the block device
     /// `major:minor` to `bps`.
-    pub fn throttle_write_iops_for_device(
-        &self,
-        major: u64,
-        minor: u64,
-        iops: u64,
-    ) -> Result<()> {
+    pub fn throttle_write_iops_for_device(&self, major: u64, minor: u64, iops: u64) -> Result<()> {
         self.open_path("blkio.throttle.write_iops_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
@@ -671,20 +650,14 @@ impl BlkIoController {
 
     /// Set the weight of the control group's tasks.
     pub fn set_weight(&self, w: u64) -> Result<()> {
-        self.open_path("blkio.weight", true)
-            .and_then(|mut file| {
-                file.write_all(w.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path("blkio.weight", true).and_then(|mut file| {
+            file.write_all(w.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Same as `set_weight()`, but settable per each block device.
-    pub fn set_weight_for_device(
-        &self,
-        major: u64,
-        minor: u64,
-        weight: u64,
-    ) -> Result<()> {
+    pub fn set_weight_for_device(&self, major: u64, minor: u64, weight: u64) -> Result<()> {
         self.open_path("blkio.weight_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
@@ -755,10 +728,7 @@ Total 61823067136
     #[test]
     fn test_parse_io_service_total() {
         let ok = parse_io_service_total(TEST_VALUE.to_string()).unwrap();
-        assert_eq!(
-            ok,
-            61823067136
-        );
+        assert_eq!(ok, 61823067136);
     }
 
     #[test]
@@ -806,10 +776,7 @@ Total 61823067136
             ]
         );
         let err = parse_io_service(TEST_WRONG_VALUE.to_string()).unwrap_err();
-        assert_eq!(
-            err.kind(),
-            &ErrorKind::ParseError,
-        );
+        assert_eq!(err.kind(), &ErrorKind::ParseError,);
     }
 
     #[test]

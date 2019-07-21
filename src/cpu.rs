@@ -7,8 +7,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
@@ -102,7 +102,10 @@ impl<'a> From<&'a Subsystem> for &'a CpuController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -130,7 +133,8 @@ impl CpuController {
                         Ok(_) => Ok(s),
                         Err(e) => Err(Error::with_cause(ReadFailed, e)),
                     }
-                }).unwrap_or("".to_string()),
+                })
+                .unwrap_or("".to_string()),
         }
     }
 
