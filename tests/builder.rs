@@ -12,7 +12,7 @@ use cgroups::*;
 #[test]
 pub fn test_cpu_res_build() {
     let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_cpu_res_build", &v1)
+    let cg: Cgroup<'_> = CgroupBuilder::new("test_cpu_res_build", &v1)
         .cpu()
         .shares(85)
         .done()
@@ -30,7 +30,7 @@ pub fn test_cpu_res_build() {
 #[test]
 pub fn test_memory_res_build() {
     let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_memory_res_build", &v1)
+    let cg: Cgroup<'_> = CgroupBuilder::new("test_memory_res_build", &v1)
         .memory()
         .kernel_memory_limit(128 * 1024 * 1024)
         .swappiness(70)
@@ -51,7 +51,7 @@ pub fn test_memory_res_build() {
 #[test]
 pub fn test_pid_res_build() {
     let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_pid_res_build", &v1)
+    let cg: Cgroup<'_> = CgroupBuilder::new("test_pid_res_build", &v1)
         .pid()
         .maximum_number_of_processes(PidMax::Value(123))
         .done()
@@ -70,7 +70,7 @@ pub fn test_pid_res_build() {
 #[ignore] // ignore this test for now, not sure why my kernel doesn't like it
 pub fn test_devices_res_build() {
     let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_devices_res_build", &v1)
+    let cg: Cgroup<'_> = CgroupBuilder::new("test_devices_res_build", &v1)
         .devices()
         .device(1, 6, DeviceType::Char, true, vec![DevicePermissions::Read])
         .done()
@@ -96,7 +96,7 @@ pub fn test_devices_res_build() {
 #[test]
 pub fn test_network_res_build() {
     let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_network_res_build", &v1)
+    let cg: Cgroup<'_> = CgroupBuilder::new("test_network_res_build", &v1)
         .network()
         .class_id(1337)
         .done()
@@ -113,7 +113,7 @@ pub fn test_network_res_build() {
 #[test]
 pub fn test_hugepages_res_build() {
     let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_hugepages_res_build", &v1)
+    let cg: Cgroup<'_> = CgroupBuilder::new("test_hugepages_res_build", &v1)
         .hugepages()
         .limit("2MB".to_string(), 4 * 2 * 1024 * 1024)
         .done()
@@ -133,7 +133,7 @@ pub fn test_hugepages_res_build() {
 #[test]
 pub fn test_blkio_res_build() {
     let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build", &v1)
+    let cg: Cgroup<'_> = CgroupBuilder::new("test_blkio_res_build", &v1)
         .blkio()
         .weight(100)
         .done()

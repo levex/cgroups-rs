@@ -34,11 +34,11 @@ pub enum ErrorKind {
 #[derive(Debug)]
 pub struct Error {
     kind: ErrorKind,
-    cause: Option<Box<StdError + Send>>,
+    cause: Option<Box<dyn StdError + Send>>,
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let msg = match self.kind {
             ErrorKind::WriteFailed => "unable to write to a control group file",
             ErrorKind::ReadFailed => "unable to read a control group file",
@@ -53,7 +53,7 @@ impl fmt::Display for Error {
 }
 
 impl StdError for Error {
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         match self.cause {
             Some(ref x) => Some(&**x),
             None => None,

@@ -53,7 +53,6 @@
 //!          .done()
 //!      .build();
 //! ```
-use crate::error::*;
 
 use crate::{
     pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource, Cgroup, DeviceResource, Hierarchy,
@@ -74,7 +73,7 @@ macro_rules! gen_setter {
 /// A control group builder instance
 pub struct CgroupBuilder<'a> {
     name: String,
-    hierarchy: &'a Hierarchy,
+    hierarchy: &'a dyn Hierarchy,
     /// Internal, unsupported field: use the associated builders instead.
     resources: Resources,
 }
@@ -83,7 +82,7 @@ impl<'a> CgroupBuilder<'a> {
     /// Start building a control group with the supplied hierarchy and name pair.
     ///
     /// Note that this does not actually create the control group until `build()` is called.
-    pub fn new(name: &'a str, hierarchy: &'a Hierarchy) -> CgroupBuilder<'a> {
+    pub fn new(name: &'a str, hierarchy: &'a dyn Hierarchy) -> CgroupBuilder<'a> {
         CgroupBuilder {
             name: name.to_owned(),
             hierarchy: hierarchy,

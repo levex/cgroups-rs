@@ -271,7 +271,7 @@ pub trait Hierarchy {
     fn root(&self) -> PathBuf;
 
     /// Return a handle to the root control group in the hierarchy.
-    fn root_control_group(&self) -> Cgroup;
+    fn root_control_group(&self) -> Cgroup<'_>;
 
     /// Checks whether a certain subsystem is supported in the hierarchy.
     ///

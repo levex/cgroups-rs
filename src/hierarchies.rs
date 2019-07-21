@@ -78,7 +78,7 @@ impl Hierarchy for V1 {
         subs
     }
 
-    fn root_control_group(&self) -> Cgroup {
+    fn root_control_group(&self) -> Cgroup<'_> {
         Cgroup::load(self, "".to_string())
     }
 
@@ -125,7 +125,7 @@ fn find_v1_mount() -> Option<String> {
         let line = _line.unwrap();
         let mut fields = line.split_whitespace();
         let index = line.find(" - ").unwrap();
-        let mut more_fields = line[index + 3..].split_whitespace().collect::<Vec<_>>();
+        let more_fields = line[index + 3..].split_whitespace().collect::<Vec<_>>();
         let fstype = more_fields[0];
         if fstype == "tmpfs" && more_fields[2].contains("ro") {
             let cgroups_mount = fields.nth(4).unwrap();

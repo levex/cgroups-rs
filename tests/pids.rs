@@ -1,14 +1,11 @@
 //! Integration tests about the pids subsystem
 use cgroups::pid::{PidController, PidMax};
-use cgroups::Controller;
-use cgroups::{Cgroup, CgroupPid, PidResources, Resources};
+use cgroups::{Cgroup, Controller};
 
 use nix::sys::wait::{waitpid, WaitStatus};
-use nix::unistd::{fork, ForkResult, Pid};
+use nix::unistd::{fork, ForkResult};
 
 use libc::pid_t;
-
-use std::thread;
 
 #[test]
 fn create_and_delete_cgroup() {
