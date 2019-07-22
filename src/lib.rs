@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
@@ -211,7 +211,7 @@ where
     fn create(&self) {
         self.verify_path().expect("path should be valid");
 
-        match ::std::fs::create_dir(self.get_path()) {
+        match fs::create_dir(self.get_path()) {
             Ok(_) => (),
             Err(e) => log::warn!("error create_dir {:?}", e),
         }
@@ -225,7 +225,7 @@ where
     /// Delete the controller.
     fn delete(&self) {
         if self.get_path().exists() {
-            let _ = ::std::fs::remove_dir(self.get_path());
+            let _ = fs::remove_dir(self.get_path());
         }
     }
 
