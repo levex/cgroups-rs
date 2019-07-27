@@ -139,7 +139,7 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseFailed, e)),
         Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
@@ -160,19 +160,19 @@ fn parse_range(s: String) -> Result<Vec<(u64, u64)>> {
             // this is a true range
             let dash_split = sp.split("-").collect::<Vec<_>>();
             if dash_split.len() != 2 {
-                return Err(Error::new(ErrorKind::ParseError));
+                return Err(Error::new(ErrorKind::ParseFailed));
             }
             let first = dash_split[0].parse::<u64>();
             let second = dash_split[1].parse::<u64>();
             if first.is_err() || second.is_err() {
-                return Err(Error::new(ErrorKind::ParseError));
+                return Err(Error::new(ErrorKind::ParseFailed));
             }
             fin.push((first.unwrap(), second.unwrap()));
         } else {
             // this is just a single number
             let num = sp.parse::<u64>();
             if num.is_err() {
-                return Err(Error::new(ErrorKind::ParseError));
+                return Err(Error::new(ErrorKind::ParseFailed));
             }
             fin.push((num.clone().unwrap(), num.clone().unwrap()));
         }

@@ -109,7 +109,7 @@ impl FreezerController {
                     "FROZEN" => Ok(FreezerState::Frozen),
                     "THAWED" => Ok(FreezerState::Thawed),
                     "FREEZING" => Ok(FreezerState::Freezing),
-                    _ => Err(Error::new(ErrorKind::ParseError)),
+                    _ => Err(Error::new(ErrorKind::ParseFailed)),
                 },
                 Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
             }

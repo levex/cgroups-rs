@@ -121,8 +121,8 @@ impl DevicePermissions {
             return Ok(v);
         }
         for e in s.chars() {
-            let perm =
-                DevicePermissions::from_char(e).ok_or_else(|| Error::new(ErrorKind::ParseError))?;
+            let perm = DevicePermissions::from_char(e)
+                .ok_or_else(|| Error::new(ErrorKind::ParseFailed))?;
             v.push(perm);
         }
 
@@ -268,7 +268,7 @@ impl DevicesController {
                         let ls = line.to_string().split(|c| c == ' ' || c == ':').map(|x| x.to_string()).collect::<Vec<String>>();
                         if acc.is_err() || ls.len() != 4 {
                             log::error!("allowed_devices: acc: {:?}, ls: {:?}", acc, ls);
-                            Err(Error::new(ErrorKind::ParseError))
+                            Err(Error::new(ErrorKind::ParseFailed))
                         } else {
                             let devtype = DeviceType::from_char(ls[0].chars().nth(0));
                             let mut major = ls[1].parse::<i64>();
@@ -282,7 +282,7 @@ impl DevicesController {
                             if devtype.is_none() || major.is_err() || minor.is_err() || !DevicePermissions::is_valid(&ls[3]) {
                                 log::error!("allowed_devices: acc: {:?}, ls: {:?}, devtype: {:?}, major {:?} minor {:?} ls3 {:?}",
                                          acc, ls, devtype, major, minor, &ls[3]);
-                                Err(Error::new(ErrorKind::ParseError))
+                                Err(Error::new(ErrorKind::ParseFailed))
                             } else {
                                 let access = DevicePermissions::from_str(&ls[3])?;
                                 let mut acc = acc.unwrap();

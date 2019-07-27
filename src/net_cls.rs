@@ -77,7 +77,7 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseFailed, e)),
         Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }

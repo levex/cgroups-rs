@@ -4,16 +4,15 @@ use std::fmt;
 /// The different types of errors that can occur while manipulating control groups.
 #[derive(Debug, Eq, PartialEq)]
 pub enum ErrorKind {
-    /// An error occured while writing to a control group file.
-    WriteFailed,
-
-    /// An error occured while trying to read from a control group file.
+    /// Failed to read from a cgroup file.
     ReadFailed,
 
-    /// An error occured while trying to parse a value from a control group file.
-    ///
-    /// In the future, there will be some information attached to this field.
-    ParseError,
+    /// Failed to parse a string in a cgroup file into a value.
+    /// In the future, there will be some information attached to this variant.
+    ParseFailed,
+
+    /// Failed to write to a cgroup file.
+    WriteFailed,
 
     /// You tried to do something invalid.
     ///
@@ -44,7 +43,7 @@ impl fmt::Display for Error {
         let msg = match self.kind {
             ErrorKind::WriteFailed => "unable to write to a control group file",
             ErrorKind::ReadFailed => "unable to read a control group file",
-            ErrorKind::ParseError => "unable to parse control group file",
+            ErrorKind::ParseFailed => "unable to parse control group file",
             ErrorKind::InvalidOperation => "the requested operation is invalid",
             ErrorKind::InvalidPath => "the given path is invalid",
             ErrorKind::Other => "an unknown error",

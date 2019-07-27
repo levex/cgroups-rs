@@ -78,7 +78,7 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseFailed, e)),
         Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
@@ -116,12 +116,12 @@ impl NetPrioController {
                         let ifname = sp.nth(0);
                         let ifprio = sp.nth(1);
                         if ifname.is_none() || ifprio.is_none() {
-                            Err(Error::new(ErrorKind::ParseError))
+                            Err(Error::new(ErrorKind::ParseFailed))
                         } else {
                             let ifname = ifname.unwrap();
                             let ifprio = ifprio.unwrap().trim().parse();
                             match ifprio {
-                                Err(e) => Err(Error::with_source(ErrorKind::ParseError, e)),
+                                Err(e) => Err(Error::with_source(ErrorKind::ParseFailed, e)),
                                 Ok(_) => {
                                     acc.insert(ifname.to_string(), ifprio.unwrap());
                                     Ok(acc)

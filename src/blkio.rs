@@ -84,7 +84,7 @@ fn parse_io_service(s: String) -> Result<Vec<IoService>> {
         })
         .fold(Ok(Vec::new()), |acc, x| {
             if acc.is_err() || x.is_none() {
-                Err(Error::new(ErrorKind::ParseError))
+                Err(Error::new(ErrorKind::ParseFailed))
             } else {
                 let mut acc = acc.unwrap();
                 acc.push(x.unwrap());
@@ -96,12 +96,12 @@ fn parse_io_service(s: String) -> Result<Vec<IoService>> {
 fn parse_io_service_total(s: String) -> Result<u64> {
     s.lines()
         .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 2)
-        .fold(Err(Error::new(ErrorKind::ParseError)), |_, x| {
+        .fold(Err(Error::new(ErrorKind::ParseFailed)), |_, x| {
             match x.split_whitespace().collect::<Vec<_>>().as_slice() {
                 ["Total", val] => val
                     .parse::<u64>()
-                    .map_err(|_| Error::new(ErrorKind::ParseError)),
-                _ => Err(Error::new(ErrorKind::ParseError)),
+                    .map_err(|_| Error::new(ErrorKind::ParseFailed)),
+                _ => Err(Error::new(ErrorKind::ParseFailed)),
             }
         })
 }
@@ -130,11 +130,11 @@ fn parse_blkio_data(s: String) -> Result<Vec<BlkIoData>> {
             });
             Ok(())
         }
-        _ => Err(Error::new(ErrorKind::ParseError)),
+        _ => Err(Error::new(ErrorKind::ParseFailed)),
     });
 
     if err.is_err() {
-        return Err(Error::new(ErrorKind::ParseError));
+        return Err(Error::new(ErrorKind::ParseFailed));
     } else {
         return Ok(res);
     }
@@ -339,7 +339,7 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseFailed, e)),
         Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
@@ -777,7 +777,7 @@ Total 61823067136
             ]
         );
         let err = parse_io_service(TEST_WRONG_VALUE.to_string()).unwrap_err();
-        assert_eq!(err.kind(), &ErrorKind::ParseError,);
+        assert_eq!(err.kind(), &ErrorKind::ParseFailed,);
     }
 
     #[test]

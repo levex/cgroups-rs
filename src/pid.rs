@@ -101,7 +101,7 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseFailed, e)),
         Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
@@ -126,9 +126,9 @@ impl PidController {
                 Ok(_) => match string.split_whitespace().nth(1) {
                     Some(elem) => match elem.parse() {
                         Ok(val) => Ok(val),
-                        Err(e) => Err(Error::with_source(ErrorKind::ParseError, e)),
+                        Err(e) => Err(Error::with_source(ErrorKind::ParseFailed, e)),
                     },
-                    None => Err(Error::new(ErrorKind::ParseError)),
+                    None => Err(Error::new(ErrorKind::ParseFailed)),
                 },
                 Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
             }
@@ -153,7 +153,7 @@ impl PidController {
                     } else {
                         match string.trim().parse() {
                             Ok(val) => Ok(PidMax::Value(val)),
-                            Err(e) => Err(Error::with_source(ErrorKind::ParseError, e)),
+                            Err(e) => Err(Error::with_source(ErrorKind::ParseFailed, e)),
                         }
                     }
                 }
