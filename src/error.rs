@@ -14,20 +14,20 @@ pub enum ErrorKind {
     /// Failed to write to a cgroup file.
     WriteFailed,
 
+    /// Failed to apply a value to a subsystem.
+    ApplyFailed,
+
     /// You tried to do something invalid.
     ///
-    /// This could be because you tried to set a value in a control group that is not a root
-    /// control group. Or, when using unified hierarchy, you tried to add a task in a leaf node.
+    /// This could be because you tried to set a value in a cgroup that is not a root
+    /// cgroup. Or, when using unified hierarchy, you tried to add a task in a non-leaf node.
     InvalidOperation,
 
-    /// The path of the control group was invalid.
+    /// The path of the cgroup was invalid.
     ///
-    /// This could be caused by trying to escape the control group filesystem via a string of "..".
+    /// This could be caused by trying to escape the cgroup filesystem via a string of `..`.
     /// This crate checks against this and operations will fail with this error.
     InvalidPath,
-
-    /// An unknown error has occured.
-    Other,
 }
 
 /// The error type that can be returned from this crate, in the `Result::Err` variant.
@@ -41,14 +41,13 @@ pub struct Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let msg = match self.kind {
-            ErrorKind::WriteFailed => "unable to write to a control group file",
-            ErrorKind::ReadFailed => "unable to read a control group file",
-            ErrorKind::ParseFailed => "unable to parse control group file",
+            ErrorKind::ReadFailed => "unable to read a cgroup file",
+            ErrorKind::ParseFailed => "unable to parse a string in a cgroup file",
+            ErrorKind::WriteFailed => "unable to write to a cgroup file",
+            ErrorKind::ApplyFailed => "unable to apply a value to a subsystem (controller)",
             ErrorKind::InvalidOperation => "the requested operation is invalid",
             ErrorKind::InvalidPath => "the given path is invalid",
-            ErrorKind::Other => "an unknown error",
         };
-
         write!(f, "{}", msg)
     }
 }
@@ -77,8 +76,9 @@ impl Error {
         }
     }
 
-    pub fn kind(&self) -> &ErrorKind {
-        &self.kind
+    /// Returns the kind of this error.
+    pub fn kind(&self) -> ErrorKind {
+        self.kind
     }
 }
 

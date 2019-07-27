@@ -44,7 +44,7 @@ impl ControllerInternal for NetClsController {
         if res.update_values {
             let _ = self.set_class(res.class_id);
             if self.get_class()? != res.class_id {
-                return Err(Error::new(ErrorKind::Other));
+                return Err(Error::new(ErrorKind::ApplyFailed));
             }
         }
         return Ok(());

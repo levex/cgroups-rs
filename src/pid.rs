@@ -61,7 +61,7 @@ impl ControllerInternal for PidController {
             if self.get_pid_max()? == pidres.maximum_number_of_processes {
                 return Ok(());
             } else {
-                return Err(Error::new(ErrorKind::Other));
+                return Err(Error::new(ErrorKind::ApplyFailed));
             }
         }
 

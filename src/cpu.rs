@@ -58,17 +58,17 @@ impl ControllerInternal for CpuController {
             // apply pid_max
             let _ = self.set_shares(res.shares);
             if self.shares()? != res.shares as u64 {
-                return Err(Error::new(ErrorKind::Other));
+                return Err(Error::new(ErrorKind::ApplyFailed));
             }
 
             let _ = self.set_cfs_period(res.period);
             if self.cfs_period()? != res.period as u64 {
-                return Err(Error::new(ErrorKind::Other));
+                return Err(Error::new(ErrorKind::ApplyFailed));
             }
 
             let _ = self.set_cfs_quota(res.quota as u64);
             if self.cfs_quota()? != res.quota as u64 {
-                return Err(Error::new(ErrorKind::Other));
+                return Err(Error::new(ErrorKind::ApplyFailed));
             }
 
             // TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported

@@ -44,7 +44,7 @@ impl ControllerInternal for HugeTlbController {
             for i in &res.limits {
                 let _ = self.set_limit_in_bytes(&i.size, i.limit);
                 if self.limit_in_bytes(&i.size)? != i.limit {
-                    return Err(Error::new(ErrorKind::Other));
+                    return Err(Error::new(ErrorKind::ApplyFailed));
                 }
             }
         }
