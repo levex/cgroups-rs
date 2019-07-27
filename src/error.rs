@@ -1,6 +1,17 @@
 use std::error::Error as StdError;
 use std::fmt;
 
+/// The result type returned from this crate.
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// The error type that can be returned from this crate, in the `Result::Err` variant.
+/// The lower-level cause of this error can be obtained from the `source` method.
+#[derive(Debug)]
+pub struct Error {
+    kind: ErrorKind,
+    source: Option<Box<dyn StdError + Send + 'static>>,
+}
+
 /// The kinds of errors that can occur while operating on cgroups.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ErrorKind {
@@ -28,14 +39,6 @@ pub enum ErrorKind {
     /// This could be caused by trying to escape the cgroup filesystem via a string of `..`.
     /// This crate checks against this and operations will fail with this error.
     InvalidPath,
-}
-
-/// The error type that can be returned from this crate, in the `Result::Err` variant.
-/// The lower-level cause of this error can be obtained from the `source` method.
-#[derive(Debug)]
-pub struct Error {
-    kind: ErrorKind,
-    source: Option<Box<dyn StdError + Send + 'static>>,
 }
 
 impl fmt::Display for Error {
@@ -81,5 +84,3 @@ impl Error {
         self.kind
     }
 }
-
-pub type Result<T> = std::result::Result<T, Error>;

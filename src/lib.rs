@@ -21,13 +21,15 @@ pub mod pid;
 pub mod rdma;
 
 pub use crate::cgroup::Cgroup;
+pub use crate::error::{Error, ErrorKind, Result};
+
+#[rustfmt::skip]
 use crate::{
     blkio::BlkIoController,
     cpu::CpuController,
     cpuacct::CpuAcctController,
     cpuset::CpuSetController,
     devices::DevicesController,
-    error::{Error, ErrorKind, Result},
     freezer::FreezerController,
     hugetlb::HugeTlbController,
     memory::MemController,
