@@ -1,8 +1,8 @@
 use std::error::Error as StdError;
 use std::fmt;
 
-/// The different types of errors that can occur while manipulating control groups.
-#[derive(Debug, Eq, PartialEq)]
+/// The kinds of errors that can occur while operating on cgroups.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ErrorKind {
     /// Failed to read from a cgroup file.
     ReadFailed,
