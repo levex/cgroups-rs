@@ -101,8 +101,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -126,11 +126,11 @@ impl PidController {
                 Ok(_) => match string.split_whitespace().nth(1) {
                     Some(elem) => match elem.parse() {
                         Ok(val) => Ok(val),
-                        Err(e) => Err(Error::with_cause(ErrorKind::ParseError, e)),
+                        Err(e) => Err(Error::with_source(ErrorKind::ParseError, e)),
                     },
                     None => Err(Error::new(ErrorKind::ParseError)),
                 },
-                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
             }
         })
     }
@@ -153,11 +153,11 @@ impl PidController {
                     } else {
                         match string.trim().parse() {
                             Ok(val) => Ok(PidMax::Value(val)),
-                            Err(e) => Err(Error::with_cause(ErrorKind::ParseError, e)),
+                            Err(e) => Err(Error::with_source(ErrorKind::ParseError, e)),
                         }
                     }
                 }
-                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
             }
         })
     }
@@ -175,7 +175,7 @@ impl PidController {
             };
             match file.write_all(string_to_write.as_ref()) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(Error::with_cause(ErrorKind::WriteFailed, e)),
+                Err(e) => Err(Error::with_source(ErrorKind::WriteFailed, e)),
             }
         })
     }

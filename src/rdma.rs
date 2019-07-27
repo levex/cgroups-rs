@@ -63,7 +63,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -88,7 +88,7 @@ impl RdmaController {
     pub fn set_max(&self, max: &str) -> Result<()> {
         self.open_path("rdma.max", true).and_then(|mut file| {
             file.write_all(max.as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 }

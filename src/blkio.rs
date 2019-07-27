@@ -98,7 +98,9 @@ fn parse_io_service_total(s: String) -> Result<u64> {
         .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 2)
         .fold(Err(Error::new(ErrorKind::ParseError)), |_, x| {
             match x.split_whitespace().collect::<Vec<_>>().as_slice() {
-                ["Total", val] => val.parse::<u64>().map_err(|_| Error::new(ErrorKind::ParseError)),
+                ["Total", val] => val
+                    .parse::<u64>()
+                    .map_err(|_| Error::new(ErrorKind::ParseError)),
                 _ => Err(Error::new(ErrorKind::ParseError)),
             }
         })
@@ -327,7 +329,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -337,8 +339,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -586,7 +588,7 @@ impl BlkIoController {
         self.open_path("blkio.leaf_weight", true)
             .and_then(|mut file| {
                 file.write_all(w.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -595,7 +597,7 @@ impl BlkIoController {
         self.open_path("blkio.leaf_weight_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -604,7 +606,7 @@ impl BlkIoController {
         self.open_path("blkio.reset_stats", true)
             .and_then(|mut file| {
                 file.write_all("1".to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -614,7 +616,7 @@ impl BlkIoController {
         self.open_path("blkio.throttle.read_bps_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -624,7 +626,7 @@ impl BlkIoController {
         self.open_path("blkio.throttle.read_iops_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
     /// Throttle the bytes per second rate of write operation affecting the block device
@@ -633,7 +635,7 @@ impl BlkIoController {
         self.open_path("blkio.throttle.write_bps_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -643,7 +645,7 @@ impl BlkIoController {
         self.open_path("blkio.throttle.write_iops_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -651,7 +653,7 @@ impl BlkIoController {
     pub fn set_weight(&self, w: u64) -> Result<()> {
         self.open_path("blkio.weight", true).and_then(|mut file| {
             file.write_all(w.to_string().as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -660,7 +662,7 @@ impl BlkIoController {
         self.open_path("blkio.weight_device", true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 }

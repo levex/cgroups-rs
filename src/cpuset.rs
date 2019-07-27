@@ -129,7 +129,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -139,8 +139,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -288,10 +288,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -303,10 +303,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -318,7 +318,7 @@ impl CpuSetController {
     pub fn set_cpus(&self, cpus: &str) -> Result<()> {
         self.open_path("cpuset.cpus", true).and_then(|mut file| {
             file.write_all(cpus.as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -328,7 +328,7 @@ impl CpuSetController {
     pub fn set_mems(&self, mems: &str) -> Result<()> {
         self.open_path("cpuset.mems", true).and_then(|mut file| {
             file.write_all(mems.as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -342,10 +342,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -357,10 +357,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -372,7 +372,7 @@ impl CpuSetController {
         self.open_path("cpuset.sched_relax_domain_level", true)
             .and_then(|mut file| {
                 file.write_all(i.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -383,10 +383,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -398,10 +398,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -413,10 +413,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }
@@ -434,10 +434,10 @@ impl CpuSetController {
             .and_then(|mut file| {
                 if b {
                     file.write_all(b"1")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 } else {
                     file.write_all(b"0")
-                        .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                        .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
                 }
             })
     }

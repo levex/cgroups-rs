@@ -135,12 +135,12 @@ mod sealed {
 
             if w {
                 match File::create(&path) {
-                    Err(e) => return Err(Error::with_cause(ErrorKind::WriteFailed, e)),
+                    Err(e) => return Err(Error::with_source(ErrorKind::WriteFailed, e)),
                     Ok(file) => return Ok(file),
                 }
             } else {
                 match File::open(&path) {
-                    Err(e) => return Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                    Err(e) => return Err(Error::with_source(ErrorKind::ReadFailed, e)),
                     Ok(file) => return Ok(file),
                 }
             }
@@ -233,7 +233,7 @@ where
     fn add_task(&self, pid: &CgroupPid) -> Result<()> {
         self.open_path("tasks", true).and_then(|mut file| {
             file.write_all(pid.pid.to_string().as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 

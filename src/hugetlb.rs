@@ -78,8 +78,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -136,7 +136,7 @@ impl HugeTlbController {
         self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 }

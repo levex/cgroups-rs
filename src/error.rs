@@ -31,10 +31,12 @@ pub enum ErrorKind {
     Other,
 }
 
+/// The error type that can be returned from this crate, in the `Result::Err` variant.
+/// The lower-level cause of this error can be obtained from the `source` method.
 #[derive(Debug)]
 pub struct Error {
     kind: ErrorKind,
-    cause: Option<Box<dyn StdError + Send>>,
+    source: Option<Box<dyn StdError + Send + 'static>>,
 }
 
 impl fmt::Display for Error {
@@ -53,8 +55,8 @@ impl fmt::Display for Error {
 }
 
 impl StdError for Error {
-    fn cause(&self) -> Option<&dyn StdError> {
-        match self.cause {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self.source {
             Some(ref x) => Some(&**x),
             None => None,
         }
@@ -63,16 +65,16 @@ impl StdError for Error {
 
 impl Error {
     pub(crate) fn new(kind: ErrorKind) -> Self {
-        Self { kind, cause: None }
+        Self { kind, source: None }
     }
 
-    pub(crate) fn with_cause<E>(kind: ErrorKind, cause: E) -> Self
+    pub(crate) fn with_source<E>(kind: ErrorKind, source: E) -> Self
     where
-        E: 'static + Send + StdError,
+        E: StdError + Send + 'static,
     {
         Self {
             kind,
-            cause: Some(Box::new(cause)),
+            source: Some(Box::new(source)),
         }
     }
 

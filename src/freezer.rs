@@ -87,7 +87,7 @@ impl FreezerController {
     pub fn freeze(&self) -> Result<()> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("FROZEN".to_string().as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -95,7 +95,7 @@ impl FreezerController {
     pub fn thaw(&self) -> Result<()> {
         self.open_path("freezer.state", true).and_then(|mut file| {
             file.write_all("THAWED".to_string().as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -111,7 +111,7 @@ impl FreezerController {
                     "FREEZING" => Ok(FreezerState::Freezing),
                     _ => Err(Error::new(ErrorKind::ParseError)),
                 },
-                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
             }
         })
     }

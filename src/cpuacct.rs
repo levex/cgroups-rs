@@ -96,9 +96,9 @@ fn read_u64_from(mut file: File) -> Result<u64> {
     match res {
         Ok(_) => match string.trim().parse() {
             Ok(e) => Ok(e),
-            Err(e) => Err(Error::with_cause(ErrorKind::ParseError, e)),
+            Err(e) => Err(Error::with_source(ErrorKind::ParseError, e)),
         },
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -106,7 +106,7 @@ fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => Ok(string.trim().to_string()),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -163,7 +163,7 @@ impl CpuAcctController {
     pub fn reset(&self) -> Result<()> {
         self.open_path("cpuacct.usage", true).and_then(|mut file| {
             file.write_all(b"0")
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 }

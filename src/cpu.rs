@@ -104,8 +104,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
         Ok(_) => string
             .trim()
             .parse()
-            .map_err(|e| Error::with_cause(ErrorKind::ParseError, e)),
-        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+            .map_err(|e| Error::with_source(ErrorKind::ParseError, e)),
+        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
     }
 }
 
@@ -130,7 +130,7 @@ impl CpuController {
                     let res = file.read_to_string(&mut s);
                     match res {
                         Ok(_) => Ok(s),
-                        Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                        Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
                     }
                 })
                 .unwrap_or("".to_string()),
@@ -146,7 +146,7 @@ impl CpuController {
     pub fn set_shares(&self, shares: u64) -> Result<()> {
         self.open_path("cpu.shares", true).and_then(|mut file| {
             file.write_all(shares.to_string().as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -162,7 +162,7 @@ impl CpuController {
         self.open_path("cpu.cfs_period_us", true)
             .and_then(|mut file| {
                 file.write_all(us.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 
@@ -179,7 +179,7 @@ impl CpuController {
         self.open_path("cpu.cfs_quota_us", true)
             .and_then(|mut file| {
                 file.write_all(us.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                    .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
             })
     }
 

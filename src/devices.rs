@@ -121,7 +121,8 @@ impl DevicePermissions {
             return Ok(v);
         }
         for e in s.chars() {
-            let perm = DevicePermissions::from_char(e).ok_or_else(|| Error::new(ErrorKind::ParseError))?;
+            let perm =
+                DevicePermissions::from_char(e).ok_or_else(|| Error::new(ErrorKind::ParseError))?;
             v.push(perm);
         }
 
@@ -220,7 +221,7 @@ impl DevicesController {
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.allow", true).and_then(|mut file| {
             file.write_all(final_str.as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -252,7 +253,7 @@ impl DevicesController {
         let final_str = format!("{} {}:{} {}", devtype.to_char(), major, minor, perms);
         self.open_path("devices.deny", true).and_then(|mut file| {
             file.write_all(final_str.as_ref())
-                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+                .map_err(|e| Error::with_source(ErrorKind::WriteFailed, e))
         })
     }
 
@@ -297,7 +298,7 @@ impl DevicesController {
                         }
                     })
                 },
-                Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                Err(e) => Err(Error::with_source(ErrorKind::ReadFailed, e)),
             }
         })
     }
