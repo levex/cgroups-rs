@@ -233,6 +233,13 @@ impl<'b> Cgroup<'b> {
         }
     }
 
+    /// Attach a task to the control group by thread group id.
+    pub fn add_task_by_tgid(&self, pid: CgroupPid) -> Result<()> {
+        self.subsystems()
+            .iter()
+            .try_for_each(|sub| sub.to_controller().add_task_by_tgid(&pid))
+    }
+
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the
     /// control group.
     pub fn tasks(&self) -> Vec<CgroupPid> {

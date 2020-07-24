@@ -219,6 +219,9 @@ pub trait Controller {
     /// Attach a task to this controller.
     fn add_task(&self, pid: &CgroupPid) -> Result<()>;
 
+    /// Attach a task to this controller.
+    fn add_task_by_tgid(&self, pid: &CgroupPid) -> Result<()>;
+
     /// Get the list of tasks that this controller has.
     fn tasks(&self) -> Vec<CgroupPid>;
 
@@ -273,6 +276,14 @@ where
             file = "cgroup.procs";
         }
         self.open_path(file, true).and_then(|mut file| {
+            file.write_all(pid.pid.to_string().as_ref())
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+        })
+    }
+
+    /// Attach a task to this controller by thread group id.
+    fn add_task_by_tgid(&self, pid: &CgroupPid) -> Result<()> {
+        self.open_path("cgroup.procs", true).and_then(|mut file| {
             file.write_all(pid.pid.to_string().as_ref())
                 .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
