@@ -20,8 +20,9 @@ use crate::{
 /// the control group.
 #[derive(Debug, Clone)]
 pub struct HugeTlbController {
-    base: PathBuf,
-    path: PathBuf,
+    base:  PathBuf,
+    path:  PathBuf,
+    sizes: Vec<String>,
 }
 
 impl ControllerInternal for HugeTlbController {
@@ -87,16 +88,26 @@ impl HugeTlbController {
     pub fn new(oroot: PathBuf) -> Self {
         let mut root = oroot;
         root.push(Self::controller_type().to_string());
+        let sizes = get_hugepage_sizes().unwrap();
         Self {
             base: root.clone(),
             path: root,
+            sizes: sizes,
         }
     }
 
     /// Whether the system supports `hugetlb_size` hugepages.
-    pub fn size_supported(&self, _hugetlb_size: &str) -> bool {
-        // TODO
-        true
+    pub fn size_supported(&self, hugetlb_size: &str) -> bool {
+        for s in &self.sizes {
+            if s == hugetlb_size {
+                return true
+            }
+        }
+        false
+    }
+
+    pub fn get_sizes(&self) -> Vec<String> {
+        self.sizes.clone()
     }
 
     /// Check how many times has the limit of `hugetlb_size` hugepages been hit.
@@ -138,3 +149,126 @@ impl HugeTlbController {
             })
     }
 }
+
+
+pub const HUGEPAGESIZE_DIR: &'static str = "/sys/kernel/mm/hugepages";
+use regex::Regex;
+use std::collections::HashMap;
+use std::fs;
+
+fn get_hugepage_sizes() -> Result<Vec<String>> {
+    let mut m = Vec::new();
+    let dirs = fs::read_dir(HUGEPAGESIZE_DIR);
+    if dirs.is_err() {
+        return Ok(m);
+    }
+
+    for e in dirs.unwrap() {
+        let entry = e.unwrap();
+        let name = entry.file_name().into_string().unwrap();
+        let parts: Vec<&str> = name.split('-').collect();
+        if parts.len() != 2 {
+            continue;
+        }
+        let  bmap= get_binary_size_map();
+        let size = parse_size(parts[1], &bmap)?;
+        let dabbrs = get_decimal_abbrs();
+        m.push(custom_size(size as f64, 1024.0, &dabbrs));
+    }
+
+    Ok(m)
+}
+
+
+pub const KB: u128 = 1000;
+pub const MB: u128 = 1000 * KB;
+pub const GB: u128 = 1000 * MB;
+pub const TB: u128 = 1000 * GB;
+pub const PB: u128 = 1000 * TB;
+
+pub const KiB: u128 = 1024;
+pub const MiB: u128 = 1024 * KiB;
+pub const GiB: u128 = 1024 * MiB;
+pub const TiB: u128 = 1024 * GiB;
+pub const PiB: u128 = 1024 * TiB;
+
+
+pub fn get_binary_size_map() -> HashMap<String, u128> {
+    let mut m = HashMap::new();
+    m.insert("k".to_string(), KiB);
+    m.insert("m".to_string(), MiB);
+    m.insert("g".to_string(), GiB);
+    m.insert("t".to_string(), TiB);
+    m.insert("p".to_string(), PiB);
+    m
+}
+
+pub fn get_decimal_size_map() -> HashMap<String, u128> {
+    let mut m = HashMap::new();
+    m.insert("k".to_string(), KB);
+    m.insert("m".to_string(), MB);
+    m.insert("g".to_string(), GB);
+    m.insert("t".to_string(), TB);
+    m.insert("p".to_string(), PB);
+    m
+}
+
+pub fn get_decimal_abbrs() -> Vec<String>  {
+    let m = vec![
+        "B".to_string(),
+        "KB".to_string(),
+        "MB".to_string(),
+        "GB".to_string(),
+        "TB".to_string(),
+        "PB".to_string(),
+        "EB".to_string(),
+        "ZB".to_string(),
+        "YB".to_string(),
+    ];
+    m
+}
+
+fn parse_size(s: &str, m: &HashMap<String, u128>) -> Result<u128> {
+    let re = Regex::new(r"(?P<num>\d+)(?P<mul>[kKmMgGtTpP]?)[bB]?$");
+
+    if re.is_err() {
+        return Err(Error::new(InvalidBytesSize));
+    }
+    let caps = re.unwrap().captures(s).unwrap();
+
+    let num = caps.name("num");
+    let size: u128 = if num.is_some() {
+        let n = num.unwrap().as_str().trim().parse::<u128>();
+        if n.is_err(){
+            return Err(Error::new(InvalidBytesSize));
+        }
+        n.unwrap()
+    } else {
+        return Err(Error::new(InvalidBytesSize));
+    };
+
+    let q = caps.name("mul");
+    let mul: u128 = if q.is_some() {
+        let t = m.get(q.unwrap().as_str());
+        if t.is_some() {
+            *t.unwrap()
+        } else {
+            return Err(Error::new(InvalidBytesSize));
+        }
+    } else {
+        return Err(Error::new(InvalidBytesSize));
+    };
+
+    Ok(size * mul)
+}
+
+fn custom_size(mut size: f64, base: f64, m: &Vec<String>) -> String {
+    let mut i = 0;
+    while size >= base && i < m.len() - 1 {
+        size /= base;
+        i += 1;
+    }
+
+    format!("{}{}", size, m[i].as_str())
+}
+

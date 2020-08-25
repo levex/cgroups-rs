@@ -27,6 +27,8 @@ pub enum ErrorKind {
     /// This crate checks against this and operations will fail with this error.
     InvalidPath,
 
+    InvalidBytesSize,
+
     /// An unknown error has occured.
     Other,
 }
@@ -45,6 +47,7 @@ impl fmt::Display for Error {
             ErrorKind::ParseError => "unable to parse control group file",
             ErrorKind::InvalidOperation => "the requested operation is invalid",
             ErrorKind::InvalidPath => "the given path is invalid",
+            ErrorKind::InvalidBytesSize => "invalid bytes size",
             ErrorKind::Other => "an unknown error",
         };
 
