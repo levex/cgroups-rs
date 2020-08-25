@@ -126,11 +126,21 @@ fn find_v1_mount() -> Option<String> {
         let mut fields = line.split_whitespace();
         let index = line.find(" - ").unwrap();
         let mut more_fields = line[index + 3..].split_whitespace().collect::<Vec<_>>();
-        let fstype = more_fields[0];
-        if fstype == "tmpfs" && more_fields[2].contains("ro") {
+        if more_fields.len() == 0 {
+            continue;
+        }
+        if more_fields[0] == "cgroup" {
+            if more_fields.len() < 3 {
+                continue;
+            }
             let cgroups_mount = fields.nth(4).unwrap();
-            info!("found cgroups at {:?}", cgroups_mount);
-            return Some(cgroups_mount.to_string());
+            if let Some(parent) = std::path::Path::new(cgroups_mount).parent() {
+                if let Some(path) = parent.as_os_str().to_str() {
+                    debug!("found cgroups {:?} from {:?}", path, cgroups_mount);
+                    return Some(path.to_string());
+                }
+            }
+            continue;
         }
     }
 
