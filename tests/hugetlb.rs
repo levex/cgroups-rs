@@ -1,10 +1,10 @@
 //! Integration tests about the hugetlb subsystem
-use cgroups::hugetlb::{HugeTlbController};
-use cgroups::Controller;
+use cgroups::hugetlb::HugeTlbController;
 use cgroups::Cgroup;
+use cgroups::Controller;
 
-use cgroups::error::*;
 use cgroups::error::ErrorKind::*;
+use cgroups::error::*;
 
 #[test]
 fn test_hugetlb_sizes() {
@@ -20,15 +20,14 @@ fn test_hugetlb_sizes() {
         let supported = hugetlb_controller.size_supported(size);
         assert_eq!(supported, true);
 
-        assert_no_error( hugetlb_controller.failcnt(size));
-        assert_no_error( hugetlb_controller.limit_in_bytes(size));
-        assert_no_error( hugetlb_controller.usage_in_bytes(size));
-        assert_no_error( hugetlb_controller.max_usage_in_bytes(size));
+        assert_no_error(hugetlb_controller.failcnt(size));
+        assert_no_error(hugetlb_controller.limit_in_bytes(size));
+        assert_no_error(hugetlb_controller.usage_in_bytes(size));
+        assert_no_error(hugetlb_controller.max_usage_in_bytes(size));
     }
     cg.delete();
 }
 
-
-fn assert_no_error(r: Result<u64> ) {
-    assert_eq!(!r.is_err() , true)
+fn assert_no_error(r: Result<u64>) {
+    assert_eq!(!r.is_err(), true)
 }

@@ -2,12 +2,13 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/memory.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
@@ -109,7 +110,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         file_pages: file_line
             .split(|x| x == ' ' || x == '=')
@@ -123,7 +125,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         anon_pages: anon_line
             .split(|x| x == ' ' || x == '=')
@@ -137,7 +140,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         unevictable_pages: unevict_line
             .split(|x| x == ' ' || x == '=')
@@ -151,7 +155,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_total_pages: hier_total_line
             .split(|x| x == ' ' || x == '=')
@@ -165,7 +170,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_file_pages: hier_file_line
             .split(|x| x == ' ' || x == '=')
@@ -179,7 +185,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_anon_pages: hier_anon_line
             .split(|x| x == ' ' || x == '=')
@@ -193,7 +200,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_unevictable_pages: hier_unevict_line
             .split(|x| x == ' ' || x == '=')
@@ -207,7 +215,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
     })
 }
@@ -250,52 +259,63 @@ pub struct MemoryStat {
     pub total_inactive_file: u64,
     pub total_active_file: u64,
     pub total_unevictable: u64,
+    pub raw: HashMap<String, u64>,
 }
 
 fn parse_memory_stat(s: String) -> Result<MemoryStat> {
-    let sp: Vec<&str> = s
-        .split_whitespace()
-        .filter(|x| x.parse::<u64>().is_ok())
-        .collect();
+    let mut raw = HashMap::new();
 
-    let mut spl = sp.iter();
+    for l in s.lines() {
+        let t: Vec<&str> = l.split(' ').collect();
+        if t.len() != 2 {
+            continue;
+        }
+        let n = t[1].trim().parse::<u64>();
+        if n.is_err() {
+            continue;
+        }
+
+        raw.insert(t[0].to_string(), n.unwrap());
+    }
+
     Ok(MemoryStat {
-        cache: spl.next().unwrap().parse::<u64>().unwrap(),
-        rss: spl.next().unwrap().parse::<u64>().unwrap(),
-        rss_huge: spl.next().unwrap().parse::<u64>().unwrap(),
-        shmem: spl.next().unwrap().parse::<u64>().unwrap(),
-        mapped_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        dirty: spl.next().unwrap().parse::<u64>().unwrap(),
-        writeback: spl.next().unwrap().parse::<u64>().unwrap(),
-        swap: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgpgin: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgpgout: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgmajfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        inactive_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        active_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        inactive_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        active_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        unevictable: spl.next().unwrap().parse::<u64>().unwrap(),
-        hierarchical_memory_limit: spl.next().unwrap().parse::<u64>().unwrap(),
-        hierarchical_memsw_limit: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_cache: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_rss: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_rss_huge: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_shmem: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_mapped_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_dirty: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_writeback: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_swap: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgpgin: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgpgout: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgmajfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_inactive_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_active_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_inactive_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_active_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_unevictable: spl.next().unwrap().parse::<u64>().unwrap(),
+        cache: *raw.get("cache").unwrap_or(&0),
+        rss: *raw.get("rss").unwrap_or(&0),
+        rss_huge: *raw.get("rss_huge").unwrap_or(&0),
+        shmem: *raw.get("shmem").unwrap_or(&0),
+        mapped_file: *raw.get("mapped_file").unwrap_or(&0),
+        dirty: *raw.get("dirty").unwrap_or(&0),
+        writeback: *raw.get("writeback").unwrap_or(&0),
+        swap: *raw.get("swap").unwrap_or(&0),
+        pgpgin: *raw.get("pgpgin").unwrap_or(&0),
+        pgpgout: *raw.get("pgpgout").unwrap_or(&0),
+        pgfault: *raw.get("pgfault").unwrap_or(&0),
+        pgmajfault: *raw.get("pgmajfault").unwrap_or(&0),
+        inactive_anon: *raw.get("inactive_anon").unwrap_or(&0),
+        active_anon: *raw.get("active_anon").unwrap_or(&0),
+        inactive_file: *raw.get("inactive_file").unwrap_or(&0),
+        active_file: *raw.get("active_file").unwrap_or(&0),
+        unevictable: *raw.get("unevictable").unwrap_or(&0),
+        hierarchical_memory_limit: *raw.get("hierarchical_memory_limit").unwrap_or(&0),
+        hierarchical_memsw_limit: *raw.get("hierarchical_memsw_limit").unwrap_or(&0),
+        total_cache: *raw.get("total_cache").unwrap_or(&0),
+        total_rss: *raw.get("total_rss").unwrap_or(&0),
+        total_rss_huge: *raw.get("total_rss_huge").unwrap_or(&0),
+        total_shmem: *raw.get("total_shmem").unwrap_or(&0),
+        total_mapped_file: *raw.get("total_mapped_file").unwrap_or(&0),
+        total_dirty: *raw.get("total_dirty").unwrap_or(&0),
+        total_writeback: *raw.get("total_writeback").unwrap_or(&0),
+        total_swap: *raw.get("total_swap").unwrap_or(&0),
+        total_pgpgin: *raw.get("total_pgpgin").unwrap_or(&0),
+        total_pgpgout: *raw.get("total_pgpgout").unwrap_or(&0),
+        total_pgfault: *raw.get("total_pgfault").unwrap_or(&0),
+        total_pgmajfault: *raw.get("total_pgmajfault").unwrap_or(&0),
+        total_inactive_anon: *raw.get("total_inactive_anon").unwrap_or(&0),
+        total_active_anon: *raw.get("total_active_anon").unwrap_or(&0),
+        total_inactive_file: *raw.get("total_inactive_file").unwrap_or(&0),
+        total_active_file: *raw.get("total_active_file").unwrap_or(&0),
+        total_unevictable: *raw.get("total_unevictable").unwrap_or(&0),
+        raw: raw,
     })
 }
 
@@ -564,11 +584,10 @@ impl MemController {
 
     /// Reset the fail counter
     pub fn reset_fail_count(&self) -> Result<()> {
-        self.open_path("memory.failcnt", true)
-            .and_then(|mut file| {
-                file.write_all("0".to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path("memory.failcnt", true).and_then(|mut file| {
+            file.write_all("0".to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Reset the kernel memory fail counter
@@ -657,6 +676,14 @@ impl MemController {
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
+
+    pub fn disable_oom_killer(&self) -> Result<()> {
+        self.open_path("memory.oom_control", true)
+            .and_then(|mut file| {
+                file.write_all("1".to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
 }
 
 impl ControllIdentifier for MemController {
@@ -682,7 +709,10 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
