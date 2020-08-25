@@ -55,7 +55,7 @@
 //! ```
 use crate::error::*;
 
-use crate::{pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource,  Cgroup, DeviceResource, Hierarchy, HugePageResource, NetworkPriority, Resources};
+use crate::{pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource,  Cgroup, DeviceResource, Hierarchy, HugePageResource, MaxValue, NetworkPriority, Resources};
 
 macro_rules! gen_setter {
     ($res:ident, $cont:ident, $func:ident, $name:ident, $ty:ty) => {
@@ -71,7 +71,7 @@ macro_rules! gen_setter {
 /// A control group builder instance
 pub struct CgroupBuilder<'a> {
     name: String,
-    hierarchy: &'a Hierarchy,
+    hierarchy: Box<&'a dyn Hierarchy>,
     /// Internal, unsupported field: use the associated builders instead.
     resources: Resources,
 }
@@ -80,7 +80,7 @@ impl<'a> CgroupBuilder<'a> {
     /// Start building a control group with the supplied hierarchy and name pair.
     ///
     /// Note that this does not actually create the control group until `build()` is called.
-    pub fn new(name: &'a str, hierarchy: &'a Hierarchy) -> CgroupBuilder<'a> {
+    pub fn new(name: &'a str, hierarchy: Box<&'a dyn Hierarchy>) -> CgroupBuilder<'a> {
         CgroupBuilder {
             name: name.to_owned(),
             hierarchy: hierarchy,
@@ -155,11 +155,11 @@ pub struct MemoryResourceBuilder<'a> {
 
 impl<'a> MemoryResourceBuilder<'a> {
 
-    gen_setter!(memory, MemController, set_kmem_limit, kernel_memory_limit, u64);
-    gen_setter!(memory, MemController, set_limit, memory_hard_limit, u64);
-    gen_setter!(memory, MemController, set_soft_limit, memory_soft_limit, u64);
-    gen_setter!(memory, MemController, set_tcp_limit, kernel_tcp_memory_limit, u64);
-    gen_setter!(memory, MemController, set_memswap_limit, memory_swap_limit, u64);
+    gen_setter!(memory, MemController, set_kmem_limit, kernel_memory_limit, i64);
+    gen_setter!(memory, MemController, set_limit, memory_hard_limit, i64);
+    gen_setter!(memory, MemController, set_soft_limit, memory_soft_limit, i64);
+    gen_setter!(memory, MemController, set_tcp_limit, kernel_tcp_memory_limit, i64);
+    gen_setter!(memory, MemController, set_memswap_limit, memory_swap_limit, i64);
     gen_setter!(memory, MemController, set_swappiness, swappiness, u64);
 
     /// Finish the construction of the memory resources of a control group.
@@ -175,7 +175,7 @@ pub struct PidResourceBuilder<'a> {
 
 impl<'a> PidResourceBuilder<'a> {
 
-    gen_setter!(pid, PidController, set_pid_max, maximum_number_of_processes, pid::PidMax);
+    gen_setter!(pid, PidController, set_pid_max, maximum_number_of_processes, MaxValue);
 
     /// Finish the construction of the pid resources of a control group.
     pub fn done(self) -> CgroupBuilder<'a> {
@@ -190,7 +190,8 @@ pub struct CpuResourceBuilder<'a> {
 
 impl<'a> CpuResourceBuilder<'a> {
 
-    gen_setter!(cpu, CpuSetController, set_cpus, cpus, String);
+    // FIXME this should all changed to options.
+    gen_setter!(cpu, CpuSetController, set_cpus, cpus, Option<String>);
     gen_setter!(cpu, CpuSetController, set_mems, mems, String);
     gen_setter!(cpu, CpuController, set_shares, shares, u64);
     gen_setter!(cpu, CpuController, set_cfs_quota, quota, i64);

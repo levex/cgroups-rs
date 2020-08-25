@@ -4,6 +4,9 @@ use std::fmt;
 /// The different types of errors that can occur while manipulating control groups.
 #[derive(Debug, Eq, PartialEq)]
 pub enum ErrorKind {
+    FsError,
+    Common(String),
+
     /// An error occured while writing to a control group file.
     WriteFailed,
 
@@ -41,14 +44,16 @@ pub struct Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = match self.kind {
-            ErrorKind::WriteFailed => "unable to write to a control group file",
-            ErrorKind::ReadFailed => "unable to read a control group file",
-            ErrorKind::ParseError => "unable to parse control group file",
-            ErrorKind::InvalidOperation => "the requested operation is invalid",
-            ErrorKind::InvalidPath => "the given path is invalid",
-            ErrorKind::InvalidBytesSize => "invalid bytes size",
-            ErrorKind::Other => "an unknown error",
+        let msg = match &self.kind {
+            ErrorKind::FsError => "fs error".to_string(),
+            ErrorKind::Common(s) => s.clone(),
+            ErrorKind::WriteFailed => "unable to write to a control group file".to_string(),
+            ErrorKind::ReadFailed => "unable to read a control group file".to_string(),
+            ErrorKind::ParseError => "unable to parse control group file".to_string(),
+            ErrorKind::InvalidOperation => "the requested operation is invalid".to_string(),
+            ErrorKind::InvalidPath => "the given path is invalid".to_string(),
+            ErrorKind::InvalidBytesSize => "invalid bytes size".to_string(),
+            ErrorKind::Other => "an unknown error".to_string(),
         };
 
         write!(f, "{}", msg)
@@ -65,6 +70,12 @@ impl StdError for Error {
 }
 
 impl Error {
+    pub(crate) fn from_string(s: String) -> Self {
+        Self {
+            kind: ErrorKind::Common(s),
+            cause: None,
+        }
+    }
     pub(crate) fn new(kind: ErrorKind) -> Self {
         Self {
             kind,

@@ -1,11 +1,12 @@
 //! Simple unit tests about the control groups system.
-use cgroups::{Cgroup, CgroupPid};
+use cgroups::{Cgroup, CgroupPid, Hierarchy};
 
 #[test]
 fn test_tasks_iterator() {
-    let hier = cgroups::hierarchies::V1::new();
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
     let pid = libc::pid_t::from(nix::unistd::getpid()) as u64;
-    let cg = Cgroup::new(&hier, String::from("test_tasks_iterator"));
+    let cg = Cgroup::new(h, String::from("test_tasks_iterator"));
     {
         // Add a task to the control group.
         cg.add_task(CgroupPid::from(pid));

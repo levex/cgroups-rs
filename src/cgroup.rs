@@ -5,7 +5,8 @@ use crate::error::*;
 use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::convert::From;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// A control group is the central structure to this crate.
 ///
@@ -24,14 +25,19 @@ pub struct Cgroup<'b> {
     subsystems: Vec<Subsystem>,
 
     /// The hierarchy.
-    hier: &'b Hierarchy,
+    hier: Box<&'b dyn Hierarchy>,
+    path: String,
 }
 
 impl<'b> Cgroup<'b> {
     /// Create this control group.
     fn create(&self) {
-        for subsystem in &self.subsystems {
-            subsystem.to_controller().create();
+        if self.hier.v2() {
+            create_v2_cgroup(self.hier.root().clone(), &self.path);
+        }else{
+            for subsystem in &self.subsystems {
+                subsystem.to_controller().create();
+            }
         }
     }
 
@@ -41,7 +47,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn new<P: AsRef<Path>>(hier: &Hierarchy, path: P) -> Cgroup {
+    pub fn new<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup<'b> {
         let cg = Cgroup::load(hier, path);
         cg.create();
         cg
@@ -54,7 +60,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn load<P: AsRef<Path>>(hier: &Hierarchy, path: P) -> Cgroup {
+    pub fn load<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup<'b> {
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
@@ -67,6 +73,7 @@ impl<'b> Cgroup<'b> {
         let cg = Cgroup {
             subsystems: subsystems,
             hier: hier,
+            path: path.to_str().unwrap().to_string(),
         };
 
         cg
@@ -164,4 +171,47 @@ impl<'b> Cgroup<'b> {
         v.dedup();
         v
     }
+}
+
+pub const UNIFIED_MOUNTPOINT: &'static str = "/sys/fs/cgroup";
+
+fn supported_controllers(p: &PathBuf) -> Vec<String>{
+    let p = format!("{}/{}", UNIFIED_MOUNTPOINT, "cgroup.controllers");
+    let ret = fs::read_to_string(p.as_str());
+    ret.unwrap_or(String::new()).split(" ").map(|x| x.to_string() ).collect::<Vec<String>>()
+}
+
+fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
+    // controler list ["memory", "cpu"]
+	let controllers = supported_controllers(&root);
+    let mut fp = root;
+
+    // path: "a/b/c"
+    let elements = path.split("/").collect::<Vec<&str>>();
+    let last_index = elements.len() - 1 ;
+    for (i, ele) in elements.iter().enumerate() {
+        // ROOT/a
+        fp.push(ele);
+        // create dir, need not check if is a file or directory
+        if !fp.exists(){
+            // FIXME set mode to 0755
+            match ::std::fs::create_dir(fp.clone()) {
+                Err(e) => return Err(Error::with_cause(ErrorKind::FsError, e)),
+                Ok(_) => {},
+            }    
+        }
+
+        if i < last_index {
+            // enable controllers for substree
+            let mut f = fp.clone();
+            f.push("cgroup.subtree_control");
+            for c in &controllers{
+                let body = format!("+{}", c);
+                // FIXME set mode to 0644
+                let _rest = fs::write(f.as_path(), body.as_bytes());
+            }
+        }
+    }
+
+    Ok(())
 }

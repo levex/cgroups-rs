@@ -1,7 +1,7 @@
 use log::*;
 
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{Read, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 pub mod blkio;
@@ -11,6 +11,7 @@ pub mod cpuacct;
 pub mod cpuset;
 pub mod devices;
 pub mod error;
+pub mod events;
 pub mod freezer;
 pub mod hierarchies;
 pub mod hugetlb;
@@ -28,6 +29,7 @@ use crate::cpuacct::CpuAcctController;
 use crate::cpuset::CpuSetController;
 use crate::devices::DevicesController;
 use crate::error::*;
+use crate::error::ErrorKind::*;
 use crate::freezer::FreezerController;
 use crate::hugetlb::HugeTlbController;
 use crate::memory::MemController;
@@ -124,6 +126,9 @@ mod sealed {
         fn post_create(&self){
         }
 
+        fn is_v2(&self) -> bool {
+            false
+        }
 
         fn verify_path(&self) -> Result<()> {
             if self.get_path().starts_with(self.get_base()) {
@@ -150,6 +155,17 @@ mod sealed {
                     Ok(file) => return Ok(file),
                 }
             }
+        }
+
+        fn get_max_value(&self, f: &str) -> Result<MaxValue> {
+            self.open_path(f, false).and_then(|mut file| {
+                let mut string = String::new();
+                let res = file.read_to_string(&mut string);
+                match res {
+                    Ok(_) => parse_max_value(&string),
+                    Err(e) => Err(Error::with_cause(ReadFailed, e)),
+                }
+            })
         }
 
         #[doc(hidden)]
@@ -194,6 +210,8 @@ pub trait Controller {
 
     /// Get the list of tasks that this controller has.
     fn tasks(&self) -> Vec<CgroupPid>;
+
+    fn v2(&self) -> bool;
 }
 
 impl<T> Controller for T where T: ControllerInternal {
@@ -256,6 +274,11 @@ impl<T> Controller for T where T: ControllerInternal {
                 Ok(v.into_iter().map(CgroupPid::from).collect())
             }).unwrap_or(vec![])
     }
+
+    fn v2(&self) -> bool {
+        self.is_v2()
+    }
+
 }
 
 #[doc(hidden)]
@@ -275,6 +298,8 @@ pub trait Hierarchy {
     /// Return a handle to the root control group in the hierarchy.
     fn root_control_group(&self) -> Cgroup;
 
+    fn v2(&self) -> bool;
+
     /// Checks whether a certain subsystem is supported in the hierarchy.
     ///
     /// This is an internal function and should not be used.
@@ -288,16 +313,16 @@ pub struct MemoryResources {
     /// Whether values should be applied to the controller.
     pub update_values: bool,
     /// How much memory (in bytes) can the kernel consume.
-    pub kernel_memory_limit: u64,
+    pub kernel_memory_limit: i64,
     /// Upper limit of memory usage of the control group's tasks.
-    pub memory_hard_limit: u64,
+    pub memory_hard_limit: i64,
     /// How much memory the tasks in the control group can use when the system is under memory
     /// pressure.
-    pub memory_soft_limit: u64,
+    pub memory_soft_limit: i64,
     /// How much of the kernel's memory (in bytes) can be used for TCP-related buffers.
-    pub kernel_tcp_memory_limit: u64,
+    pub kernel_tcp_memory_limit: i64,
     /// How much memory and swap together can the tasks in the control group use.
-    pub memory_swap_limit: u64,
+    pub memory_swap_limit: i64,
     /// Controls the tendency of the kernel to swap out parts of the address space of the tasks to
     /// disk. Lower value implies less likely.
     ///
@@ -316,7 +341,7 @@ pub struct PidResources {
     /// Note that attaching processes to the control group will still succeed _even_ if the limit
     /// would be violated, however forks/clones inside the control group will have with `EAGAIN` if
     /// they would violate the limit set here.
-    pub maximum_number_of_processes: pid::PidMax,
+    pub maximum_number_of_processes: MaxValue,
 }
 
 /// Resources limits about how the tasks can use the CPU.
@@ -327,7 +352,7 @@ pub struct CpuResources {
     // cpuset
     /// A comma-separated list of CPU IDs where the task in the control group can run. Dashes
     /// between numbers indicate ranges.
-    pub cpus: String,
+    pub cpus: Option<String>,
     /// Same syntax as the `cpus` field of this structure, but applies to memory nodes instead of
     /// processors.
     pub mems: String,
@@ -582,5 +607,39 @@ impl Subsystem {
             Subsystem::HugeTlb(cont) => cont,
             Subsystem::Rdma(cont) => cont,
         }
+    }
+}
+
+
+
+/// The values for `memory.hight` or `pids.max`
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+pub enum MaxValue {
+    /// This value is returned when the text is `"max"`.
+    Max,
+    /// When the value is a numerical value, they are returned via this enum field.
+    Value(i64),
+}
+
+impl Default for MaxValue {
+    fn default() -> Self {
+        MaxValue::Max
+    }
+}
+
+pub fn parse_max_value(s: &String) -> Result<MaxValue> {
+    if s.trim() == "max" {
+       return Ok(MaxValue::Max)
+    }
+    match s.trim().parse() {
+        Ok(val) => Ok(MaxValue::Value(val)),
+        Err(e) => Err(Error::with_cause(ParseError, e)),
+    }
+}
+
+pub fn max_value_to_string(m: MaxValue) -> String {
+    match m {
+        MaxValue::Max => "max".to_string(),
+        MaxValue::Value(num) => num.to_string(),
     }
 }

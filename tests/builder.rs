@@ -11,8 +11,9 @@ use cgroups::cgroup_builder::*;
 
 #[test]
 pub fn test_cpu_res_build() {
-    let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_cpu_res_build", &v1)
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
+    let cg: Cgroup = CgroupBuilder::new("test_cpu_res_build", h)
         .cpu()
             .shares(85)
             .done()
@@ -29,8 +30,9 @@ pub fn test_cpu_res_build() {
 
 #[test]
 pub fn test_memory_res_build() {
-    let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_memory_res_build", &v1)
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
+    let cg: Cgroup = CgroupBuilder::new("test_memory_res_build", h)
         .memory()
             .kernel_memory_limit(128 * 1024 * 1024)
             .swappiness(70)
@@ -50,17 +52,18 @@ pub fn test_memory_res_build() {
 
 #[test]
 pub fn test_pid_res_build() {
-    let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_pid_res_build", &v1)
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
+    let cg: Cgroup = CgroupBuilder::new("test_pid_res_build", h)
         .pid()
-            .maximum_number_of_processes(PidMax::Value(123))
+            .maximum_number_of_processes(MaxValue::Value(123))
             .done()
         .build();
 
     {
         let c: &PidController = cg.controller_of().unwrap();
         assert!(c.get_pid_max().is_ok());
-        assert_eq!(c.get_pid_max().unwrap(), PidMax::Value(123));
+        assert_eq!(c.get_pid_max().unwrap(), MaxValue::Value(123));
     }
 
     cg.delete();
@@ -69,8 +72,9 @@ pub fn test_pid_res_build() {
 #[test]
 #[ignore] // ignore this test for now, not sure why my kernel doesn't like it
 pub fn test_devices_res_build() {
-    let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_devices_res_build", &v1)
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
+    let cg: Cgroup = CgroupBuilder::new("test_devices_res_build", h)
         .devices()
             .device(1, 6, DeviceType::Char, true,
                     vec![DevicePermissions::Read])
@@ -95,8 +99,13 @@ pub fn test_devices_res_build() {
 
 #[test]
 pub fn test_network_res_build() {
-    let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_network_res_build", &v1)
+    let h = cgroups::hierarchies::auto();
+    if h.v2() {
+        // FIXME
+        return
+    }
+    let h = Box::new(&*h);
+    let cg: Cgroup = CgroupBuilder::new("test_network_res_build", h)
         .network()
             .class_id(1337)
             .done()
@@ -112,8 +121,13 @@ pub fn test_network_res_build() {
 
 #[test]
 pub fn test_hugepages_res_build() {
-    let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_hugepages_res_build", &v1)
+    let h = cgroups::hierarchies::auto();
+    if h.v2() {
+        // FIXME
+        return
+    }
+    let h = Box::new(&*h);
+    let cg: Cgroup = CgroupBuilder::new("test_hugepages_res_build", h)
         .hugepages()
             .limit("2MB".to_string(), 4 * 2 * 1024 * 1024)
             .done()
@@ -129,8 +143,9 @@ pub fn test_hugepages_res_build() {
 
 #[test]
 pub fn test_blkio_res_build() {
-    let v1 = crate::hierarchies::V1::new();
-    let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build", &v1)
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
+    let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build", h)
         .blkio()
             .weight(100)
             .done()

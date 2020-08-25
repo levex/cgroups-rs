@@ -21,6 +21,7 @@ use crate::{
 pub struct BlkIoController {
     base: PathBuf,
     path: PathBuf,
+    v2:   bool,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -269,6 +270,10 @@ impl ControllerInternal for BlkIoController {
         &self.base
     }
 
+    fn is_v2(&self) -> bool {
+        self.v2
+    }
+
     fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &BlkIoResources = &res.blkio;
@@ -341,12 +346,15 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 
 impl BlkIoController {
     /// Constructs a new `BlkIoController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2{
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2:   v2,
         }
     }
 

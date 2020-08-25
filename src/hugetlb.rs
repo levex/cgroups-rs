@@ -23,6 +23,7 @@ pub struct HugeTlbController {
     base:  PathBuf,
     path:  PathBuf,
     sizes: Vec<String>,
+    v2:    bool,
 }
 
 impl ControllerInternal for HugeTlbController {
@@ -37,6 +38,10 @@ impl ControllerInternal for HugeTlbController {
     }
     fn get_base(&self) -> &PathBuf {
         &self.base
+    }
+
+    fn is_v2(&self) -> bool {
+        self.v2
     }
 
     fn apply(&self, res: &Resources) -> Result<()> {
@@ -85,14 +90,17 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 
 impl HugeTlbController {
     /// Constructs a new `HugeTlbController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2 {
+            root.push(Self::controller_type().to_string());
+        }
         let sizes = get_hugepage_sizes().unwrap();
         Self {
             base: root.clone(),
             path: root,
             sizes: sizes,
+            v2:   v2,
         }
     }
 

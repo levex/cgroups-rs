@@ -1,6 +1,6 @@
 //! Integration tests about the hugetlb subsystem
 use cgroups::hugetlb::HugeTlbController;
-use cgroups::Cgroup;
+use cgroups::{Cgroup, Hierarchy};
 use cgroups::Controller;
 
 use cgroups::error::ErrorKind::*;
@@ -8,8 +8,9 @@ use cgroups::error::*;
 
 #[test]
 fn test_hugetlb_sizes() {
-    let hier = cgroups::hierarchies::V1::new();
-    let cg = Cgroup::new(&hier, String::from("test_hugetlb_sizes"));
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
+    let cg = Cgroup::new(h, String::from("test_hugetlb_sizes"));
     {
         let hugetlb_controller: &HugeTlbController = cg.controller_of().unwrap();
         let sizes = hugetlb_controller.get_sizes();

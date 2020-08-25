@@ -6,13 +6,17 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::sync::mpsc::{Receiver};
 
 use crate::error::ErrorKind::*;
 use crate::error::*;
+use crate::events;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
 };
+
+use crate::{MaxValue, max_value_to_string, parse_max_value};
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
 ///
@@ -23,6 +27,16 @@ use crate::{
 pub struct MemController {
     base: PathBuf,
     path: PathBuf,
+    v2:   bool,
+}
+
+
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct SetMemory {
+    pub low: Option<MaxValue>,
+    pub high: Option<MaxValue>,
+    pub min: Option<MaxValue>,
+    pub max: Option<MaxValue>,
 }
 
 /// Controls statistics and controls about the OOM killer operating in this control group.
@@ -240,8 +254,8 @@ pub struct MemoryStat {
     pub inactive_file: u64,
     pub active_file: u64,
     pub unevictable: u64,
-    pub hierarchical_memory_limit: u64,
-    pub hierarchical_memsw_limit: u64,
+    pub hierarchical_memory_limit: i64,
+    pub hierarchical_memsw_limit: i64,
     pub total_cache: u64,
     pub total_rss: u64,
     pub total_rss_huge: u64,
@@ -296,8 +310,8 @@ fn parse_memory_stat(s: String) -> Result<MemoryStat> {
         inactive_file: *raw.get("inactive_file").unwrap_or(&0),
         active_file: *raw.get("active_file").unwrap_or(&0),
         unevictable: *raw.get("unevictable").unwrap_or(&0),
-        hierarchical_memory_limit: *raw.get("hierarchical_memory_limit").unwrap_or(&0),
-        hierarchical_memsw_limit: *raw.get("hierarchical_memsw_limit").unwrap_or(&0),
+        hierarchical_memory_limit: *raw.get("hierarchical_memory_limit").unwrap_or(&0) as i64,
+        hierarchical_memsw_limit: *raw.get("hierarchical_memsw_limit").unwrap_or(&0) as i64,
         total_cache: *raw.get("total_cache").unwrap_or(&0),
         total_rss: *raw.get("total_rss").unwrap_or(&0),
         total_rss_huge: *raw.get("total_rss_huge").unwrap_or(&0),
@@ -326,7 +340,7 @@ pub struct MemSwap {
     /// How many times the limit has been hit.
     pub fail_cnt: u64,
     /// Memory and swap usage limit in bytes.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// Current usage of memory and swap in bytes.
     pub usage_in_bytes: u64,
     /// The maximum observed usage of memory and swap in bytes.
@@ -340,7 +354,7 @@ pub struct Memory {
     /// How many times the limit has been hit.
     pub fail_cnt: u64,
     /// The limit in bytes of the memory usage of the control group's tasks.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// The current usage of memory by the control group's tasks.
     pub usage_in_bytes: u64,
     /// The maximum observed usage of memory by the control group's tasks.
@@ -362,7 +376,7 @@ pub struct Memory {
     pub oom_control: OomControl,
     /// Allows setting a limit to memory usage which is enforced when the system (note, _not_ the
     /// control group) detects memory pressure.
-    pub soft_limit_in_bytes: u64,
+    pub soft_limit_in_bytes: i64,
     /// Contains a wide array of statistics about the memory usage of the tasks in the control
     /// group.
     pub stat: MemoryStat,
@@ -385,7 +399,7 @@ pub struct Tcp {
     pub fail_cnt: u64,
     /// The limit in bytes of the memory usage of the kernel's TCP buffers by control group's
     /// tasks.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// The current memory used by the kernel's TCP buffers related to these tasks.
     pub usage_in_bytes: u64,
     /// The observed maximum usage of memory by the kernel's TCP buffers (that originated from
@@ -402,7 +416,7 @@ pub struct Kmem {
     /// How many times the limit has been hit.
     pub fail_cnt: u64,
     /// The limit in bytes of the kernel memory used by the control group's tasks.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// The current usage of kernel memory used by the control group's tasks, in bytes.
     pub usage_in_bytes: u64,
     /// The maximum observed usage of kernel memory used by the control group's tasks, in bytes.
@@ -425,6 +439,10 @@ impl ControllerInternal for MemController {
         &self.base
     }
 
+    fn is_v2(&self) -> bool {
+        self.v2
+    }
+
     fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let memres: &MemoryResources = &res.memory;
@@ -444,13 +462,46 @@ impl ControllerInternal for MemController {
 
 impl MemController {
     /// Contructs a new `MemController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2 {
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2:   v2,
         }
+    }
+
+    // for v2
+    pub fn set_mem(&self, m: SetMemory) ->  Result<()> {
+        let values = vec![(m.high, "memory.high"),(m.low, "memory.low"),(m.max, "memory.max"),(m.min, "memory.min")];
+        for value in values{
+            let v = value.0;
+            let f = value.1;
+            if v.is_some() {
+                let v = v.unwrap();
+                let v = max_value_to_string(v);
+                self.open_path(f, true)
+                .and_then(|mut file| {
+                    file.write_all(v.as_ref())
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                })?;
+            }
+            }
+        Ok(())
+    }
+
+    // for v2
+    pub fn get_mem(&self) -> Result<SetMemory> {
+        let mut m: SetMemory = Default::default();
+        self.get_max_value("memory.high").map(|x| m.high = Some(x));
+        self.get_max_value("memory.low").map(|x| m.low = Some(x));
+        self.get_max_value("memory.max").map(|x| m.max = Some(x));
+        self.get_max_value("memory.min").map(|x| m.min = Some(x));
+
+        Ok(m)
     }
 
     /// Gathers overall statistics (and the current state of) about the memory usage of the control
@@ -466,7 +517,7 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             usage_in_bytes: self
                 .open_path("memory.usage_in_bytes", false)
@@ -492,7 +543,7 @@ impl MemController {
                 .unwrap_or(OomControl::default()),
             soft_limit_in_bytes: self
                 .open_path("memory.soft_limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             stat: self
                 .open_path("memory.stat", false)
@@ -519,8 +570,8 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.kmem.limit_in_bytes", false)
-                .and_then(read_u64_from)
-                .unwrap_or(0),
+                .and_then(read_i64_from)
+                .unwrap_or(-1),
             usage_in_bytes: self
                 .open_path("memory.kmem.usage_in_bytes", false)
                 .and_then(read_u64_from)
@@ -546,7 +597,7 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.kmem.tcp.limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             usage_in_bytes: self
                 .open_path("memory.kmem.tcp.usage_in_bytes", false)
@@ -569,7 +620,7 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.memsw.limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             usage_in_bytes: self
                 .open_path("memory.memsw.usage_in_bytes", false)
@@ -618,7 +669,7 @@ impl MemController {
     }
 
     /// Set the memory usage limit of the control group, in bytes.
-    pub fn set_limit(&self, limit: u64) -> Result<()> {
+    pub fn set_limit(&self, limit: i64) -> Result<()> {
         self.open_path("memory.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -627,7 +678,7 @@ impl MemController {
     }
 
     /// Set the kernel memory limit of the control group, in bytes.
-    pub fn set_kmem_limit(&self, limit: u64) -> Result<()> {
+    pub fn set_kmem_limit(&self, limit: i64) -> Result<()> {
         self.open_path("memory.kmem.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -636,7 +687,7 @@ impl MemController {
     }
 
     /// Set the memory+swap limit of the control group, in bytes.
-    pub fn set_memswap_limit(&self, limit: u64) -> Result<()> {
+    pub fn set_memswap_limit(&self, limit: i64) -> Result<()> {
         self.open_path("memory.memsw.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -645,7 +696,7 @@ impl MemController {
     }
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
-    pub fn set_tcp_limit(&self, limit: u64) -> Result<()> {
+    pub fn set_tcp_limit(&self, limit: i64) -> Result<()> {
         self.open_path("memory.kmem.tcp.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -657,7 +708,7 @@ impl MemController {
     ///
     /// This limit is enforced when the system is nearing OOM conditions. Contrast this with the
     /// hard limit, which is _always_ enforced.
-    pub fn set_soft_limit(&self, limit: u64) -> Result<()> {
+    pub fn set_soft_limit(&self, limit: i64) -> Result<()> {
         self.open_path("memory.soft_limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -683,6 +734,14 @@ impl MemController {
                 file.write_all("1".to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
+    }
+
+    pub fn register_oom_event(&self, key: &str) -> Result<Receiver<String>>{
+        if self.v2{
+            events::notify_on_oom_v2(key, self.get_path())
+        }else {
+            events::notify_on_oom_v1(key, self.get_path())
+        }
     }
 }
 
@@ -717,6 +776,17 @@ fn read_u64_from(mut file: File) -> Result<u64> {
     }
 }
 
+fn read_i64_from(mut file: File) -> Result<i64> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+    }
+}
+
 fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
@@ -727,6 +797,7 @@ fn read_string_from(mut file: File) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use crate::memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
@@ -830,6 +901,7 @@ total_unevictable 81920
     #[test]
     fn test_parse_memory_stat() {
         let ok = parse_memory_stat(GOOD_MEMORYSTAT_VAL.to_string()).unwrap();
+        let raw = ok.raw.clone();
         assert_eq!(
             ok,
             MemoryStat {
@@ -869,6 +941,7 @@ total_unevictable 81920
                 total_inactive_file: 1272135680,
                 total_active_file: 2338816000,
                 total_unevictable: 81920,
+                raw: raw,
             }
         );
     }

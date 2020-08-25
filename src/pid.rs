@@ -10,7 +10,7 @@ use crate::error::*;
 use crate::error::ErrorKind::*;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, PidResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, MaxValue, max_value_to_string, parse_max_value, PidResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `pids` subsystem of a Cgroup.
@@ -18,22 +18,7 @@ use crate::{
 pub struct PidController {
     base: PathBuf,
     path: PathBuf,
-}
-
-/// The values found in the `pids.max` file in a Cgroup's `pids` subsystem.
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
-pub enum PidMax {
-    /// This value is returned when the text found `pids.max` is `"max"`.
-    Max,
-    /// When the value in `pids.max` is a numerical value, they are returned via this enum field.
-    Value(i64),
-}
-
-impl Default for PidMax {
-    /// By default, (as per the kernel) `pids.max` should contain `"max"`.
-    fn default() -> Self {
-        PidMax::Max
-    }
+    v2:   bool,
 }
 
 impl ControllerInternal for PidController {
@@ -48,6 +33,10 @@ impl ControllerInternal for PidController {
     }
     fn get_base(&self) -> &PathBuf {
         &self.base
+    }
+
+    fn is_v2(&self) -> bool {
+        self.v2
     }
 
     fn apply(&self, res: &Resources) -> Result<()> {
@@ -107,12 +96,15 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 impl PidController {
     /// Constructors a new `PidController` instance, with `oroot` serving as the controller's root
     /// directory.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2 {
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2:   v2,
         }
     }
 
@@ -140,19 +132,12 @@ impl PidController {
     }
 
     /// The maximum number of processes that can exist at one time in the control group.
-    pub fn get_pid_max(&self) -> Result<PidMax> {
+    pub fn get_pid_max(&self) -> Result<MaxValue> {
         self.open_path("pids.max", false).and_then(|mut file| {
             let mut string = String::new();
             let res = file.read_to_string(&mut string);
             match res {
-                Ok(_) => if string.trim() == "max" {
-                    Ok(PidMax::Max)
-                } else {
-                    match string.trim().parse() {
-                        Ok(val) => Ok(PidMax::Value(val)),
-                        Err(e) => Err(Error::with_cause(ParseError, e)),
-                    }
-                },
+                Ok(_) => parse_max_value(&string),
                 Err(e) => Err(Error::with_cause(ReadFailed, e)),
             }
         })
@@ -163,12 +148,9 @@ impl PidController {
     /// Note that if `get_pid_current()` returns a higher number than what you
     /// are about to set (`max_pid`), then no processess will be killed. Additonally, attaching
     /// extra processes to a control group disregards the limit.
-    pub fn set_pid_max(&self, max_pid: PidMax) -> Result<()> {
+    pub fn set_pid_max(&self, max_pid: MaxValue) -> Result<()> {
         self.open_path("pids.max", true).and_then(|mut file| {
-            let string_to_write = match max_pid {
-                PidMax::Max => "max".to_string(),
-                PidMax::Value(num) => num.to_string(),
-            };
+            let string_to_write = max_value_to_string(max_pid);
             match file.write_all(string_to_write.as_ref()) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(Error::with_cause(WriteFailed, e)),

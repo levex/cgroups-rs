@@ -23,6 +23,7 @@ use crate::{
 pub struct CpuSetController {
     base: PathBuf,
     path: PathBuf,
+    v2:   bool,
 }
 
 /// The current state of the `cpuset` controller for this control group.
@@ -95,12 +96,18 @@ impl ControllerInternal for CpuSetController {
         &self.base
     }
 
+    fn is_v2(&self) -> bool {
+        self.v2
+    }
+
     fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &CpuResources = &res.cpu;
 
         if res.update_values {
-            let _ = self.set_cpus(&res.cpus);
+            if res.cpus.is_some(){
+                let _ = self.set_cpus(res.cpus.as_ref().unwrap().as_str());
+            }
             let _ = self.set_mems(&res.mems);
         }
 
@@ -108,6 +115,9 @@ impl ControllerInternal for CpuSetController {
     }
 
     fn post_create(&self){
+        if self.is_v2(){
+            return
+        }
         let current = self.get_path();
         let parent = match current.parent() {
             Some(p) => p,
@@ -246,12 +256,15 @@ fn parse_range(s: String) -> Result<Vec<(u64, u64)>> {
 
 impl CpuSetController {
     /// Contructs a new `CpuSetController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2{
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2: v2,
         }
     }
 

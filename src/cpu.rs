@@ -23,6 +23,7 @@ use crate::{
 pub struct CpuController {
     base: PathBuf,
     path: PathBuf,
+    v2:   bool,
 }
 
 /// The current state of the control group and its processes.
@@ -49,6 +50,10 @@ impl ControllerInternal for CpuController {
 
     fn get_base(&self) -> &PathBuf {
         &self.base
+    }
+
+    fn is_v2(&self) -> bool {
+        self.v2
     }
 
     fn apply(&self, res: &Resources) -> Result<()> {
@@ -109,12 +114,15 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 
 impl CpuController {
     /// Contructs a new `CpuController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2 {
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2:   v2,
         }
     }
 
