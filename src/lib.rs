@@ -120,6 +120,11 @@ mod sealed {
         fn get_path_mut(&mut self) -> &mut PathBuf;
         fn get_base(&self) -> &PathBuf;
 
+        /// Hooks running after controller crated, if have
+        fn post_create(&self){
+        }
+
+
         fn verify_path(&self) -> Result<()> {
             if self.get_path().starts_with(self.get_base()) {
                 Ok(())
@@ -211,7 +216,7 @@ impl<T> Controller for T where T: ControllerInternal {
         self.verify_path().expect("path should be valid");
 
         match ::std::fs::create_dir(self.get_path()) {
-            Ok(_) => (),
+            Ok(_) => self.post_create(),
             Err(e) => warn!("error create_dir {:?}", e),
         }
     }
