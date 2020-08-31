@@ -233,7 +233,7 @@ impl<T> Controller for T where T: ControllerInternal {
     fn create(&self) {
         self.verify_path().expect("path should be valid");
 
-        match ::std::fs::create_dir(self.get_path()) {
+        match ::std::fs::create_dir_all(self.get_path()) {
             Ok(_) => self.post_create(),
             Err(e) => warn!("error create_dir {:?}", e),
         }
