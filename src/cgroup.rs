@@ -4,6 +4,7 @@ use crate::error::*;
 
 use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
+use std::collections::HashMap;
 use std::convert::From;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -41,6 +42,10 @@ impl<'b> Cgroup<'b> {
         }
     }
 
+    pub fn v2(&self) -> bool {
+        self.hier.v2()
+    }
+
     /// Create a new control group in the hierarchy `hier`, with name `path`.
     ///
     /// Returns a handle to the control group that can be used to manipulate it.
@@ -67,6 +72,42 @@ impl<'b> Cgroup<'b> {
             subsystems = subsystems
                 .into_iter()
                 .map(|x| x.enter(path))
+                .collect::<Vec<_>>();
+        }
+
+        let cg = Cgroup {
+            subsystems: subsystems,
+            hier: hier,
+            path: path.to_str().unwrap().to_string(),
+        };
+
+        cg
+    }
+
+    pub fn new_with_prefix<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, prefixes: HashMap<String, String>) -> Cgroup<'b> {
+        let cg = Cgroup::load_with_prefix(hier, path, prefixes);
+        cg.create();
+        cg
+    }
+
+    pub fn load_with_prefix<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, prefixes: HashMap<String, String>) -> Cgroup<'b> {
+        let path = path.as_ref();
+        let mut subsystems = hier.subsystems();
+        if path.as_os_str() != "" {
+            subsystems = subsystems
+                .into_iter()
+                .map(|x| {
+                    let cn = x.controller_name();
+                    if prefixes.contains_key(&cn) {
+                        let prefix = prefixes.get(&cn).unwrap();
+                        let valid_path = prefix.trim_start_matches("/").to_string();
+                        let mut p = PathBuf::from(valid_path);
+                        p.push(path);
+                        x.enter(p.as_ref())
+                    }else {
+                        x.enter(path)
+                    }
+                })
                 .collect::<Vec<_>>();
         }
 
@@ -175,6 +216,16 @@ impl<'b> Cgroup<'b> {
 
 pub const UNIFIED_MOUNTPOINT: &'static str = "/sys/fs/cgroup";
 
+fn enable_controllers(controllers: &Vec<String>, path: &PathBuf) {
+    let mut f = path.clone();
+    f.push("cgroup.subtree_control");
+    for c in controllers{
+        let body = format!("+{}", c);
+        // FIXME set mode to 0644
+        let _rest = fs::write(f.as_path(), body.as_bytes());
+    }
+}
+
 fn supported_controllers(p: &PathBuf) -> Vec<String>{
     let p = format!("{}/{}", UNIFIED_MOUNTPOINT, "cgroup.controllers");
     let ret = fs::read_to_string(p.as_str());
@@ -185,6 +236,9 @@ fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
     // controler list ["memory", "cpu"]
 	let controllers = supported_controllers(&root);
     let mut fp = root;
+
+    // enable for root
+    enable_controllers(&controllers, &fp);
 
     // path: "a/b/c"
     let elements = path.split("/").collect::<Vec<&str>>();
@@ -203,13 +257,7 @@ fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
 
         if i < last_index {
             // enable controllers for substree
-            let mut f = fp.clone();
-            f.push("cgroup.subtree_control");
-            for c in &controllers{
-                let body = format!("+{}", c);
-                // FIXME set mode to 0644
-                let _rest = fs::write(f.as_path(), body.as_bytes());
-            }
+            enable_controllers(&controllers, &fp);
         }
     }
 

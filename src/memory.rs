@@ -13,10 +13,8 @@ use crate::error::*;
 use crate::events;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, MaxValue, MemoryResources, Resources, Subsystem,
 };
-
-use crate::{MaxValue, max_value_to_string, parse_max_value};
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
 ///
@@ -481,8 +479,7 @@ impl MemController {
             let v = value.0;
             let f = value.1;
             if v.is_some() {
-                let v = v.unwrap();
-                let v = max_value_to_string(v);
+                let v = v.unwrap().to_string();
                 self.open_path(f, true)
                 .and_then(|mut file| {
                     file.write_all(v.as_ref())
@@ -504,12 +501,44 @@ impl MemController {
         Ok(m)
     }
 
+    fn memory_stat_v2(&self) -> Memory {
+        let set = self.get_mem().unwrap();
+
+        Memory {
+            fail_cnt: 0,
+            limit_in_bytes: set.max.unwrap().to_i64(),
+            usage_in_bytes: self
+                .open_path("memory.current", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: 0,
+            move_charge_at_immigrate: 0,
+            numa_stat: NumaStat::default(),
+            oom_control: OomControl::default(),
+            soft_limit_in_bytes: set.high.unwrap().to_i64(),
+            stat: self
+                .open_path("memory.stat", false)
+                .and_then(read_string_from)
+                .and_then(parse_memory_stat)
+                .unwrap_or(MemoryStat::default()),
+            swappiness: self
+                .open_path("memory.swap.current", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            use_hierarchy: 0,
+        }
+    }
+
     /// Gathers overall statistics (and the current state of) about the memory usage of the control
     /// group's tasks.
     ///
     /// See the individual fields for more explanation, and as always, remember to consult the
     /// kernel Documentation and/or sources.
     pub fn memory_stat(&self) -> Memory {
+        if self.v2 {
+            return self.memory_stat_v2();
+        }
+
         Memory {
             fail_cnt: self
                 .open_path("memory.failcnt", false)
@@ -670,7 +699,11 @@ impl MemController {
 
     /// Set the memory usage limit of the control group, in bytes.
     pub fn set_limit(&self, limit: i64) -> Result<()> {
-        self.open_path("memory.limit_in_bytes", true)
+        let mut file = "memory.limit_in_bytes";
+        if self.v2 {
+            file = "memory.max";
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
@@ -688,7 +721,11 @@ impl MemController {
 
     /// Set the memory+swap limit of the control group, in bytes.
     pub fn set_memswap_limit(&self, limit: i64) -> Result<()> {
-        self.open_path("memory.memsw.limit_in_bytes", true)
+        let mut file = "memory.memsw.limit_in_bytes";
+        if self.v2 {
+            file = "memory.swap.max";
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
@@ -709,7 +746,11 @@ impl MemController {
     /// This limit is enforced when the system is nearing OOM conditions. Contrast this with the
     /// hard limit, which is _always_ enforced.
     pub fn set_soft_limit(&self, limit: i64) -> Result<()> {
-        self.open_path("memory.soft_limit_in_bytes", true)
+        let mut file = "memory.soft_limit_in_bytes";
+        if self.v2 {
+            file = "memory.low"
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))

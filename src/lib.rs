@@ -231,7 +231,7 @@ impl<T> Controller for T where T: ControllerInternal {
 
     /// Create this controller
     fn create(&self) {
-        self.verify_path().expect("path should be valid");
+        self.verify_path().expect(format!("path should be valid: {:?}", self.path()).as_str());
 
         match ::std::fs::create_dir_all(self.get_path()) {
             Ok(_) => self.post_create(),
@@ -253,7 +253,11 @@ impl<T> Controller for T where T: ControllerInternal {
 
     /// Attach a task to this controller.
     fn add_task(&self, pid: &CgroupPid) -> Result<()> {
-        self.open_path("tasks", true).and_then(|mut file| {
+        let mut file = "tasks";
+        if self.is_v2() {
+            file = "cgroup.procs";
+        }
+        self.open_path(file, true).and_then(|mut file| {
             file.write_all(pid.pid.to_string().as_ref())
                 .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
         })
@@ -261,7 +265,11 @@ impl<T> Controller for T where T: ControllerInternal {
 
     /// Get the list of tasks that this controller has.
     fn tasks(&self) -> Vec<CgroupPid> {
-        self.open_path("tasks", false)
+        let mut file = "tasks";
+        if self.is_v2() {
+            file = "cgroup.procs";
+        }
+        self.open_path(file, false)
             .and_then(|file| {
                 let bf = BufReader::new(file);
                 let mut v = Vec::new();
@@ -608,6 +616,10 @@ impl Subsystem {
             Subsystem::Rdma(cont) => cont,
         }
     }
+
+    fn controller_name(&self) -> String {
+        self.to_controller().control_type().to_string()
+    }
 }
 
 
@@ -627,6 +639,22 @@ impl Default for MaxValue {
     }
 }
 
+impl MaxValue {
+    fn to_i64(&self) -> i64 {
+        match self {
+            MaxValue::Max => -1,
+            MaxValue::Value(num) => *num,
+        }
+    }
+
+    fn to_string(&self) -> String {
+        match self {
+            MaxValue::Max => "max".to_string(),
+            MaxValue::Value(num) => num.to_string(),
+        }
+    }
+}
+
 pub fn parse_max_value(s: &String) -> Result<MaxValue> {
     if s.trim() == "max" {
        return Ok(MaxValue::Max)
@@ -634,12 +662,5 @@ pub fn parse_max_value(s: &String) -> Result<MaxValue> {
     match s.trim().parse() {
         Ok(val) => Ok(MaxValue::Value(val)),
         Err(e) => Err(Error::with_cause(ParseError, e)),
-    }
-}
-
-pub fn max_value_to_string(m: MaxValue) -> String {
-    match m {
-        MaxValue::Max => "max".to_string(),
-        MaxValue::Value(num) => num.to_string(),
     }
 }

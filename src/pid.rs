@@ -10,7 +10,7 @@ use crate::error::*;
 use crate::error::ErrorKind::*;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, MaxValue, max_value_to_string, parse_max_value, PidResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, MaxValue, parse_max_value, PidResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `pids` subsystem of a Cgroup.
@@ -150,7 +150,7 @@ impl PidController {
     /// extra processes to a control group disregards the limit.
     pub fn set_pid_max(&self, max_pid: MaxValue) -> Result<()> {
         self.open_path("pids.max", true).and_then(|mut file| {
-            let string_to_write = max_value_to_string(max_pid);
+            let string_to_write = max_pid.to_string();
             match file.write_all(string_to_write.as_ref()) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(Error::with_cause(WriteFailed, e)),
