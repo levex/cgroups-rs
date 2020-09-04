@@ -22,6 +22,7 @@ use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subs
 pub struct FreezerController {
     base: PathBuf,
     path: PathBuf,
+    v2:    bool,
 }
 
 /// The current state of the control group
@@ -75,40 +76,62 @@ impl<'a> From<&'a Subsystem> for &'a FreezerController {
 
 impl FreezerController {
     /// Contructs a new `FreezerController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2 {
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2:   v2,
         }
     }
 
     /// Freezes the processes in the control group.
     pub fn freeze(&self) -> Result<()> {
-        self.open_path("freezer.state", true).and_then(|mut file| {
-            file.write_all("FROZEN".to_string().as_ref())
+        let mut file = "freezer.state";
+        let mut content = "FROZEN".to_string();
+        if self.v2 {
+            file = "cgroup.freeze";
+            content = "1".to_string();
+        }
+
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(content.as_ref())
                 .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
     /// Thaws, that is, unfreezes the processes in the control group.
     pub fn thaw(&self) -> Result<()> {
-        self.open_path("freezer.state", true).and_then(|mut file| {
-            file.write_all("THAWED".to_string().as_ref())
+        let mut file = "freezer.state";
+        let mut content = "THAWED".to_string();
+        if self.v2 {
+            file = "cgroup.freeze";
+            content = "0".to_string();
+        }
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(content.as_ref())
                 .map_err(|e| Error::with_cause(WriteFailed, e))
         })
     }
 
     /// Retrieve the state of processes in the control group.
     pub fn state(&self) -> Result<FreezerState> {
-        self.open_path("freezer.state", false).and_then(|mut file| {
+        let mut file = "freezer.state";
+        if self.v2 {
+            file = "cgroup.freeze";
+        }
+        self.open_path(file, false).and_then(|mut file| {
             let mut s = String::new();
             let res = file.read_to_string(&mut s);
             match res {
                 Ok(_) => match s.as_ref() {
                     "FROZEN" => Ok(FreezerState::Frozen),
                     "THAWED" => Ok(FreezerState::Thawed),
+                    "1" => Ok(FreezerState::Frozen),
+                    "0" => Ok(FreezerState::Thawed),
                     "FREEZING" => Ok(FreezerState::Freezing),
                     _ => Err(Error::new(ParseError)),
                 },

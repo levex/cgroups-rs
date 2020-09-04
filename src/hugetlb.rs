@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::flat_keyed_to_vec;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources,
@@ -118,8 +119,22 @@ impl HugeTlbController {
         self.sizes.clone()
     }
 
+    fn failcnt_v2(&self, hugetlb_size: &str) -> Result<u64> {
+        self.open_path(&format!("hugetlb.{}.events", hugetlb_size), false)
+            .and_then(flat_keyed_to_vec)
+            .and_then(|x| {
+                if x.len() == 0 {
+                    return Err(Error::from_string(format!("get empty from hugetlb.{}.events", hugetlb_size)));
+                }
+                Ok(x[0].1 as u64)
+            })
+    }
+
     /// Check how many times has the limit of `hugetlb_size` hugepages been hit.
     pub fn failcnt(&self, hugetlb_size: &str) -> Result<u64> {
+        if self.v2 {
+            return self.failcnt_v2(hugetlb_size);
+        }
         self.open_path(&format!("hugetlb.{}.failcnt", hugetlb_size), false)
             .and_then(read_u64_from)
     }
@@ -134,8 +149,11 @@ impl HugeTlbController {
     /// Get the current usage of memory that is backed by hugepages of a certain size
     /// (`hugetlb_size`).
     pub fn usage_in_bytes(&self, hugetlb_size: &str) -> Result<u64> {
-        self.open_path(&format!("hugetlb.{}.usage_in_bytes", hugetlb_size), false)
-            .and_then(read_u64_from)
+        let mut file = format!("hugetlb.{}.usage_in_bytes", hugetlb_size);
+        if self.v2 {
+            file = format!("hugetlb.{}.current", hugetlb_size);
+        }
+        self.open_path(&file, false).and_then(read_u64_from)
     }
 
     /// Get the maximum observed usage of memory that is backed by hugepages of a certain size
@@ -150,7 +168,11 @@ impl HugeTlbController {
     /// Set the limit (in bytes) of how much memory can be backed by hugepages of a certain size
     /// (`hugetlb_size`).
     pub fn set_limit_in_bytes(&self, hugetlb_size: &str, limit: u64) -> Result<()> {
-        self.open_path(&format!("hugetlb.{}.limit_in_bytes", hugetlb_size), true)
+        let mut file = format!("hugetlb.{}.limit_in_bytes", hugetlb_size);
+        if self.v2 {
+            file = format!("hugetlb.{}.max", hugetlb_size);
+        }
+        self.open_path(&file, true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))

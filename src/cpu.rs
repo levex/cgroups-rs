@@ -61,7 +61,6 @@ impl ControllerInternal for CpuController {
         let res: &CpuResources = &res.cpu;
 
         if res.update_values {
-            // apply pid_max
             let _ = self.set_shares(res.shares);
             if self.shares()? != res.shares as u64 {
                 return Err(Error::new(ErrorKind::Other));
@@ -163,7 +162,11 @@ impl CpuController {
     /// Retrieve the CPU bandwidth that this control group (relative to other control groups and
     /// this control group's parent) can use.
     pub fn shares(&self) -> Result<u64> {
-        self.open_path("cpu.shares", false).and_then(read_u64_from)
+        let mut file = "cpu.shares";
+        if self.v2 {
+            file = "cpu.weight";
+        }
+        self.open_path(file, false).and_then(read_u64_from)
     }
 
     /// Specify a period (when using the CFS scheduler) of time in microseconds for how often this

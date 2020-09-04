@@ -8,6 +8,11 @@ use cgroups::error::*;
 
 #[test]
 fn test_hugetlb_sizes() {
+    // no only v2
+    if cgroups::hierarchies::is_cgroup2_unified_mode() {
+        return
+    }
+
     let h = cgroups::hierarchies::auto();
     let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("test_hugetlb_sizes"));

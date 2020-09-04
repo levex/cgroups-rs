@@ -54,6 +54,28 @@ pub struct IoService {
     pub total: u64,
 }
 
+#[derive(Eq, PartialEq, Debug)]
+/// Per-device activity from the control group.
+/// Only for cgroup v2
+pub struct IoStat {
+    /// The major number of the device.
+    pub major: i16,
+    /// The minor number of the device.
+    pub minor: i16,
+    /// How many bytes were read from the device.
+    pub rbytes: u64,
+    /// How many bytes were written to the device.
+    pub wbytes: u64,
+    /// How many iops were read from the device.
+    pub rios: u64,
+    /// How many iops were written to the device.
+    pub wios: u64,
+    /// How many discard bytes were read from the device.
+    pub dbytes: u64,
+    /// How many discard iops were written to the device.
+    pub dios: u64,
+}
+
 fn parse_io_service(s: String) -> Result<Vec<IoService>> {
     s.lines()
         .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 3)
@@ -93,6 +115,40 @@ fn parse_io_service(s: String) -> Result<Vec<IoService>> {
                 Ok(acc)
             }
         })
+}
+
+fn get_value(s: &str) -> String {
+    let arr  = s.split(':').collect::<Vec<&str>>();
+    if arr.len() != 2 {
+        return "0".to_string();
+    }
+    arr[1].to_string()
+}
+
+fn parse_io_stat(s: String) -> Result<Vec<IoStat>> {
+    // line:
+    // 8:0 rbytes=180224 wbytes=0 rios=3 wios=0 dbytes=0 dios=0
+    let v = s.lines()
+        .filter(|x| x.split_whitespace().collect::<Vec<_>>().len() == 7)
+        .map(|x| {
+            let arr = x.split_whitespace().collect::<Vec<&str>>();
+            let device = arr[0].split(":").collect::<Vec<&str>>();
+            let (major, minor) = (device[0], device[1]);
+
+            IoStat {
+                major: major.parse::<i16>().unwrap(),
+                minor: minor.parse::<i16>().unwrap(),
+                rbytes: get_value(arr[1]).parse::<u64>().unwrap(),
+                wbytes: get_value(arr[2]).parse::<u64>().unwrap(),
+                rios: get_value(arr[3]).parse::<u64>().unwrap(),
+                wios: get_value(arr[4]).parse::<u64>().unwrap(),
+                dbytes: get_value(arr[5]).parse::<u64>().unwrap(),
+                dios: get_value(arr[6]).parse::<u64>().unwrap(),
+            }
+        })
+        .collect::<Vec<IoStat>>();
+
+    Ok(v)
 }
 
 fn parse_io_service_total(s: String) -> Result<u64> {
@@ -142,7 +198,7 @@ fn parse_blkio_data(s: String) -> Result<Vec<BlkIoData>> {
 
 /// Current state and statistics about how throttled are the block devices when accessed from the
 /// controller's control group.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct BlkIoThrottle {
     /// Statistics about the bytes transferred between the block devices by the tasks in this
     /// control group.
@@ -177,7 +233,7 @@ pub struct BlkIoThrottle {
 }
 
 /// Statistics and state of the block devices.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct BlkIo {
     /// The number of BIOS requests merged into I/O requests by the control group's tasks.
     pub io_merged: Vec<IoService>,
@@ -254,6 +310,9 @@ pub struct BlkIo {
     pub weight: u64,
     /// Same as `weight`, but per-block-device.
     pub weight_device: Vec<BlkIoData>,
+
+    /// IoStat for cgroup v2
+    pub io_stat: Vec<IoStat>,
 }
 
 impl ControllerInternal for BlkIoController {
@@ -279,12 +338,20 @@ impl ControllerInternal for BlkIoController {
         let res: &BlkIoResources = &res.blkio;
 
         if res.update_values {
-            let _ = self.set_weight(res.weight as u64);
-            let _ = self.set_leaf_weight(res.leaf_weight as u64);
+            if res.weight.is_some() {
+                let _ = self.set_weight(res.weight.unwrap() as u64);
+            }
+            if res.leaf_weight.is_some() {
+                let _ = self.set_leaf_weight(res.leaf_weight.unwrap() as u64);
+            }
 
             for dev in &res.weight_device {
-                let _ = self.set_weight_for_device(dev.major, dev.minor, dev.weight as u64);
-                let _ = self.set_leaf_weight_for_device(dev.major, dev.minor, dev.leaf_weight as u64);
+                if dev.weight.is_some(){
+                    let _ = self.set_weight_for_device(dev.major, dev.minor, dev.weight.unwrap() as u64);
+                }
+                if dev.leaf_weight.is_some(){
+                    let _ = self.set_leaf_weight_for_device(dev.major, dev.minor, dev.leaf_weight.unwrap() as u64);
+                }
             }
 
             for dev in &res.throttle_read_bps_device {
@@ -358,9 +425,23 @@ impl BlkIoController {
         }
     }
 
+    fn blkio_v2(&self) -> BlkIo {
+        let mut blkio: BlkIo = Default::default();
+        blkio.io_stat = self
+                .open_path("io.stat", false)
+                .and_then(read_string_from)
+                .and_then(parse_io_stat)
+                .unwrap_or(Vec::new());
+
+        blkio
+    }
+
     /// Gathers statistics about and reports the state of the block devices used by the control
     /// group's tasks.
     pub fn blkio(&self) -> BlkIo {
+        if self.v2 {
+            return self.blkio_v2();
+        }
         BlkIo {
             io_merged: self
                 .open_path("blkio.io_merged", false)
@@ -582,6 +663,7 @@ impl BlkIoController {
                 .and_then(read_string_from)
                 .and_then(parse_blkio_data)
                 .unwrap_or(Vec::new()),
+            io_stat: Vec::new(),
         }
     }
 
@@ -626,9 +708,15 @@ impl BlkIoController {
         minor: u64,
         bps: u64,
     ) -> Result<()> {
-        self.open_path("blkio.throttle.read_bps_device", true)
+        let mut file = "blkio.throttle.read_bps_device";
+        let mut content = format!("{}:{} {}", major, minor, bps);
+        if self.v2 {
+            file = "io.max";
+            content = format!("{}:{} rbps={}", major, minor, bps);
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
-                file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
+                file.write_all(content.as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
@@ -641,9 +729,15 @@ impl BlkIoController {
         minor: u64,
         iops: u64,
     ) -> Result<()> {
-        self.open_path("blkio.throttle.read_iops_device", true)
+        let mut file = "blkio.throttle.read_iops_device";
+        let mut content = format!("{}:{} {}", major, minor, iops);
+        if self.v2 {
+            file = "io.max";
+            content = format!("{}:{} riops={}", major, minor, iops);
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
-                file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
+                file.write_all(content.as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
@@ -655,9 +749,15 @@ impl BlkIoController {
         minor: u64,
         bps: u64,
     ) -> Result<()> {
-        self.open_path("blkio.throttle.write_bps_device", true)
+        let mut file = "blkio.throttle.write_bps_device";
+        let mut content = format!("{}:{} {}", major, minor, bps);
+        if self.v2 {
+            file = "io.max";
+            content = format!("{}:{} wbps={}", major, minor, bps);
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
-                file.write_all(format!("{}:{} {}", major, minor, bps).to_string().as_ref())
+                file.write_all(content.as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
@@ -670,16 +770,27 @@ impl BlkIoController {
         minor: u64,
         iops: u64,
     ) -> Result<()> {
-        self.open_path("blkio.throttle.write_iops_device", true)
+        let mut file = "blkio.throttle.write_iops_device";
+        let mut content = format!("{}:{} {}", major, minor, iops);
+        if self.v2 {
+            file = "io.max";
+            content = format!("{}:{} riops={}", major, minor, iops);
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
-                file.write_all(format!("{}:{} {}", major, minor, iops).to_string().as_ref())
+                file.write_all(content.as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
 
     /// Set the weight of the control group's tasks.
     pub fn set_weight(&self, w: u64) -> Result<()> {
-        self.open_path("blkio.weight", true)
+        // FIXME: not find in high kernel version.
+        let mut file = "blkio.weight";
+        if self.v2 {
+            file = "io.bfq.weight";
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
                 file.write_all(w.to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
@@ -693,7 +804,13 @@ impl BlkIoController {
         minor: u64,
         weight: u64,
     ) -> Result<()> {
-        self.open_path("blkio.weight_device", true)
+        let mut file = "blkio.weight_device";
+        if self.v2 {
+            // FIXME why is there no weight for device in runc ?
+            // https://github.com/opencontainers/runc/blob/46be7b612e2533c494e6a251111de46d8e286ed5/libcontainer/cgroups/fs2/io.go#L30
+            file = "io.bfq.weight";
+        }
+        self.open_path(file, true)
             .and_then(|mut file| {
                 file.write_all(format!("{}:{} {}", major, minor, weight).as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))

@@ -65,13 +65,13 @@ fn test_pid_events_is_not_zero() {
         match fork() {
             Ok(ForkResult::Parent { child, .. }) => {
                 // move the process into the control group
-                pids.add_task(&(pid_t::from(child) as u64).into());
+                let _ = pids.add_task(&(pid_t::from(child) as u64).into());
 
                 println!("added task to cg: {:?}", child);
 
                 // Set limit to one
-                pids.set_pid_max(MaxValue::Value(1));
-                println!("err = {:?}", pids.get_pid_max());
+                let _ = pids.set_pid_max(MaxValue::Value(1));
+                println!("current pid.max = {:?}", pids.get_pid_max());
 
                 // wait on the child
                 let res = waitpid(child, None);

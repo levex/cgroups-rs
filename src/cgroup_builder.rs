@@ -13,8 +13,9 @@
 //! # use cgroups::*;
 //! # use cgroups::devices::*;
 //! # use cgroups::cgroup_builder::*;
-//! let v1 = cgroups::hierarchies::V1::new();
-//! let cgroup: Cgroup = CgroupBuilder::new("hello", &v1)
+//! let h = cgroups::hierarchies::auto();
+//! let h = Box::new(&*h);
+//! let cgroup: Cgroup = CgroupBuilder::new("hello", h)
 //!      .memory()
 //!          .kernel_memory_limit(1024 * 1024)
 //!          .memory_hard_limit(1024 * 1024)
@@ -40,10 +41,10 @@
 //!          .limit("2G".to_string(), 2 * 1024 * 1024 * 1024)
 //!          .done()
 //!      .blkio()
-//!          .weight(123)
-//!          .leaf_weight(99)
-//!          .weight_device(6, 1, 100, 55)
-//!          .weight_device(6, 1, 100, 55)
+//!          .weight(Some(123))
+//!          .leaf_weight(Some(99))
+//!          .weight_device(6, 1, Some(100), Some(55))
+//!          .weight_device(6, 1, Some(100), Some(55))
 //!          .throttle_iops()
 //!              .read(6, 1, 10)
 //!              .write(11, 1, 100)
@@ -296,15 +297,15 @@ pub struct BlkIoResourcesBuilder<'a> {
 
 impl<'a> BlkIoResourcesBuilder<'a> {
 
-    gen_setter!(blkio, BlkIoController, set_weight, weight, u16);
-    gen_setter!(blkio, BlkIoController, set_leaf_weight, leaf_weight, u16);
+    gen_setter!(blkio, BlkIoController, set_weight, weight, Option<u16>);
+    gen_setter!(blkio, BlkIoController, set_leaf_weight, leaf_weight, Option<u16>);
 
     /// Set the weight of a certain device.
     pub fn weight_device(mut self,
                          major: u64,
                          minor: u64,
-                         weight: u16,
-                         leaf_weight: u16)
+                         weight: Option<u16>,
+                         leaf_weight: Option<u16>)
         -> BlkIoResourcesBuilder<'a> {
         self.cgroup.resources.blkio.update_values = true;
         self.cgroup.resources.blkio.weight_device.push(BlkIoDeviceResource {

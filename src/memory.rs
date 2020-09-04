@@ -12,6 +12,8 @@ use crate::error::ErrorKind::*;
 use crate::error::*;
 use crate::events;
 
+use crate::flat_keyed_to_hashmap;
+
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, MaxValue, MemoryResources, Resources, Subsystem,
 };
@@ -515,7 +517,7 @@ impl MemController {
             move_charge_at_immigrate: 0,
             numa_stat: NumaStat::default(),
             oom_control: OomControl::default(),
-            soft_limit_in_bytes: set.high.unwrap().to_i64(),
+            soft_limit_in_bytes: set.low.unwrap().to_i64(),
             stat: self
                 .open_path("memory.stat", false)
                 .and_then(read_string_from)
@@ -639,9 +641,33 @@ impl MemController {
         }
     }
 
+    pub fn memswap_v2(&self) -> MemSwap {
+        MemSwap {
+            fail_cnt: self
+                .open_path("memory.swap.events", false)
+                .and_then(flat_keyed_to_hashmap)
+                .and_then(|x| {
+                    Ok(*x.get("fail").unwrap_or(&0) as u64)
+                }).unwrap(),
+            limit_in_bytes: self
+                .open_path("memory.swap.max", false)
+                .and_then(read_i64_from)
+                .unwrap_or(0),
+            usage_in_bytes: self
+                .open_path("memory.swap.current", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: 0,
+        }
+    }
+
     /// Gathers information about the memory usage of the control group including the swap usage
     /// (if any).
     pub fn memswap(&self) -> MemSwap {
+        if self.v2 {
+            return self.memswap_v2();
+        }
+
         MemSwap {
             fail_cnt: self
                 .open_path("memory.memsw.failcnt", false)

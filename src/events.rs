@@ -24,7 +24,7 @@ pub fn notify_on_oom_v1(key: &str, dir: &PathBuf) -> Result<Receiver<String>> {
 }
 
 // level is one of "low", "medium", or "critical"
-fn notify_memory_pressure(key: &str, dir: &PathBuf, level: &str) -> Result<Receiver<String>> {
+pub fn notify_memory_pressure(key: &str, dir: &PathBuf, level: &str) -> Result<Receiver<String>> {
     if level != "low" && level != "medium" && level != "critical" {
         return Err(Error::from_string(format!("invalid pressure level {}", level)));
     }

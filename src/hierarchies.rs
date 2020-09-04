@@ -24,6 +24,7 @@ use crate::net_prio::NetPrioController;
 use crate::perf_event::PerfEventController;
 use crate::pid::PidController;
 use crate::rdma::RdmaController;
+use crate::systemd::SystemdController;
 use crate::{Controllers, Hierarchy, Subsystem};
 
 use crate::cgroup::Cgroup;
@@ -64,7 +65,7 @@ impl Hierarchy for V1 {
             subs.push(Subsystem::Devices(DevicesController::new(self.root())));
         }
         if self.check_support(Controllers::Freezer) {
-            subs.push(Subsystem::Freezer(FreezerController::new(self.root())));
+            subs.push(Subsystem::Freezer(FreezerController::new(self.root(), false)));
         }
         if self.check_support(Controllers::NetCls) {
             subs.push(Subsystem::NetCls(NetClsController::new(self.root())));
@@ -83,6 +84,9 @@ impl Hierarchy for V1 {
         }
         if self.check_support(Controllers::Rdma) {
             subs.push(Subsystem::Rdma(RdmaController::new(self.root())));
+        }
+        if self.check_support(Controllers::Systemd) {
+            subs.push(Subsystem::Systemd(SystemdController::new(self.root(), false)));
         }
 
         subs
@@ -116,16 +120,15 @@ impl Hierarchy for V2 {
     }
 
     fn subsystems(&self) -> Vec<Subsystem> {
-        let mut subs = vec![];
-
         let p = format!("{}/{}", UNIFIED_MOUNTPOINT, "cgroup.controllers");
         let ret = fs::read_to_string(p.as_str());
         if ret.is_err() {
-            return subs;
+            return vec![];
         }
 
-        let controllers = ret.unwrap().trim().to_string();
+        let mut subs = vec![];
 
+        let controllers = ret.unwrap().trim().to_string();
         let controller_list: Vec<&str> = controllers.split(' ').collect();
         
         for s in controller_list {
@@ -135,34 +138,11 @@ impl Hierarchy for V2 {
                 "cpuset" => {subs.push(Subsystem::CpuSet(CpuSetController::new(self.root(), true)));},
                 "memory" => {subs.push(Subsystem::Mem(MemController::new(self.root(), true)));},
                 "pids" => {subs.push(Subsystem::Pid(PidController::new(self.root(), true)));},
+                "freezer" => {subs.push(Subsystem::Freezer(FreezerController::new(self.root(), true)));},
+                "hugetlb" => {subs.push(Subsystem::HugeTlb(HugeTlbController::new(self.root(), true)));},
                 _ => {},
             }
         }
-
-        // if self.check_support(Controllers::CpuAcct) {
-        //     subs.push(Subsystem::CpuAcct(CpuAcctController::new(self.root())));
-        // }
-        // if self.check_support(Controllers::Devices) {
-        //     subs.push(Subsystem::Devices(DevicesController::new(self.root())));
-        // }
-        // if self.check_support(Controllers::Freezer) {
-        //     subs.push(Subsystem::Freezer(FreezerController::new(self.root())));
-        // }
-        // if self.check_support(Controllers::NetCls) {
-        //     subs.push(Subsystem::NetCls(NetClsController::new(self.root())));
-        // }
-        // if self.check_support(Controllers::PerfEvent) {
-        //     subs.push(Subsystem::PerfEvent(PerfEventController::new(self.root())));
-        // }
-        // if self.check_support(Controllers::NetPrio) {
-        //     subs.push(Subsystem::NetPrio(NetPrioController::new(self.root())));
-        // }
-        // if self.check_support(Controllers::HugeTlb) {
-        //     subs.push(Subsystem::HugeTlb(HugeTlbController::new(self.root(), true)));
-        // }
-        // if self.check_support(Controllers::Rdma) {
-        //     subs.push(Subsystem::Rdma(RdmaController::new(self.root())));
-        // }
 
         subs
     }

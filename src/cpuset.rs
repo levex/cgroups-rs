@@ -125,54 +125,57 @@ impl ControllerInternal for CpuSetController {
         };
 
         if current != self.get_base() {
-            match copy_from_parent(current.to_str().unwrap(), parent.to_str().unwrap()) {
+            match copy_from_parent(current.to_str().unwrap(), "cpuset.cpus") {
                 Ok(_)=>(),
-                Err(err) => error!("error create_dir {:?}", err),
+                Err(err) => error!("error create_dir for cpuset.cpus {:?}", err),
+            }
+            match copy_from_parent(current.to_str().unwrap(), "cpuset.mems") {
+                Ok(_)=>(),
+                Err(err) => error!("error create_dir for cpuset.mems {:?}", err),
             }
         }
     }
 }
 
+fn find_no_empty_parent(from: &str, file: &str) -> Result<(String, Vec<PathBuf>)> {
+    let mut current_path = ::std::path::Path::new(from).to_path_buf();
+    let mut v = vec![];
+
+    loop {
+        let current_value = match ::std::fs::read_to_string(current_path.clone().join(file).to_str().unwrap()) {
+            Ok(cpus) => String::from(cpus.trim()),
+            Err(e) => return Err(Error::with_cause(ReadFailed, e)),
+        };
+
+        if current_value != "" {
+            return Ok((current_value, v));
+        }
+        v.push(current_path.clone());
+
+        let parent = match current_path.parent() {
+            Some(p) => p,
+            None => return Ok(("".to_string(), v)),
+        };
+
+        // next loop, find parent
+        current_path = parent.to_path_buf();
+    }
+}
+
 /// copy_from_parent copy the cpuset.cpus and cpuset.mems from the parent
 /// directory to the current directory if the file's contents are 0
-fn copy_from_parent(current: &str, parent: &str) -> Result<()> {
-    let cpus_str: &str = "cpuset.cpus";
-    let mems_str: &str = "cpuset.mems";
+fn copy_from_parent(current: &str, file: &str) -> Result<()> {
+    // find not empty cpus/memes from current directory.
+    let (value, parents) = find_no_empty_parent(current, file)?;
 
-    let current_cpus_path = ::std::path::Path::new(current).join(cpus_str);
-    let current_mems_path = ::std::path::Path::new(current).join(mems_str);
-    let parent_cpus_path = ::std::path::Path::new(parent).join(cpus_str);
-    let parent_mems_path = ::std::path::Path::new(parent).join(mems_str);
-
-    let current_cpus = match ::std::fs::read_to_string(current_cpus_path.to_str().unwrap()) {
-        Ok(cpus) => String::from(cpus.trim()),
-        Err(e) => return Err(Error::with_cause(ReadFailed, e)),
-    };
-
-    let current_mems = match ::std::fs::read_to_string(current_mems_path.to_str().unwrap()) {
-        Ok(mems) => String::from(mems.trim()),
-        Err(e) => return Err(Error::with_cause(ReadFailed, e)),
-    };
-
-    let parent_cpus = match ::std::fs::read_to_string(parent_cpus_path.to_str().unwrap()) {
-        Ok(cpus) => cpus,
-        Err(e) => return Err(Error::with_cause(ReadFailed, e)),
-    };
-
-    let parent_mems = match ::std::fs::read_to_string(parent_mems_path.to_str().unwrap()) {
-        Ok(mems) => mems,
-        Err(e) => return Err(Error::with_cause(ReadFailed, e)),
-    };
-
-    if current_cpus == "" {
-        match ::std::fs::write(current_cpus_path.to_str().unwrap(), parent_cpus.as_bytes()) {
-            Ok(_) => (),
-            Err(e) => return Err(Error::with_cause(WriteFailed, e)),
-        }
+    if value == "" || parents.len() == 0 {
+        return Ok(());
     }
 
-    if current_mems == "" {
-        match ::std::fs::write(current_mems_path.to_str().unwrap(), parent_mems.as_bytes()) {
+    for p in parents.iter().rev() {
+        let mut pb = p.clone();
+        pb.push(file);
+        match ::std::fs::write(pb.to_str().unwrap(), value.as_bytes()) {
             Ok(_) => (),
             Err(e) => return Err(Error::with_cause(WriteFailed, e)),
         }

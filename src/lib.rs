@@ -1,5 +1,6 @@
 use log::*;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -21,6 +22,7 @@ pub mod net_prio;
 pub mod perf_event;
 pub mod pid;
 pub mod rdma;
+pub mod systemd;
 pub mod cgroup_builder;
 
 use crate::blkio::BlkIoController;
@@ -38,6 +40,7 @@ use crate::net_prio::NetPrioController;
 use crate::perf_event::PerfEventController;
 use crate::pid::PidController;
 use crate::rdma::RdmaController;
+use crate::systemd::SystemdController;
 
 pub use crate::cgroup::Cgroup;
 
@@ -70,6 +73,8 @@ pub enum Subsystem {
     HugeTlb(HugeTlbController),
     /// Controller for the `Rdma` subsystem, see `RdmaController` for more information.
     Rdma(RdmaController),
+    /// Controller for the `Systemd` subsystem, see `SystemdController` for more information.
+    Systemd(SystemdController),
 }
 
 #[doc(hidden)]
@@ -88,6 +93,7 @@ pub enum Controllers {
     NetPrio,
     HugeTlb,
     Rdma,
+    Systemd,
 }
 
 impl Controllers {
@@ -106,6 +112,7 @@ impl Controllers {
             Controllers::NetPrio => return "net_prio".to_string(),
             Controllers::HugeTlb => return "hugetlb".to_string(),
             Controllers::Rdma => return "rdma".to_string(),
+            Controllers::Systemd => return "systemd".to_string(),
         }
     }
 }
@@ -247,7 +254,7 @@ impl<T> Controller for T where T: ControllerInternal {
     /// Delete the controller.
     fn delete(&self) {
         if self.get_path().exists() {
-            let _ = ::std::fs::remove_dir(self.get_path());
+            libc_rmdir(self.get_path().to_str().unwrap());
         }
     }
 
@@ -452,9 +459,9 @@ pub struct BlkIoDeviceResource {
     /// The minor number of the device.
     pub minor: u64,
     /// The weight of the device against the descendant nodes.
-    pub weight: u16,
+    pub weight: Option<u16>,
     /// The weight of the device against the sibling nodes.
-    pub leaf_weight: u16,
+    pub leaf_weight: Option<u16>,
 }
 
 /// Provides the ability to throttle a device (both byte/sec, and IO op/s)
@@ -474,9 +481,9 @@ pub struct BlkIoResources {
     /// Whether values should be applied to the controller.
     pub update_values: bool,
     /// The weight of the control group against descendant nodes.
-    pub weight: u16,
+    pub weight: Option<u16>,
     /// The weight of the control group against sibling nodes.
-    pub leaf_weight: u16,
+    pub leaf_weight: Option<u16>,
     /// For each device, a separate weight (both normal and leaf) can be provided.
     pub weight_device: Vec<BlkIoDeviceResource>,
     /// Throttled read bytes/second can be provided for each device.
@@ -596,6 +603,11 @@ impl Subsystem {
                 c.get_path_mut().push(path);
                 c
             }),
+            Subsystem::Systemd(cont) => Subsystem::Systemd({
+                let mut c = cont.clone();
+                c.get_path_mut().push(path);
+                c
+            }),
         }
     }
 
@@ -614,6 +626,7 @@ impl Subsystem {
             Subsystem::NetPrio(cont) => cont,
             Subsystem::HugeTlb(cont) => cont,
             Subsystem::Rdma(cont) => cont,
+            Subsystem::Systemd(cont) => cont,
         }
     }
 
@@ -663,4 +676,84 @@ pub fn parse_max_value(s: &String) -> Result<MaxValue> {
         Ok(val) => Ok(MaxValue::Value(val)),
         Err(e) => Err(Error::with_cause(ParseError, e)),
     }
+}
+
+// Flat keyed
+//  KEY0 VAL0\n
+//  KEY1 VAL1\n
+pub fn flat_keyed_to_vec(mut file: File) -> Result<Vec<(String, i64)>> {
+    let mut content = String::new();
+    file.read_to_string(&mut content).map_err(|e| Error::with_cause(ReadFailed, e))?;
+
+    let mut v = Vec::new();
+    for line in content.lines() {
+        let parts: Vec<&str> = line.split(' ').collect();
+        if parts.len() == 2 {
+            match parts[1].parse::<i64>() {
+                Ok(i) => { v.push((parts[0].to_string(), i)); } ,
+                Err(_) => {},
+            }
+        }
+
+    }
+    Ok(v)
+}
+
+// Flat keyed
+//  KEY0 VAL0\n
+//  KEY1 VAL1\n
+pub fn flat_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, i64>> {
+    let mut content = String::new();
+    file.read_to_string(&mut content).map_err(|e| Error::with_cause(ReadFailed, e))?;
+
+    let mut h = HashMap::new();
+    for line in content.lines() {
+        let parts: Vec<&str> = line.split(' ').collect();
+        if parts.len() == 2 {
+            match parts[1].parse::<i64>() {
+                Ok(i) => { h.insert(parts[0].to_string(), i); } ,
+                Err(_) => {},
+            }
+        }
+
+    }
+    Ok(h)
+}
+
+// Nested keyed
+//  KEY0 SUB_KEY0=VAL00 SUB_KEY1=VAL01...
+//  KEY1 SUB_KEY0=VAL10 SUB_KEY1=VAL11...
+pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap<String, i64>>> {
+    let mut content = String::new();
+    file.read_to_string(&mut content).map_err(|e| Error::with_cause(ReadFailed, e))?;
+
+    let mut h = HashMap::new();
+    for line in content.lines() {
+        let parts: Vec<&str> = line.split(' ').collect();
+        if parts.len() == 0 {
+            continue;
+        }
+        let mut th = HashMap::new();
+        for item in parts[1..].into_iter() {
+            let fields: Vec<&str> = item.split('=').collect();
+            if fields.len() == 2 {
+                match fields[1].parse::<i64>() {
+                    Ok(i) => { th.insert(fields[0].to_string(), i); } ,
+                    Err(_) => {},
+                }
+            }
+        }
+        h.insert(parts[0].to_string(), th);
+    }
+
+    Ok(h)
+}
+
+/// fs::remove_dir_all or fs::remove_dir can't work with cgroup directory sometimes.
+/// with error: `Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }`
+pub fn libc_rmdir(p: &str) {
+    // with int return value
+    let _ = unsafe {
+        libc::rmdir(p.as_ptr() as *const i8)
+    };
 }

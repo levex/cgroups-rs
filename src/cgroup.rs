@@ -2,6 +2,8 @@
 
 use crate::error::*;
 
+use crate::libc_rmdir;
+
 use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::collections::HashMap;
@@ -84,13 +86,13 @@ impl<'b> Cgroup<'b> {
         cg
     }
 
-    pub fn new_with_prefix<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, prefixes: HashMap<String, String>) -> Cgroup<'b> {
-        let cg = Cgroup::load_with_prefix(hier, path, prefixes);
+    pub fn new_with_relative_paths<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, relative_paths: HashMap<String, String>) -> Cgroup<'b> {
+        let cg = Cgroup::load_with_relative_paths(hier, path, relative_paths);
         cg.create();
         cg
     }
 
-    pub fn load_with_prefix<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, prefixes: HashMap<String, String>) -> Cgroup<'b> {
+    pub fn load_with_relative_paths<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, relative_paths: HashMap<String, String>) -> Cgroup<'b> {
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
@@ -98,13 +100,13 @@ impl<'b> Cgroup<'b> {
                 .into_iter()
                 .map(|x| {
                     let cn = x.controller_name();
-                    if prefixes.contains_key(&cn) {
-                        let prefix = prefixes.get(&cn).unwrap();
-                        let valid_path = prefix.trim_start_matches("/").to_string();
+                    if relative_paths.contains_key(&cn) {
+                        let rp = relative_paths.get(&cn).unwrap();
+                        let valid_path = rp.trim_start_matches("/").to_string();
                         let mut p = PathBuf::from(valid_path);
                         p.push(path);
                         x.enter(p.as_ref())
-                    }else {
+                    } else {
                         x.enter(path)
                     }
                 })
@@ -132,6 +134,13 @@ impl<'b> Cgroup<'b> {
     /// actually removed, and remove the descendants first if not. In the future, this behavior
     /// will change.
     pub fn delete(self) {
+        if self.v2() {
+            let mut p = self.hier.root().clone();
+            p.push(self.path);
+            libc_rmdir(p.to_str().unwrap());
+            return
+        }
+
         self.subsystems.into_iter().for_each(|sub| match sub {
             Subsystem::Pid(pidc) => pidc.delete(),
             Subsystem::Mem(c) => c.delete(),
@@ -146,6 +155,7 @@ impl<'b> Cgroup<'b> {
             Subsystem::NetPrio(c) => c.delete(),
             Subsystem::HugeTlb(c) => c.delete(),
             Subsystem::Rdma(c) => c.delete(),
+            Subsystem::Systemd(c) => c.delete(),
         });
     }
 
@@ -191,23 +201,44 @@ impl<'b> Cgroup<'b> {
 
     /// Attach a task to the control group.
     pub fn add_task(&self, pid: CgroupPid) -> Result<()> {
-        self.subsystems()
+        if self.v2() {
+            let subsystems = self.subsystems();
+            if subsystems.len() > 0 {
+                let c = subsystems[0].to_controller();
+                c.add_task(&pid)
+            } else{
+                Ok(())
+            }
+        } else {
+            self.subsystems()
             .iter()
             .try_for_each(|sub| sub.to_controller().add_task(&pid))
+        }
     }
 
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the
     /// control group.
     pub fn tasks(&self) -> Vec<CgroupPid> {
         // Collect the tasks from all subsystems
-        let mut v = self
-            .subsystems()
-            .iter()
-            .map(|x| x.to_controller().tasks())
-            .fold(vec![], |mut acc, mut x| {
-                acc.append(&mut x);
-                acc
-            });
+        let mut v = if self.v2() {
+            let subsystems = self.subsystems();
+            if subsystems.len() > 0 {
+                let c = subsystems[0].to_controller();
+                c.tasks()
+            } else {
+                vec![]
+            }
+        } else {
+            self
+                .subsystems()
+                .iter()
+                .map(|x| x.to_controller().tasks())
+                .fold(vec![], |mut acc, mut x| {
+                    acc.append(&mut x);
+                    acc
+                })
+        };
+
         v.sort();
         v.dedup();
         v

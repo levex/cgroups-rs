@@ -42,8 +42,10 @@ pub fn test_memory_res_build() {
 
     {
         let c: &MemController = cg.controller_of().unwrap();
-        assert_eq!(c.kmem_stat().limit_in_bytes, 128 * 1024 * 1024);
-        assert_eq!(c.memory_stat().swappiness, 70);
+        if !c.v2() {
+            assert_eq!(c.kmem_stat().limit_in_bytes, 128 * 1024 * 1024);
+            assert_eq!(c.memory_stat().swappiness, 70);
+        }
         assert_eq!(c.memory_stat().limit_in_bytes, 1024 * 1024 * 1024);
     }
 
@@ -101,7 +103,7 @@ pub fn test_devices_res_build() {
 pub fn test_network_res_build() {
     let h = cgroups::hierarchies::auto();
     if h.v2() {
-        // FIXME
+        // FIXME add cases for v2
         return
     }
     let h = Box::new(&*h);
@@ -123,7 +125,7 @@ pub fn test_network_res_build() {
 pub fn test_hugepages_res_build() {
     let h = cgroups::hierarchies::auto();
     if h.v2() {
-        // FIXME
+        // FIXME add cases for v2
         return
     }
     let h = Box::new(&*h);
@@ -142,12 +144,13 @@ pub fn test_hugepages_res_build() {
 }
 
 #[test]
+#[ignore] // high version kernel not support `blkio.weight`
 pub fn test_blkio_res_build() {
     let h = cgroups::hierarchies::auto();
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build", h)
         .blkio()
-            .weight(100)
+            .weight(Some(100))
             .done()
         .build();
 
