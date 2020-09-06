@@ -1,14 +1,12 @@
 //! Integration tests about the pids subsystem
 use cgroups::pid::{PidController, PidMax};
+use cgroups::Cgroup;
 use cgroups::Controller;
-use cgroups::{Cgroup, CgroupPid, PidResources, Resources};
 
 use nix::sys::wait::{waitpid, WaitStatus};
-use nix::unistd::{fork, ForkResult, Pid};
+use nix::unistd::{fork, ForkResult};
 
 use libc::pid_t;
-
-use std::thread;
 
 #[test]
 fn create_and_delete_cgroup() {
@@ -16,7 +14,9 @@ fn create_and_delete_cgroup() {
     let cg = Cgroup::new(&hier, String::from("create_and_delete_cgroup"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
-        pidcontroller.set_pid_max(PidMax::Value(1337));
+        pidcontroller
+            .set_pid_max(PidMax::Value(1337))
+            .expect("Failed to set max pid");
         let max = pidcontroller.get_pid_max();
         assert!(max.is_ok());
         assert_eq!(max.unwrap(), PidMax::Value(1337));
@@ -61,12 +61,13 @@ fn test_pid_events_is_not_zero() {
         match fork() {
             Ok(ForkResult::Parent { child, .. }) => {
                 // move the process into the control group
-                pids.add_task(&(pid_t::from(child) as u64).into());
+                pids.add_task(&(pid_t::from(child) as u64).into()).unwrap();
 
                 println!("added task to cg: {:?}", child);
 
                 // Set limit to one
-                pids.set_pid_max(PidMax::Value(1));
+                pids.set_pid_max(PidMax::Value(1))
+                    .expect("Failed to set max pid");
                 println!("err = {:?}", pids.get_pid_max());
 
                 // wait on the child

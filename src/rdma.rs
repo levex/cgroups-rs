@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
@@ -46,19 +46,7 @@ impl ControllIdentifier for RdmaController {
     }
 }
 
-impl<'a> From<&'a Subsystem> for &'a RdmaController {
-    fn from(sub: &'a Subsystem) -> &'a RdmaController {
-        unsafe {
-            match sub {
-                Subsystem::Rdma(c) => c,
-                _ => {
-                    assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
-                }
-            }
-        }
-    }
-}
+impl_from_subsystem_for_controller!(Subsystem::Rdma, RdmaController);
 
 fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();

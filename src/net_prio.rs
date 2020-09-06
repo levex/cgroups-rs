@@ -7,12 +7,11 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, NetworkResources, Resources,
-    Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, NetworkResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `net_prio` subsystem of a Cgroup.
@@ -60,24 +59,15 @@ impl ControllIdentifier for NetPrioController {
     }
 }
 
-impl<'a> From<&'a Subsystem> for &'a NetPrioController {
-    fn from(sub: &'a Subsystem) -> &'a NetPrioController {
-        unsafe {
-            match sub {
-                Subsystem::NetPrio(c) => c,
-                _ => {
-                    assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
-                }
-            }
-        }
-    }
-}
+impl_from_subsystem_for_controller!(Subsystem::NetPrio, NetPrioController);
 
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }

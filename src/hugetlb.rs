@@ -6,12 +6,11 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources,
-    Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `hugetlb` subsystem of a Cgroup.
@@ -60,24 +59,15 @@ impl ControllIdentifier for HugeTlbController {
     }
 }
 
-impl<'a> From<&'a Subsystem> for &'a HugeTlbController {
-    fn from(sub: &'a Subsystem) -> &'a HugeTlbController {
-        unsafe {
-            match sub {
-                Subsystem::HugeTlb(c) => c,
-                _ => {
-                    assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
-                }
-            }
-        }
-    }
-}
+impl_from_subsystem_for_controller!(Subsystem::HugeTlb, HugeTlbController);
 
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -125,7 +115,8 @@ impl HugeTlbController {
         self.open_path(
             &format!("hugetlb.{}.max_usage_in_bytes", hugetlb_size),
             false,
-        ).and_then(read_u64_from)
+        )
+        .and_then(read_u64_from)
     }
 
     /// Set the limit (in bytes) of how much memory can be backed by hugepages of a certain size

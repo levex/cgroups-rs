@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use log::*;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, DeviceResource, DeviceResources,
@@ -124,8 +124,7 @@ impl DevicePermissions {
             return Ok(v);
         }
         for e in s.chars() {
-            let perm = DevicePermissions::from_char(e)
-                .ok_or_else(|| Error::new(ParseError))?;
+            let perm = DevicePermissions::from_char(e).ok_or_else(|| Error::new(ParseError))?;
             v.push(perm);
         }
 
@@ -171,19 +170,7 @@ impl ControllIdentifier for DevicesController {
     }
 }
 
-impl<'a> From<&'a Subsystem> for &'a DevicesController {
-    fn from(sub: &'a Subsystem) -> &'a DevicesController {
-        unsafe {
-            match sub {
-                Subsystem::Devices(c) => c,
-                _ => {
-                    assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
-                }
-            }
-        }
-    }
-}
+impl_from_subsystem_for_controller!(Subsystem::Devices, DevicesController);
 
 impl DevicesController {
     /// Constructs a new `DevicesController` with `oroot` serving as the root of the control group.
