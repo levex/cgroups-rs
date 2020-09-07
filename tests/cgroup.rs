@@ -39,22 +39,27 @@ fn test_cgroup_with_relative_paths() {
         return
     }
     let h = cgroups::hierarchies::auto();
+    let cgroup_root = h.root();
     let h = Box::new(&*h);
     let mut relative_paths = HashMap::new();
-    relative_paths.insert("memory".to_string(), "/mmm/abc/def".to_string());
-    let cg = Cgroup::new_with_relative_paths(h, String::from("test_cgroup_with_prefix"), relative_paths);
+    let mem_relative_path = "/mmm/abc/def";
+    relative_paths.insert("memory".to_string(), mem_relative_path.to_string());
+    let cgroup_name = "test_cgroup_with_relative_paths";
+
+    let cg = Cgroup::new_with_relative_paths(h, String::from(cgroup_name), relative_paths);
     {
         let subsystems = cg.subsystems();
         subsystems.into_iter().for_each(|sub| match sub {
             Subsystem::Pid(c) => {
-                let p = c.path().to_str().unwrap();
-                let rel_path = p.trim_start_matches("/sys/fs/cgroup/pids");
-                assert_eq!(rel_path, "/test_cgroup_with_prefix")
+                let cgroup_path = c.path().to_str().unwrap();
+                let relative_path = "/pids/";
+                // cgroup_path = cgroup_root + relative_path + cgroup_name
+                assert_eq!(cgroup_path, format!("{}{}{}", cgroup_root.to_str().unwrap(), relative_path, cgroup_name));
             },
             Subsystem::Mem(c) => {
-                let p = c.path().to_str().unwrap();
-                let rel_path = p.trim_start_matches("/sys/fs/cgroup/memory");
-                assert_eq!(rel_path, "/mmm/abc/def/test_cgroup_with_prefix")
+                let cgroup_path = c.path().to_str().unwrap();
+                // cgroup_path = cgroup_root + relative_path + cgroup_name
+                assert_eq!(cgroup_path, format!("{}/memory{}/{}", cgroup_root.to_str().unwrap(), mem_relative_path, cgroup_name));
             },
             _ => {}, 
         });
