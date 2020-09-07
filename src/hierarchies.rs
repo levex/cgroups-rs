@@ -1,3 +1,8 @@
+// Copyright (c) 2018 Levente Kurusa
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! This module represents the various control group hierarchies the Linux kernel supports.
 //!
 //! Currently, we only support the cgroupv1 hierarchy, but in the future we will add support for

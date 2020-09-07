@@ -1,3 +1,8 @@
+// Copyright (c) 2018 Levente Kurusa
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! Integration tests about the devices subsystem
 
 use cgroups::devices::{DevicePermissions, DeviceType, DevicesController};
