@@ -1,4 +1,9 @@
 #!/bin/sh
+#
+# Copyright (c) 2018 Levente Kurusa
+#
+# SPDX-License-Identifier: Apache-2.0 or MIT
+#
 
 CONTROL_GROUPS=`cargo test -- --list 2>/dev/null | egrep 'test$' | egrep -v '^src' | cut -d':' -f1`
 

@@ -1,3 +1,8 @@
+// Copyright (c) 2018 Levente Kurusa
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! Integration tests about the pids subsystem
 use cgroups::pid::{PidController, PidMax};
 use cgroups::Controller;
