@@ -45,7 +45,6 @@ pub struct V2 {
 }
 
 impl Hierarchy for V1 {
-
     fn v2(&self) -> bool {
         false
     }
@@ -71,7 +70,10 @@ impl Hierarchy for V1 {
             subs.push(Subsystem::Devices(DevicesController::new(self.root())));
         }
         if self.check_support(Controllers::Freezer) {
-            subs.push(Subsystem::Freezer(FreezerController::new(self.root(), false)));
+            subs.push(Subsystem::Freezer(FreezerController::new(
+                self.root(),
+                false,
+            )));
         }
         if self.check_support(Controllers::NetCls) {
             subs.push(Subsystem::NetCls(NetClsController::new(self.root())));
@@ -86,20 +88,26 @@ impl Hierarchy for V1 {
             subs.push(Subsystem::NetPrio(NetPrioController::new(self.root())));
         }
         if self.check_support(Controllers::HugeTlb) {
-            subs.push(Subsystem::HugeTlb(HugeTlbController::new(self.root(), false)));
+            subs.push(Subsystem::HugeTlb(HugeTlbController::new(
+                self.root(),
+                false,
+            )));
         }
         if self.check_support(Controllers::Rdma) {
             subs.push(Subsystem::Rdma(RdmaController::new(self.root())));
         }
         if self.check_support(Controllers::Systemd) {
-            subs.push(Subsystem::Systemd(SystemdController::new(self.root(), false)));
+            subs.push(Subsystem::Systemd(SystemdController::new(
+                self.root(),
+                false,
+            )));
         }
 
         subs
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b : &Hierarchy = self as &Hierarchy;
+        let b: &Hierarchy = self as &Hierarchy;
         Cgroup::load(Box::new(&*b), "".to_string())
     }
 
@@ -136,17 +144,37 @@ impl Hierarchy for V2 {
 
         let controllers = ret.unwrap().trim().to_string();
         let controller_list: Vec<&str> = controllers.split(' ').collect();
-        
+
         for s in controller_list {
             match s {
-                "cpu" => {subs.push(Subsystem::Cpu(CpuController::new(self.root(), true)));},
-                "io" => {subs.push(Subsystem::BlkIo(BlkIoController::new(self.root(), true)));},
-                "cpuset" => {subs.push(Subsystem::CpuSet(CpuSetController::new(self.root(), true)));},
-                "memory" => {subs.push(Subsystem::Mem(MemController::new(self.root(), true)));},
-                "pids" => {subs.push(Subsystem::Pid(PidController::new(self.root(), true)));},
-                "freezer" => {subs.push(Subsystem::Freezer(FreezerController::new(self.root(), true)));},
-                "hugetlb" => {subs.push(Subsystem::HugeTlb(HugeTlbController::new(self.root(), true)));},
-                _ => {},
+                "cpu" => {
+                    subs.push(Subsystem::Cpu(CpuController::new(self.root(), true)));
+                }
+                "io" => {
+                    subs.push(Subsystem::BlkIo(BlkIoController::new(self.root(), true)));
+                }
+                "cpuset" => {
+                    subs.push(Subsystem::CpuSet(CpuSetController::new(self.root(), true)));
+                }
+                "memory" => {
+                    subs.push(Subsystem::Mem(MemController::new(self.root(), true)));
+                }
+                "pids" => {
+                    subs.push(Subsystem::Pid(PidController::new(self.root(), true)));
+                }
+                "freezer" => {
+                    subs.push(Subsystem::Freezer(FreezerController::new(
+                        self.root(),
+                        true,
+                    )));
+                }
+                "hugetlb" => {
+                    subs.push(Subsystem::HugeTlb(HugeTlbController::new(
+                        self.root(),
+                        true,
+                    )));
+                }
+                _ => {}
             }
         }
 
@@ -154,7 +182,7 @@ impl Hierarchy for V2 {
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b : &Hierarchy = self as &Hierarchy;
+        let b: &Hierarchy = self as &Hierarchy;
         Cgroup::load(Box::new(&*b), "".to_string())
     }
 
@@ -195,7 +223,7 @@ pub fn is_cgroup2_unified_mode() -> bool {
     let path = Path::new(UNIFIED_MOUNTPOINT);
     let fs_stat = statfs::statfs(path);
     if fs_stat.is_err() {
-        return false
+        return false;
     }
 
     // FIXME notwork, nix will not compile CGROUP2_SUPER_MAGIC because not(target_env = "musl")
@@ -208,10 +236,10 @@ pub const INIT_CGROUP_PATHS: &'static str = "/proc/1/cgroup";
 pub fn is_cgroup2_unified_mode() -> bool {
     let lines = fs::read_to_string(INIT_CGROUP_PATHS);
     if lines.is_err() {
-        return false
+        return false;
     }
 
-    for line in lines.unwrap().lines(){
+    for line in lines.unwrap().lines() {
         let fields: Vec<&str> = line.split(':').collect();
         if fields.len() != 3 {
             continue;
@@ -227,7 +255,7 @@ pub fn is_cgroup2_unified_mode() -> bool {
 pub fn auto() -> Box<dyn Hierarchy> {
     if is_cgroup2_unified_mode() {
         Box::new(V2::new())
-    }else{
+    } else {
         Box::new(V1::new())
     }
 }

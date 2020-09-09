@@ -5,15 +5,15 @@
 //
 
 //! Some simple tests covering the builder pattern for control groups.
-use cgroups::*;
-use cgroups::cpu::*;
-use cgroups::devices::*;
-use cgroups::pid::*;
-use cgroups::memory::*;
-use cgroups::net_cls::*;
-use cgroups::hugetlb::*;
 use cgroups::blkio::*;
 use cgroups::cgroup_builder::*;
+use cgroups::cpu::*;
+use cgroups::devices::*;
+use cgroups::hugetlb::*;
+use cgroups::memory::*;
+use cgroups::net_cls::*;
+use cgroups::pid::*;
+use cgroups::*;
 
 #[test]
 pub fn test_cpu_res_build() {
@@ -21,8 +21,8 @@ pub fn test_cpu_res_build() {
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_cpu_res_build", h)
         .cpu()
-            .shares(85)
-            .done()
+        .shares(85)
+        .done()
         .build();
 
     {
@@ -40,10 +40,10 @@ pub fn test_memory_res_build() {
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_memory_res_build", h)
         .memory()
-            .kernel_memory_limit(128 * 1024 * 1024)
-            .swappiness(70)
-            .memory_hard_limit(1024 * 1024 * 1024)
-            .done()
+        .kernel_memory_limit(128 * 1024 * 1024)
+        .swappiness(70)
+        .memory_hard_limit(1024 * 1024 * 1024)
+        .done()
         .build();
 
     {
@@ -64,8 +64,8 @@ pub fn test_pid_res_build() {
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_pid_res_build", h)
         .pid()
-            .maximum_number_of_processes(MaxValue::Value(123))
-            .done()
+        .maximum_number_of_processes(MaxValue::Value(123))
+        .done()
         .build();
 
     {
@@ -84,23 +84,23 @@ pub fn test_devices_res_build() {
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_devices_res_build", h)
         .devices()
-            .device(1, 6, DeviceType::Char, true,
-                    vec![DevicePermissions::Read])
-            .done()
+        .device(1, 6, DeviceType::Char, true, vec![DevicePermissions::Read])
+        .done()
         .build();
 
     {
         let c: &DevicesController = cg.controller_of().unwrap();
         assert!(c.allowed_devices().is_ok());
-        assert_eq!(c.allowed_devices().unwrap(), vec![
-                   DeviceResource {
-                       allow: true,
-                       devtype: DeviceType::Char,
-                       major: 1,
-                       minor: 6,
-                       access: vec![DevicePermissions::Read],
-                   }
-        ]);
+        assert_eq!(
+            c.allowed_devices().unwrap(),
+            vec![DeviceResource {
+                allow: true,
+                devtype: DeviceType::Char,
+                major: 1,
+                minor: 6,
+                access: vec![DevicePermissions::Read],
+            }]
+        );
     }
     cg.delete();
 }
@@ -110,13 +110,13 @@ pub fn test_network_res_build() {
     let h = cgroups::hierarchies::auto();
     if h.v2() {
         // FIXME add cases for v2
-        return
+        return;
     }
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_network_res_build", h)
         .network()
-            .class_id(1337)
-            .done()
+        .class_id(1337)
+        .done()
         .build();
 
     {
@@ -132,19 +132,22 @@ pub fn test_hugepages_res_build() {
     let h = cgroups::hierarchies::auto();
     if h.v2() {
         // FIXME add cases for v2
-        return
+        return;
     }
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_hugepages_res_build", h)
         .hugepages()
-            .limit("2MB".to_string(), 4 * 2 * 1024 * 1024)
-            .done()
+        .limit("2MB".to_string(), 4 * 2 * 1024 * 1024)
+        .done()
         .build();
 
     {
         let c: &HugeTlbController = cg.controller_of().unwrap();
         assert!(c.limit_in_bytes(&"2MB".to_string()).is_ok());
-        assert_eq!(c.limit_in_bytes(&"2MB".to_string()).unwrap(), 4 * 2 * 1024 * 1024);
+        assert_eq!(
+            c.limit_in_bytes(&"2MB".to_string()).unwrap(),
+            4 * 2 * 1024 * 1024
+        );
     }
     cg.delete();
 }
@@ -156,8 +159,8 @@ pub fn test_blkio_res_build() {
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build", h)
         .blkio()
-            .weight(Some(100))
-            .done()
+        .weight(Some(100))
+        .done()
         .build();
 
     {

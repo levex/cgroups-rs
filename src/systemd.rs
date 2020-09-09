@@ -7,8 +7,8 @@
 //!
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
@@ -18,7 +18,7 @@ use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subs
 pub struct SystemdController {
     base: PathBuf,
     path: PathBuf,
-    v2:   bool,
+    v2: bool,
 }
 
 impl ControllerInternal for SystemdController {
@@ -64,14 +64,13 @@ impl SystemdController {
     /// Constructs a new `SystemdController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        if !v2{
+        if !v2 {
             root.push(Self::controller_type().to_string());
         }
         Self {
             base: root.clone(),
             path: root,
-            v2:   v2,
+            v2: v2,
         }
     }
-
 }

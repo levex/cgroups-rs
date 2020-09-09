@@ -6,8 +6,8 @@
 
 //! This module handles cgroup operations. Start here!
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::libc_rmdir;
 
@@ -85,7 +85,11 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn new_with_relative_paths<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, relative_paths: HashMap<String, String>) -> Cgroup<'b> {
+    pub fn new_with_relative_paths<P: AsRef<Path>>(
+        hier: Box<&'b dyn Hierarchy>,
+        path: P,
+        relative_paths: HashMap<String, String>,
+    ) -> Cgroup<'b> {
         let cg = Cgroup::load_with_relative_paths(hier, path, relative_paths);
         cg.create();
         cg
@@ -99,7 +103,11 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn load_with_relative_paths<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P, relative_paths: HashMap<String, String>) -> Cgroup<'b> {
+    pub fn load_with_relative_paths<P: AsRef<Path>>(
+        hier: Box<&'b dyn Hierarchy>,
+        path: P,
+        relative_paths: HashMap<String, String>,
+    ) -> Cgroup<'b> {
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
@@ -147,7 +155,7 @@ impl<'b> Cgroup<'b> {
                 p.push(self.path);
                 libc_rmdir(p.to_str().unwrap());
             }
-            return
+            return;
         }
 
         self.subsystems.into_iter().for_each(|sub| match sub {
@@ -220,8 +228,8 @@ impl<'b> Cgroup<'b> {
             }
         } else {
             self.subsystems()
-            .iter()
-            .try_for_each(|sub| sub.to_controller().add_task(&pid))
+                .iter()
+                .try_for_each(|sub| sub.to_controller().add_task(&pid))
         }
     }
 
@@ -238,8 +246,7 @@ impl<'b> Cgroup<'b> {
                 vec![]
             }
         } else {
-            self
-                .subsystems()
+            self.subsystems()
                 .iter()
                 .map(|x| x.to_controller().tasks())
                 .fold(vec![], |mut acc, mut x| {
@@ -259,16 +266,19 @@ pub const UNIFIED_MOUNTPOINT: &'static str = "/sys/fs/cgroup";
 fn enable_controllers(controllers: &Vec<String>, path: &PathBuf) {
     let mut f = path.clone();
     f.push("cgroup.subtree_control");
-    for c in controllers{
+    for c in controllers {
         let body = format!("+{}", c);
         let _rest = fs::write(f.as_path(), body.as_bytes());
     }
 }
 
-fn supported_controllers(p: &PathBuf) -> Vec<String>{
+fn supported_controllers(p: &PathBuf) -> Vec<String> {
     let p = format!("{}/{}", UNIFIED_MOUNTPOINT, "cgroup.controllers");
     let ret = fs::read_to_string(p.as_str());
-    ret.unwrap_or(String::new()).split(" ").map(|x| x.to_string() ).collect::<Vec<String>>()
+    ret.unwrap_or(String::new())
+        .split(" ")
+        .map(|x| x.to_string())
+        .collect::<Vec<String>>()
 }
 
 fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
@@ -281,16 +291,16 @@ fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
 
     // path: "a/b/c"
     let elements = path.split("/").collect::<Vec<&str>>();
-    let last_index = elements.len() - 1 ;
+    let last_index = elements.len() - 1;
     for (i, ele) in elements.iter().enumerate() {
         // ROOT/a
         fp.push(ele);
         // create dir, need not check if is a file or directory
-        if !fp.exists(){
+        if !fp.exists() {
             match ::std::fs::create_dir(fp.clone()) {
                 Err(e) => return Err(Error::with_cause(ErrorKind::FsError, e)),
-                Ok(_) => {},
-            }    
+                Ok(_) => {}
+            }
         }
 
         if i < last_index {
@@ -304,7 +314,8 @@ fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
 
 pub fn get_cgroups_relative_paths() -> Result<HashMap<String, String>> {
     let mut m = HashMap::new();
-    let content = fs::read_to_string("/proc/self/cgroup").map_err(|e| Error::with_cause(ReadFailed, e))?;
+    let content =
+        fs::read_to_string("/proc/self/cgroup").map_err(|e| Error::with_cause(ReadFailed, e))?;
     for l in content.lines() {
         let fl: Vec<&str> = l.split(':').collect();
         if fl.len() != 3 {

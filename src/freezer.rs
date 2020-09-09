@@ -11,8 +11,8 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
@@ -28,7 +28,7 @@ use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subs
 pub struct FreezerController {
     base: PathBuf,
     path: PathBuf,
-    v2:    bool,
+    v2: bool,
 }
 
 /// The current state of the control group
@@ -90,7 +90,7 @@ impl FreezerController {
         Self {
             base: root.clone(),
             path: root,
-            v2:   v2,
+            v2: v2,
         }
     }
 

@@ -13,8 +13,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
@@ -29,7 +29,7 @@ use crate::{
 pub struct CpuController {
     base: PathBuf,
     path: PathBuf,
-    v2:   bool,
+    v2: bool,
 }
 
 /// The current state of the control group and its processes.
@@ -112,7 +112,10 @@ impl<'a> From<&'a Subsystem> for &'a CpuController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -127,7 +130,7 @@ impl CpuController {
         Self {
             base: root.clone(),
             path: root,
-            v2:   v2,
+            v2: v2,
         }
     }
 
@@ -143,7 +146,8 @@ impl CpuController {
                         Ok(_) => Ok(s),
                         Err(e) => Err(Error::with_cause(ReadFailed, e)),
                     }
-                }).unwrap_or("".to_string()),
+                })
+                .unwrap_or("".to_string()),
         }
     }
 
@@ -215,22 +219,21 @@ impl CpuController {
             return self.set_cfs_period(period);
         }
         let mut line = "max".to_string();
-		if quota > 0 {
-			line = quota.to_string();
+        if quota > 0 {
+            line = quota.to_string();
         }
 
         let mut p = period;
-		if period == 0 {
-			// This default value is documented in
-			// https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
-			p = 100000
-		}
+        if period == 0 {
+            // This default value is documented in
+            // https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
+            p = 100000
+        }
         line = format!("{} {}", line, p);
-        self.open_path("cpu.max", true)
-            .and_then(|mut file| {
-                file.write_all(line.as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path("cpu.max", true).and_then(|mut file| {
+            file.write_all(line.as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     pub fn set_rt_runtime(&self, us: i64) -> Result<()> {

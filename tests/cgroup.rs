@@ -5,9 +5,9 @@
 //
 
 //! Simple unit tests about the control groups system.
-use cgroups::{Cgroup, CgroupPid, Hierarchy, Subsystem};
 use cgroups::memory::{MemController, SetMemory};
 use cgroups::Controller;
+use cgroups::{Cgroup, CgroupPid, Hierarchy, Subsystem};
 use std::collections::HashMap;
 
 #[test]
@@ -38,11 +38,10 @@ fn test_tasks_iterator() {
     cg.delete();
 }
 
-
 #[test]
 fn test_cgroup_with_relative_paths() {
     if cgroups::hierarchies::is_cgroup2_unified_mode() {
-        return
+        return;
     }
     let h = cgroups::hierarchies::auto();
     let cgroup_root = h.root();
@@ -60,14 +59,30 @@ fn test_cgroup_with_relative_paths() {
                 let cgroup_path = c.path().to_str().unwrap();
                 let relative_path = "/pids/";
                 // cgroup_path = cgroup_root + relative_path + cgroup_name
-                assert_eq!(cgroup_path, format!("{}{}{}", cgroup_root.to_str().unwrap(), relative_path, cgroup_name));
-            },
+                assert_eq!(
+                    cgroup_path,
+                    format!(
+                        "{}{}{}",
+                        cgroup_root.to_str().unwrap(),
+                        relative_path,
+                        cgroup_name
+                    )
+                );
+            }
             Subsystem::Mem(c) => {
                 let cgroup_path = c.path().to_str().unwrap();
                 // cgroup_path = cgroup_root + relative_path + cgroup_name
-                assert_eq!(cgroup_path, format!("{}/memory{}/{}", cgroup_root.to_str().unwrap(), mem_relative_path, cgroup_name));
-            },
-            _ => {}, 
+                assert_eq!(
+                    cgroup_path,
+                    format!(
+                        "{}/memory{}/{}",
+                        cgroup_root.to_str().unwrap(),
+                        mem_relative_path,
+                        cgroup_name
+                    )
+                );
+            }
+            _ => {}
         });
     }
     cg.delete();
@@ -76,14 +91,14 @@ fn test_cgroup_with_relative_paths() {
 #[test]
 fn test_cgroup_v2() {
     if !cgroups::hierarchies::is_cgroup2_unified_mode() {
-        return
+        return;
     }
     let h = cgroups::hierarchies::auto();
     let h = Box::new(&*h);
     let cg = Cgroup::new_with_relative_paths(h, String::from("test_v2"), HashMap::new());
 
     let mem_controller: &MemController = cg.controller_of().unwrap();
-    let (mem, swp, rev) = (4 * 1024 * 1000, 2 * 1024* 1000, 1024 * 1000);
+    let (mem, swp, rev) = (4 * 1024 * 1000, 2 * 1024 * 1000, 1024 * 1000);
 
     let _ = mem_controller.set_limit(mem);
     let _ = mem_controller.set_memswap_limit(swp);

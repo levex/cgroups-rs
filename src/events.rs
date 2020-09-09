@@ -12,9 +12,8 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
-
+use crate::error::*;
 
 // notify_on_oom returns channel on which you can expect event about OOM,
 // if process died without OOM this channel will be closed.
@@ -31,7 +30,10 @@ pub fn notify_on_oom_v1(key: &str, dir: &PathBuf) -> Result<Receiver<String>> {
 // level is one of "low", "medium", or "critical"
 pub fn notify_memory_pressure(key: &str, dir: &PathBuf, level: &str) -> Result<Receiver<String>> {
     if level != "low" && level != "medium" && level != "critical" {
-        return Err(Error::from_string(format!("invalid pressure level {}", level)));
+        return Err(Error::from_string(format!(
+            "invalid pressure level {}",
+            level
+        )));
     }
 
     register_memory_event(key, dir, "memory.pressure_level", level)
@@ -46,7 +48,8 @@ fn register_memory_event(
     let path = cg_dir.join(event_name);
     let event_file = File::open(path).map_err(|e| Error::with_cause(ReadFailed, e))?;
 
-    let eventfd = eventfd(0, EfdFlags::EFD_CLOEXEC).map_err(|e| Error::with_cause(ReadFailed, e))?;
+    let eventfd =
+        eventfd(0, EfdFlags::EFD_CLOEXEC).map_err(|e| Error::with_cause(ReadFailed, e))?;
 
     let event_control_path = cg_dir.join("cgroup.event_control");
     let data;
@@ -71,8 +74,7 @@ fn register_memory_event(
                 Err(err) => {
                     return;
                 }
-                Ok(_) => {
-                }
+                Ok(_) => {}
             }
 
             // When a cgroup is destroyed, an event is sent to eventfd.

@@ -5,8 +5,8 @@
 
 //! Integration tests about the hugetlb subsystem
 use cgroups::hugetlb::HugeTlbController;
-use cgroups::{Cgroup, Hierarchy};
 use cgroups::Controller;
+use cgroups::{Cgroup, Hierarchy};
 
 use cgroups::error::ErrorKind::*;
 use cgroups::error::*;
@@ -15,7 +15,7 @@ use cgroups::error::*;
 fn test_hugetlb_sizes() {
     // now only v2
     if cgroups::hierarchies::is_cgroup2_unified_mode() {
-        return
+        return;
     }
 
     let h = cgroups::hierarchies::auto();

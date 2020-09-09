@@ -11,8 +11,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
@@ -167,7 +167,9 @@ impl CpuAcctController {
 
     /// Reset the statistics the kernel has gathered about the control group.
     pub fn reset(&self) -> Result<()> {
-        self.open_path("cpuacct.usage", true)
-            .and_then(|mut file| file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e)))
+        self.open_path("cpuacct.usage", true).and_then(|mut file| {
+            file.write_all(b"0")
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 }

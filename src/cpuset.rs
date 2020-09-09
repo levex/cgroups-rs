@@ -14,8 +14,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
@@ -29,7 +29,7 @@ use crate::{
 pub struct CpuSetController {
     base: PathBuf,
     path: PathBuf,
-    v2:   bool,
+    v2: bool,
 }
 
 /// The current state of the `cpuset` controller for this control group.
@@ -111,7 +111,7 @@ impl ControllerInternal for CpuSetController {
         let res: &CpuResources = &res.cpu;
 
         if res.update_values {
-            if res.cpus.is_some(){
+            if res.cpus.is_some() {
                 let _ = self.set_cpus(res.cpus.as_ref().unwrap().as_str());
             }
             let _ = self.set_mems(&res.mems);
@@ -120,9 +120,9 @@ impl ControllerInternal for CpuSetController {
         Ok(())
     }
 
-    fn post_create(&self){
-        if self.is_v2(){
-            return
+    fn post_create(&self) {
+        if self.is_v2() {
+            return;
         }
         let current = self.get_path();
         let parent = match current.parent() {
@@ -132,11 +132,11 @@ impl ControllerInternal for CpuSetController {
 
         if current != self.get_base() {
             match copy_from_parent(current.to_str().unwrap(), "cpuset.cpus") {
-                Ok(_)=>(),
+                Ok(_) => (),
                 Err(err) => error!("error create_dir for cpuset.cpus {:?}", err),
             }
             match copy_from_parent(current.to_str().unwrap(), "cpuset.mems") {
-                Ok(_)=>(),
+                Ok(_) => (),
                 Err(err) => error!("error create_dir for cpuset.mems {:?}", err),
             }
         }
@@ -148,10 +148,11 @@ fn find_no_empty_parent(from: &str, file: &str) -> Result<(String, Vec<PathBuf>)
     let mut v = vec![];
 
     loop {
-        let current_value = match ::std::fs::read_to_string(current_path.clone().join(file).to_str().unwrap()) {
-            Ok(cpus) => String::from(cpus.trim()),
-            Err(e) => return Err(Error::with_cause(ReadFailed, e)),
-        };
+        let current_value =
+            match ::std::fs::read_to_string(current_path.clone().join(file).to_str().unwrap()) {
+                Ok(cpus) => String::from(cpus.trim()),
+                Err(e) => return Err(Error::with_cause(ReadFailed, e)),
+            };
 
         if current_value != "" {
             return Ok((current_value, v));
@@ -221,7 +222,10 @@ fn read_string_from(mut file: File) -> Result<String> {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -267,7 +271,7 @@ impl CpuSetController {
     /// Contructs a new `CpuSetController` with `oroot` serving as the root of the control group.
     pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        if !v2{
+        if !v2 {
             root.push(Self::controller_type().to_string());
         }
         Self {
@@ -372,9 +376,11 @@ impl CpuSetController {
         self.open_path("cpuset.cpu_exclusive", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -385,9 +391,11 @@ impl CpuSetController {
         self.open_path("cpuset.mem_exclusive", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -422,9 +430,11 @@ impl CpuSetController {
         self.open_path("cpuset.mem_hardwall", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -435,9 +445,11 @@ impl CpuSetController {
         self.open_path("cpuset.sched_load_balance", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -459,9 +471,11 @@ impl CpuSetController {
         self.open_path("cpuset.memory_migrate", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -472,9 +486,11 @@ impl CpuSetController {
         self.open_path("cpuset.memory_spread_page", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -485,9 +501,11 @@ impl CpuSetController {
         self.open_path("cpuset.memory_spread_slab", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }
@@ -504,9 +522,11 @@ impl CpuSetController {
         self.open_path("cpuset.memory_pressure_enabled", true)
             .and_then(|mut file| {
                 if b {
-                    file.write_all(b"1").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"1")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 } else {
-                    file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e))
+                    file.write_all(b"0")
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
                 }
             })
     }

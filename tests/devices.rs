@@ -13,7 +13,7 @@ use cgroups::{Cgroup, DeviceResource, Hierarchy};
 fn test_devices_parsing() {
     // now only v2
     if cgroups::hierarchies::is_cgroup2_unified_mode() {
-        return
+        return;
     }
 
     let h = cgroups::hierarchies::auto();

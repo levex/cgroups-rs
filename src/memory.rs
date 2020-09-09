@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::sync::mpsc::{Receiver};
+use std::sync::mpsc::Receiver;
 
 use crate::error::ErrorKind::*;
 use crate::error::*;
@@ -21,7 +21,8 @@ use crate::events;
 use crate::flat_keyed_to_hashmap;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, MaxValue, MemoryResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, MaxValue, MemoryResources, Resources,
+    Subsystem,
 };
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
@@ -33,9 +34,8 @@ use crate::{
 pub struct MemController {
     base: PathBuf,
     path: PathBuf,
-    v2:   bool,
+    v2: bool,
 }
-
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct SetMemory {
@@ -476,25 +476,29 @@ impl MemController {
         Self {
             base: root.clone(),
             path: root,
-            v2:   v2,
+            v2: v2,
         }
     }
 
     // for v2
-    pub fn set_mem(&self, m: SetMemory) ->  Result<()> {
-        let values = vec![(m.high, "memory.high"),(m.low, "memory.low"),(m.max, "memory.max"),(m.min, "memory.min")];
-        for value in values{
+    pub fn set_mem(&self, m: SetMemory) -> Result<()> {
+        let values = vec![
+            (m.high, "memory.high"),
+            (m.low, "memory.low"),
+            (m.max, "memory.max"),
+            (m.min, "memory.min"),
+        ];
+        for value in values {
             let v = value.0;
             let f = value.1;
             if v.is_some() {
                 let v = v.unwrap().to_string();
-                self.open_path(f, true)
-                .and_then(|mut file| {
+                self.open_path(f, true).and_then(|mut file| {
                     file.write_all(v.as_ref())
                         .map_err(|e| Error::with_cause(WriteFailed, e))
                 })?;
             }
-            }
+        }
         Ok(())
     }
 
@@ -652,9 +656,8 @@ impl MemController {
             fail_cnt: self
                 .open_path("memory.swap.events", false)
                 .and_then(flat_keyed_to_hashmap)
-                .and_then(|x| {
-                    Ok(*x.get("fail").unwrap_or(&0) as u64)
-                }).unwrap(),
+                .and_then(|x| Ok(*x.get("fail").unwrap_or(&0) as u64))
+                .unwrap(),
             limit_in_bytes: self
                 .open_path("memory.swap.max", false)
                 .and_then(read_i64_from)
@@ -735,11 +738,10 @@ impl MemController {
         if self.v2 {
             file = "memory.max";
         }
-        self.open_path(file, true)
-            .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(limit.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Set the kernel memory limit of the control group, in bytes.
@@ -757,11 +759,10 @@ impl MemController {
         if self.v2 {
             file = "memory.swap.max";
         }
-        self.open_path(file, true)
-            .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(limit.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
@@ -782,11 +783,10 @@ impl MemController {
         if self.v2 {
             file = "memory.low"
         }
-        self.open_path(file, true)
-            .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(limit.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Set how likely the kernel is to swap out parts of the address space used by the control
@@ -809,10 +809,10 @@ impl MemController {
             })
     }
 
-    pub fn register_oom_event(&self, key: &str) -> Result<Receiver<String>>{
-        if self.v2{
+    pub fn register_oom_event(&self, key: &str) -> Result<Receiver<String>> {
+        if self.v2 {
             events::notify_on_oom_v2(key, self.get_path())
-        }else {
+        } else {
             events::notify_on_oom_v1(key, self.get_path())
         }
     }
@@ -870,10 +870,10 @@ fn read_string_from(mut file: File) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use crate::memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
+    use std::collections::HashMap;
 
     static GOOD_VALUE: &str = "\
 total=51189 N0=51189 N1=123

@@ -5,8 +5,8 @@
 
 //! Integration tests about the hugetlb subsystem
 use cgroups::memory::{MemController, SetMemory};
-use cgroups::{Cgroup, Hierarchy, MaxValue};
 use cgroups::Controller;
+use cgroups::{Cgroup, Hierarchy, MaxValue};
 
 use cgroups::error::ErrorKind::*;
 use cgroups::error::*;
@@ -24,7 +24,7 @@ fn test_disable_oom_killer() {
         assert_eq!(m.oom_control.oom_kill_disable, false);
 
         // FIXME only v1
-        if !mem_controller.v2(){
+        if !mem_controller.v2() {
             // disable oom killer
             let r = mem_controller.disable_oom_killer();
             assert_eq!(r.is_err(), false);
@@ -33,7 +33,6 @@ fn test_disable_oom_killer() {
             let m = mem_controller.memory_stat();
             assert_eq!(m.oom_control.oom_kill_disable, true);
         }
-
     }
     cg.delete();
 }
@@ -42,7 +41,7 @@ fn test_disable_oom_killer() {
 fn set_mem_v2() {
     let h = cgroups::hierarchies::auto();
     if !h.v2() {
-        return
+        return;
     }
 
     let h = Box::new(&*h);
@@ -59,10 +58,10 @@ fn set_mem_v2() {
         assert_eq!(m.max, Some(MaxValue::Max));
 
         // case 2: set parts
-        let m = SetMemory{
-            low: Some(MaxValue::Value(1024*1024* 2)),
-            high: Some(MaxValue::Value(1024*1024*1024* 2)),
-            min: Some(MaxValue::Value(1024*1024* 3)),
+        let m = SetMemory {
+            low: Some(MaxValue::Value(1024 * 1024 * 2)),
+            high: Some(MaxValue::Value(1024 * 1024 * 1024 * 2)),
+            min: Some(MaxValue::Value(1024 * 1024 * 3)),
             max: None,
         };
         let r = mem_controller.set_mem(m);
@@ -70,17 +69,15 @@ fn set_mem_v2() {
 
         let m = mem_controller.get_mem().unwrap();
         // get
-        assert_eq!(m.low, Some(MaxValue::Value(1024*1024* 2)));
-        assert_eq!(m.min, Some(MaxValue::Value(1024*1024* 3)));
-        assert_eq!(m.high, Some(MaxValue::Value(1024*1024*1024* 2)));
+        assert_eq!(m.low, Some(MaxValue::Value(1024 * 1024 * 2)));
+        assert_eq!(m.min, Some(MaxValue::Value(1024 * 1024 * 3)));
+        assert_eq!(m.high, Some(MaxValue::Value(1024 * 1024 * 1024 * 2)));
         assert_eq!(m.max, Some(MaxValue::Max));
 
-
-
         // case 3: set parts
-        let m = SetMemory{
-            max: Some(MaxValue::Value(1024*1024*1024* 2)),
-            min: Some(MaxValue::Value(1024*1024* 4)),
+        let m = SetMemory {
+            max: Some(MaxValue::Value(1024 * 1024 * 1024 * 2)),
+            min: Some(MaxValue::Value(1024 * 1024 * 4)),
             high: Some(MaxValue::Max),
             low: None,
         };
@@ -89,9 +86,9 @@ fn set_mem_v2() {
 
         let m = mem_controller.get_mem().unwrap();
         // get
-        assert_eq!(m.low, Some(MaxValue::Value(1024*1024* 2)));
-        assert_eq!(m.min, Some(MaxValue::Value(1024*1024* 4)));
-        assert_eq!(m.max, Some(MaxValue::Value(1024*1024*1024* 2)));
+        assert_eq!(m.low, Some(MaxValue::Value(1024 * 1024 * 2)));
+        assert_eq!(m.min, Some(MaxValue::Value(1024 * 1024 * 4)));
+        assert_eq!(m.max, Some(MaxValue::Value(1024 * 1024 * 1024 * 2)));
         assert_eq!(m.high, Some(MaxValue::Max));
     }
 

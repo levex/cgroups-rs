@@ -5,7 +5,7 @@
 //
 
 //! Integration test about setting resources using `apply()`
-use cgroups::pid::{PidController};
+use cgroups::pid::PidController;
 use cgroups::{Cgroup, Hierarchy, MaxValue, PidResources, Resources};
 
 #[test]

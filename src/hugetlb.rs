@@ -12,13 +12,12 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 use crate::flat_keyed_to_vec;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources,
-    Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `hugetlb` subsystem of a Cgroup.
@@ -27,10 +26,10 @@ use crate::{
 /// the control group.
 #[derive(Debug, Clone)]
 pub struct HugeTlbController {
-    base:  PathBuf,
-    path:  PathBuf,
+    base: PathBuf,
+    path: PathBuf,
     sizes: Vec<String>,
-    v2:    bool,
+    v2: bool,
 }
 
 impl ControllerInternal for HugeTlbController {
@@ -90,7 +89,10 @@ impl<'a> From<&'a Subsystem> for &'a HugeTlbController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -107,7 +109,7 @@ impl HugeTlbController {
             base: root.clone(),
             path: root,
             sizes: sizes,
-            v2:   v2,
+            v2: v2,
         }
     }
 
@@ -115,7 +117,7 @@ impl HugeTlbController {
     pub fn size_supported(&self, hugetlb_size: &str) -> bool {
         for s in &self.sizes {
             if s == hugetlb_size {
-                return true
+                return true;
             }
         }
         false
@@ -130,7 +132,10 @@ impl HugeTlbController {
             .and_then(flat_keyed_to_vec)
             .and_then(|x| {
                 if x.len() == 0 {
-                    return Err(Error::from_string(format!("get empty from hugetlb.{}.events", hugetlb_size)));
+                    return Err(Error::from_string(format!(
+                        "get empty from hugetlb.{}.events",
+                        hugetlb_size
+                    )));
                 }
                 Ok(x[0].1 as u64)
             })
@@ -168,7 +173,8 @@ impl HugeTlbController {
         self.open_path(
             &format!("hugetlb.{}.max_usage_in_bytes", hugetlb_size),
             false,
-        ).and_then(read_u64_from)
+        )
+        .and_then(read_u64_from)
     }
 
     /// Set the limit (in bytes) of how much memory can be backed by hugepages of a certain size
@@ -178,14 +184,12 @@ impl HugeTlbController {
         if self.v2 {
             file = format!("hugetlb.{}.max", hugetlb_size);
         }
-        self.open_path(&file, true)
-            .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path(&file, true).and_then(|mut file| {
+            file.write_all(limit.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 }
-
 
 pub const HUGEPAGESIZE_DIR: &'static str = "/sys/kernel/mm/hugepages";
 use regex::Regex;
@@ -206,7 +210,7 @@ fn get_hugepage_sizes() -> Result<Vec<String>> {
         if parts.len() != 2 {
             continue;
         }
-        let  bmap= get_binary_size_map();
+        let bmap = get_binary_size_map();
         let size = parse_size(parts[1], &bmap)?;
         let dabbrs = get_decimal_abbrs();
         m.push(custom_size(size as f64, 1024.0, &dabbrs));
@@ -214,7 +218,6 @@ fn get_hugepage_sizes() -> Result<Vec<String>> {
 
     Ok(m)
 }
-
 
 pub const KB: u128 = 1000;
 pub const MB: u128 = 1000 * KB;
@@ -227,7 +230,6 @@ pub const MiB: u128 = 1024 * KiB;
 pub const GiB: u128 = 1024 * MiB;
 pub const TiB: u128 = 1024 * GiB;
 pub const PiB: u128 = 1024 * TiB;
-
 
 pub fn get_binary_size_map() -> HashMap<String, u128> {
     let mut m = HashMap::new();
@@ -249,7 +251,7 @@ pub fn get_decimal_size_map() -> HashMap<String, u128> {
     m
 }
 
-pub fn get_decimal_abbrs() -> Vec<String>  {
+pub fn get_decimal_abbrs() -> Vec<String> {
     let m = vec![
         "B".to_string(),
         "KB".to_string(),
@@ -275,7 +277,7 @@ fn parse_size(s: &str, m: &HashMap<String, u128>) -> Result<u128> {
     let num = caps.name("num");
     let size: u128 = if num.is_some() {
         let n = num.unwrap().as_str().trim().parse::<u128>();
-        if n.is_err(){
+        if n.is_err() {
             return Err(Error::new(InvalidBytesSize));
         }
         n.unwrap()
@@ -307,4 +309,3 @@ fn custom_size(mut size: f64, base: f64, m: &Vec<String>) -> String {
 
     format!("{}{}", size, m[i].as_str())
 }
-

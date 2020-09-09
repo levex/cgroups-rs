@@ -8,11 +8,12 @@ use log::*;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
 pub mod blkio;
 pub mod cgroup;
+pub mod cgroup_builder;
 pub mod cpu;
 pub mod cpuacct;
 pub mod cpuset;
@@ -29,15 +30,14 @@ pub mod perf_event;
 pub mod pid;
 pub mod rdma;
 pub mod systemd;
-pub mod cgroup_builder;
 
 use crate::blkio::BlkIoController;
 use crate::cpu::CpuController;
 use crate::cpuacct::CpuAcctController;
 use crate::cpuset::CpuSetController;
 use crate::devices::DevicesController;
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 use crate::freezer::FreezerController;
 use crate::hugetlb::HugeTlbController;
 use crate::memory::MemController;
@@ -136,8 +136,7 @@ mod sealed {
         fn get_base(&self) -> &PathBuf;
 
         /// Hooks running after controller crated, if have
-        fn post_create(&self){
-        }
+        fn post_create(&self) {}
 
         fn is_v2(&self) -> bool {
             false
@@ -189,7 +188,6 @@ mod sealed {
 
             std::path::Path::new(p).exists()
         }
-
     }
 }
 
@@ -227,7 +225,10 @@ pub trait Controller {
     fn v2(&self) -> bool;
 }
 
-impl<T> Controller for T where T: ControllerInternal {
+impl<T> Controller for T
+where
+    T: ControllerInternal,
+{
     fn control_type(&self) -> Controllers {
         ControllerInternal::control_type(self)
     }
@@ -244,7 +245,8 @@ impl<T> Controller for T where T: ControllerInternal {
 
     /// Create this controller
     fn create(&self) {
-        self.verify_path().expect(format!("path should be valid: {:?}", self.path()).as_str());
+        self.verify_path()
+            .expect(format!("path should be valid: {:?}", self.path()).as_str());
 
         match ::std::fs::create_dir_all(self.get_path()) {
             Ok(_) => self.post_create(),
@@ -293,13 +295,13 @@ impl<T> Controller for T where T: ControllerInternal {
                     }
                 }
                 Ok(v.into_iter().map(CgroupPid::from).collect())
-            }).unwrap_or(vec![])
+            })
+            .unwrap_or(vec![])
     }
 
     fn v2(&self) -> bool {
         self.is_v2()
     }
-
 }
 
 #[doc(hidden)]
@@ -641,8 +643,6 @@ impl Subsystem {
     }
 }
 
-
-
 /// The values for `memory.hight` or `pids.max`
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum MaxValue {
@@ -676,7 +676,7 @@ impl MaxValue {
 
 pub fn parse_max_value(s: &String) -> Result<MaxValue> {
     if s.trim() == "max" {
-       return Ok(MaxValue::Max)
+        return Ok(MaxValue::Max);
     }
     match s.trim().parse() {
         Ok(val) => Ok(MaxValue::Value(val)),
@@ -689,18 +689,20 @@ pub fn parse_max_value(s: &String) -> Result<MaxValue> {
 //  KEY1 VAL1\n
 pub fn flat_keyed_to_vec(mut file: File) -> Result<Vec<(String, i64)>> {
     let mut content = String::new();
-    file.read_to_string(&mut content).map_err(|e| Error::with_cause(ReadFailed, e))?;
+    file.read_to_string(&mut content)
+        .map_err(|e| Error::with_cause(ReadFailed, e))?;
 
     let mut v = Vec::new();
     for line in content.lines() {
         let parts: Vec<&str> = line.split(' ').collect();
         if parts.len() == 2 {
             match parts[1].parse::<i64>() {
-                Ok(i) => { v.push((parts[0].to_string(), i)); } ,
-                Err(_) => {},
+                Ok(i) => {
+                    v.push((parts[0].to_string(), i));
+                }
+                Err(_) => {}
             }
         }
-
     }
     Ok(v)
 }
@@ -710,18 +712,20 @@ pub fn flat_keyed_to_vec(mut file: File) -> Result<Vec<(String, i64)>> {
 //  KEY1 VAL1\n
 pub fn flat_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, i64>> {
     let mut content = String::new();
-    file.read_to_string(&mut content).map_err(|e| Error::with_cause(ReadFailed, e))?;
+    file.read_to_string(&mut content)
+        .map_err(|e| Error::with_cause(ReadFailed, e))?;
 
     let mut h = HashMap::new();
     for line in content.lines() {
         let parts: Vec<&str> = line.split(' ').collect();
         if parts.len() == 2 {
             match parts[1].parse::<i64>() {
-                Ok(i) => { h.insert(parts[0].to_string(), i); } ,
-                Err(_) => {},
+                Ok(i) => {
+                    h.insert(parts[0].to_string(), i);
+                }
+                Err(_) => {}
             }
         }
-
     }
     Ok(h)
 }
@@ -731,7 +735,8 @@ pub fn flat_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, i64>> {
 //  KEY1 SUB_KEY0=VAL10 SUB_KEY1=VAL11...
 pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap<String, i64>>> {
     let mut content = String::new();
-    file.read_to_string(&mut content).map_err(|e| Error::with_cause(ReadFailed, e))?;
+    file.read_to_string(&mut content)
+        .map_err(|e| Error::with_cause(ReadFailed, e))?;
 
     let mut h = HashMap::new();
     for line in content.lines() {
@@ -744,8 +749,10 @@ pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap
             let fields: Vec<&str> = item.split('=').collect();
             if fields.len() == 2 {
                 match fields[1].parse::<i64>() {
-                    Ok(i) => { th.insert(fields[0].to_string(), i); } ,
-                    Err(_) => {},
+                    Ok(i) => {
+                        th.insert(fields[0].to_string(), i);
+                    }
+                    Err(_) => {}
                 }
             }
         }
@@ -759,7 +766,5 @@ pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap
 /// with error: `Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }`
 pub fn libc_rmdir(p: &str) {
     // with int return value
-    let _ = unsafe {
-        libc::rmdir(p.as_ptr() as *const i8)
-    };
+    let _ = unsafe { libc::rmdir(p.as_ptr() as *const i8) };
 }

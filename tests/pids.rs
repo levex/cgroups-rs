@@ -5,7 +5,7 @@
 //
 
 //! Integration tests about the pids subsystem
-use cgroups::pid::{PidController};
+use cgroups::pid::PidController;
 use cgroups::Controller;
 use cgroups::{Cgroup, CgroupPid, Hierarchy, MaxValue, PidResources, Resources};
 

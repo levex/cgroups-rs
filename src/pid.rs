@@ -12,11 +12,12 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, MaxValue, parse_max_value, PidResources, Resources, Subsystem,
+    parse_max_value, ControllIdentifier, ControllerInternal, Controllers, MaxValue, PidResources,
+    Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `pids` subsystem of a Cgroup.
@@ -24,7 +25,7 @@ use crate::{
 pub struct PidController {
     base: PathBuf,
     path: PathBuf,
-    v2:   bool,
+    v2: bool,
 }
 
 impl ControllerInternal for PidController {
@@ -94,7 +95,10 @@ impl<'a> From<&'a Subsystem> for &'a PidController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -110,7 +114,7 @@ impl PidController {
         Self {
             base: root.clone(),
             path: root,
-            v2:   v2,
+            v2: v2,
         }
     }
 

@@ -25,7 +25,6 @@ fn test_cpuset_memory_pressure_root_cg() {
     cg.delete();
 }
 
-
 #[test]
 fn test_cpuset_set_cpus() {
     let h = cgroups::hierarchies::auto();
@@ -48,10 +47,11 @@ fn test_cpuset_set_cpus() {
 
         let set = cpuset.cpuset();
         assert_eq!(1, set.cpus.len());
-        assert_eq!((0,0), set.cpus[0]);
+        assert_eq!((0, 0), set.cpus[0]);
 
         // all cpus in system
-        let cpus = fs::read_to_string("/sys/fs/cgroup/cpuset.cpus.effective").unwrap_or("".to_string());
+        let cpus =
+            fs::read_to_string("/sys/fs/cgroup/cpuset.cpus.effective").unwrap_or("".to_string());
         let cpus = cpus.trim();
         if cpus != "" {
             let r = cpuset.set_cpus(&cpus);
