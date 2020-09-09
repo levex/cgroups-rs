@@ -1,3 +1,8 @@
+// Copyright (c) 2020 And Group
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! Integration tests about the hugetlb subsystem
 use cgroups::hugetlb::HugeTlbController;
 use cgroups::{Cgroup, Hierarchy};

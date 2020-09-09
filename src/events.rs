@@ -1,3 +1,8 @@
+// Copyright (c) 2020 Ant Group
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 use eventfd::{eventfd, EfdFlags};
 use nix::sys::eventfd;
 use std::fs::{self, File};

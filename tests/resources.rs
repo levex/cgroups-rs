@@ -1,3 +1,9 @@
+// Copyright (c) 2018 Levente Kurusa
+// Copyright (c) 2020 And Group
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! Integration test about setting resources using `apply()`
 use cgroups::pid::{PidController};
 use cgroups::{Cgroup, Hierarchy, MaxValue, PidResources, Resources};

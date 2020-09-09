@@ -1,3 +1,8 @@
+// Copyright (c) 2020 Ant Group
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! This module contains the implementation of the `systemd` cgroup subsystem.
 //!
 use std::path::PathBuf;
