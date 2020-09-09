@@ -4,12 +4,13 @@
 //
 
 //! Integration tests about the hugetlb subsystem
-use cgroups::hugetlb::HugeTlbController;
+use cgroups::hugetlb::{self, HugeTlbController};
 use cgroups::Controller;
 use cgroups::{Cgroup, Hierarchy};
 
 use cgroups::error::ErrorKind::*;
 use cgroups::error::*;
+use std::fs;
 
 #[test]
 fn test_hugetlb_sizes() {
@@ -25,16 +26,19 @@ fn test_hugetlb_sizes() {
         let hugetlb_controller: &HugeTlbController = cg.controller_of().unwrap();
         let sizes = hugetlb_controller.get_sizes();
 
-        let size = "2MB";
-        assert_eq!(sizes, vec![size.to_string()]);
+        // test sizes count
+        let sizes = hugetlb_controller.get_sizes();
+        let sizes_count = fs::read_dir(hugetlb::HUGEPAGESIZE_DIR).unwrap().count();
+        assert_eq!(sizes.len(), sizes_count);
 
-        let supported = hugetlb_controller.size_supported(size);
-        assert_eq!(supported, true);
-
-        assert_no_error(hugetlb_controller.failcnt(size));
-        assert_no_error(hugetlb_controller.limit_in_bytes(size));
-        assert_no_error(hugetlb_controller.usage_in_bytes(size));
-        assert_no_error(hugetlb_controller.max_usage_in_bytes(size));
+        for size in sizes {
+            let supported = hugetlb_controller.size_supported(&size);
+            assert_eq!(supported, true);
+            assert_no_error(hugetlb_controller.failcnt(&size));
+            assert_no_error(hugetlb_controller.limit_in_bytes(&size));
+            assert_no_error(hugetlb_controller.usage_in_bytes(&size));
+            assert_no_error(hugetlb_controller.max_usage_in_bytes(&size));
+        }
     }
     cg.delete();
 }

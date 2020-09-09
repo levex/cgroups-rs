@@ -6,10 +6,7 @@
 //! Integration tests about the hugetlb subsystem
 use cgroups::memory::{MemController, SetMemory};
 use cgroups::Controller;
-use cgroups::{Cgroup, Hierarchy, MaxValue};
-
-use cgroups::error::ErrorKind::*;
-use cgroups::error::*;
+use cgroups::{Cgroup, MaxValue};
 
 #[test]
 fn test_disable_oom_killer() {
@@ -23,7 +20,7 @@ fn test_disable_oom_killer() {
         let m = mem_controller.memory_stat();
         assert_eq!(m.oom_control.oom_kill_disable, false);
 
-        // FIXME only v1
+        // now only v1
         if !mem_controller.v2() {
             // disable oom killer
             let r = mem_controller.disable_oom_killer();
