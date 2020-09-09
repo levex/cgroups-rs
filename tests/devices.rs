@@ -1,4 +1,5 @@
 // Copyright (c) 2018 Levente Kurusa
+// Copyright (c) 2020 And Group
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 //
@@ -6,12 +7,18 @@
 //! Integration tests about the devices subsystem
 
 use cgroups::devices::{DevicePermissions, DeviceType, DevicesController};
-use cgroups::{Cgroup, DeviceResource};
+use cgroups::{Cgroup, DeviceResource, Hierarchy};
 
 #[test]
 fn test_devices_parsing() {
-    let hier = cgroups::hierarchies::V1::new();
-    let cg = Cgroup::new(&hier, String::from("test_devices_parsing"));
+    // now only v2
+    if cgroups::hierarchies::is_cgroup2_unified_mode() {
+        return;
+    }
+
+    let h = cgroups::hierarchies::auto();
+    let h = Box::new(&*h);
+    let cg = Cgroup::new(h, String::from("test_devices_parsing"));
     {
         let devices: &DevicesController = cg.controller_of().unwrap();
 

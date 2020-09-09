@@ -1,4 +1,5 @@
 // Copyright (c) 2018 Levente Kurusa
+// Copyright (c) 2020 Ant Group
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 //
@@ -7,15 +8,21 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/memory.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::sync::mpsc::Receiver;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
+use crate::events;
+
+use crate::flat_keyed_to_hashmap;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, MemoryResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, MaxValue, MemoryResources, Resources,
+    Subsystem,
 };
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
@@ -27,6 +34,15 @@ use crate::{
 pub struct MemController {
     base: PathBuf,
     path: PathBuf,
+    v2: bool,
+}
+
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct SetMemory {
+    pub low: Option<MaxValue>,
+    pub high: Option<MaxValue>,
+    pub min: Option<MaxValue>,
+    pub max: Option<MaxValue>,
 }
 
 /// Controls statistics and controls about the OOM killer operating in this control group.
@@ -114,7 +130,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         file_pages: file_line
             .split(|x| x == ' ' || x == '=')
@@ -128,7 +145,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         anon_pages: anon_line
             .split(|x| x == ' ' || x == '=')
@@ -142,7 +160,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         unevictable_pages: unevict_line
             .split(|x| x == ' ' || x == '=')
@@ -156,7 +175,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_total_pages: hier_total_line
             .split(|x| x == ' ' || x == '=')
@@ -170,7 +190,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_file_pages: hier_file_line
             .split(|x| x == ' ' || x == '=')
@@ -184,7 +205,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_anon_pages: hier_anon_line
             .split(|x| x == ' ' || x == '=')
@@ -198,7 +220,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
         hierarchical_unevictable_pages: hier_unevict_line
             .split(|x| x == ' ' || x == '=')
@@ -212,7 +235,8 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                     x.split("=").collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
-                }).collect()
+                })
+                .collect()
         },
     })
 }
@@ -236,8 +260,8 @@ pub struct MemoryStat {
     pub inactive_file: u64,
     pub active_file: u64,
     pub unevictable: u64,
-    pub hierarchical_memory_limit: u64,
-    pub hierarchical_memsw_limit: u64,
+    pub hierarchical_memory_limit: i64,
+    pub hierarchical_memsw_limit: i64,
     pub total_cache: u64,
     pub total_rss: u64,
     pub total_rss_huge: u64,
@@ -255,52 +279,63 @@ pub struct MemoryStat {
     pub total_inactive_file: u64,
     pub total_active_file: u64,
     pub total_unevictable: u64,
+    pub raw: HashMap<String, u64>,
 }
 
 fn parse_memory_stat(s: String) -> Result<MemoryStat> {
-    let sp: Vec<&str> = s
-        .split_whitespace()
-        .filter(|x| x.parse::<u64>().is_ok())
-        .collect();
+    let mut raw = HashMap::new();
 
-    let mut spl = sp.iter();
+    for l in s.lines() {
+        let t: Vec<&str> = l.split(' ').collect();
+        if t.len() != 2 {
+            continue;
+        }
+        let n = t[1].trim().parse::<u64>();
+        if n.is_err() {
+            continue;
+        }
+
+        raw.insert(t[0].to_string(), n.unwrap());
+    }
+
     Ok(MemoryStat {
-        cache: spl.next().unwrap().parse::<u64>().unwrap(),
-        rss: spl.next().unwrap().parse::<u64>().unwrap(),
-        rss_huge: spl.next().unwrap().parse::<u64>().unwrap(),
-        shmem: spl.next().unwrap().parse::<u64>().unwrap(),
-        mapped_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        dirty: spl.next().unwrap().parse::<u64>().unwrap(),
-        writeback: spl.next().unwrap().parse::<u64>().unwrap(),
-        swap: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgpgin: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgpgout: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        pgmajfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        inactive_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        active_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        inactive_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        active_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        unevictable: spl.next().unwrap().parse::<u64>().unwrap(),
-        hierarchical_memory_limit: spl.next().unwrap().parse::<u64>().unwrap(),
-        hierarchical_memsw_limit: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_cache: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_rss: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_rss_huge: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_shmem: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_mapped_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_dirty: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_writeback: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_swap: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgpgin: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgpgout: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_pgmajfault: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_inactive_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_active_anon: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_inactive_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_active_file: spl.next().unwrap().parse::<u64>().unwrap(),
-        total_unevictable: spl.next().unwrap().parse::<u64>().unwrap(),
+        cache: *raw.get("cache").unwrap_or(&0),
+        rss: *raw.get("rss").unwrap_or(&0),
+        rss_huge: *raw.get("rss_huge").unwrap_or(&0),
+        shmem: *raw.get("shmem").unwrap_or(&0),
+        mapped_file: *raw.get("mapped_file").unwrap_or(&0),
+        dirty: *raw.get("dirty").unwrap_or(&0),
+        writeback: *raw.get("writeback").unwrap_or(&0),
+        swap: *raw.get("swap").unwrap_or(&0),
+        pgpgin: *raw.get("pgpgin").unwrap_or(&0),
+        pgpgout: *raw.get("pgpgout").unwrap_or(&0),
+        pgfault: *raw.get("pgfault").unwrap_or(&0),
+        pgmajfault: *raw.get("pgmajfault").unwrap_or(&0),
+        inactive_anon: *raw.get("inactive_anon").unwrap_or(&0),
+        active_anon: *raw.get("active_anon").unwrap_or(&0),
+        inactive_file: *raw.get("inactive_file").unwrap_or(&0),
+        active_file: *raw.get("active_file").unwrap_or(&0),
+        unevictable: *raw.get("unevictable").unwrap_or(&0),
+        hierarchical_memory_limit: *raw.get("hierarchical_memory_limit").unwrap_or(&0) as i64,
+        hierarchical_memsw_limit: *raw.get("hierarchical_memsw_limit").unwrap_or(&0) as i64,
+        total_cache: *raw.get("total_cache").unwrap_or(&0),
+        total_rss: *raw.get("total_rss").unwrap_or(&0),
+        total_rss_huge: *raw.get("total_rss_huge").unwrap_or(&0),
+        total_shmem: *raw.get("total_shmem").unwrap_or(&0),
+        total_mapped_file: *raw.get("total_mapped_file").unwrap_or(&0),
+        total_dirty: *raw.get("total_dirty").unwrap_or(&0),
+        total_writeback: *raw.get("total_writeback").unwrap_or(&0),
+        total_swap: *raw.get("total_swap").unwrap_or(&0),
+        total_pgpgin: *raw.get("total_pgpgin").unwrap_or(&0),
+        total_pgpgout: *raw.get("total_pgpgout").unwrap_or(&0),
+        total_pgfault: *raw.get("total_pgfault").unwrap_or(&0),
+        total_pgmajfault: *raw.get("total_pgmajfault").unwrap_or(&0),
+        total_inactive_anon: *raw.get("total_inactive_anon").unwrap_or(&0),
+        total_active_anon: *raw.get("total_active_anon").unwrap_or(&0),
+        total_inactive_file: *raw.get("total_inactive_file").unwrap_or(&0),
+        total_active_file: *raw.get("total_active_file").unwrap_or(&0),
+        total_unevictable: *raw.get("total_unevictable").unwrap_or(&0),
+        raw: raw,
     })
 }
 
@@ -311,7 +346,7 @@ pub struct MemSwap {
     /// How many times the limit has been hit.
     pub fail_cnt: u64,
     /// Memory and swap usage limit in bytes.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// Current usage of memory and swap in bytes.
     pub usage_in_bytes: u64,
     /// The maximum observed usage of memory and swap in bytes.
@@ -325,7 +360,7 @@ pub struct Memory {
     /// How many times the limit has been hit.
     pub fail_cnt: u64,
     /// The limit in bytes of the memory usage of the control group's tasks.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// The current usage of memory by the control group's tasks.
     pub usage_in_bytes: u64,
     /// The maximum observed usage of memory by the control group's tasks.
@@ -347,7 +382,7 @@ pub struct Memory {
     pub oom_control: OomControl,
     /// Allows setting a limit to memory usage which is enforced when the system (note, _not_ the
     /// control group) detects memory pressure.
-    pub soft_limit_in_bytes: u64,
+    pub soft_limit_in_bytes: i64,
     /// Contains a wide array of statistics about the memory usage of the tasks in the control
     /// group.
     pub stat: MemoryStat,
@@ -370,7 +405,7 @@ pub struct Tcp {
     pub fail_cnt: u64,
     /// The limit in bytes of the memory usage of the kernel's TCP buffers by control group's
     /// tasks.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// The current memory used by the kernel's TCP buffers related to these tasks.
     pub usage_in_bytes: u64,
     /// The observed maximum usage of memory by the kernel's TCP buffers (that originated from
@@ -387,7 +422,7 @@ pub struct Kmem {
     /// How many times the limit has been hit.
     pub fail_cnt: u64,
     /// The limit in bytes of the kernel memory used by the control group's tasks.
-    pub limit_in_bytes: u64,
+    pub limit_in_bytes: i64,
     /// The current usage of kernel memory used by the control group's tasks, in bytes.
     pub usage_in_bytes: u64,
     /// The maximum observed usage of kernel memory used by the control group's tasks, in bytes.
@@ -410,6 +445,10 @@ impl ControllerInternal for MemController {
         &self.base
     }
 
+    fn is_v2(&self) -> bool {
+        self.v2
+    }
+
     fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let memres: &MemoryResources = &res.memory;
@@ -429,12 +468,76 @@ impl ControllerInternal for MemController {
 
 impl MemController {
     /// Contructs a new `MemController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2 {
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2: v2,
+        }
+    }
+
+    // for v2
+    pub fn set_mem(&self, m: SetMemory) -> Result<()> {
+        let values = vec![
+            (m.high, "memory.high"),
+            (m.low, "memory.low"),
+            (m.max, "memory.max"),
+            (m.min, "memory.min"),
+        ];
+        for value in values {
+            let v = value.0;
+            let f = value.1;
+            if v.is_some() {
+                let v = v.unwrap().to_string();
+                self.open_path(f, true).and_then(|mut file| {
+                    file.write_all(v.as_ref())
+                        .map_err(|e| Error::with_cause(WriteFailed, e))
+                })?;
+            }
+        }
+        Ok(())
+    }
+
+    // for v2
+    pub fn get_mem(&self) -> Result<SetMemory> {
+        let mut m: SetMemory = Default::default();
+        self.get_max_value("memory.high").map(|x| m.high = Some(x));
+        self.get_max_value("memory.low").map(|x| m.low = Some(x));
+        self.get_max_value("memory.max").map(|x| m.max = Some(x));
+        self.get_max_value("memory.min").map(|x| m.min = Some(x));
+
+        Ok(m)
+    }
+
+    fn memory_stat_v2(&self) -> Memory {
+        let set = self.get_mem().unwrap();
+
+        Memory {
+            fail_cnt: 0,
+            limit_in_bytes: set.max.unwrap().to_i64(),
+            usage_in_bytes: self
+                .open_path("memory.current", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: 0,
+            move_charge_at_immigrate: 0,
+            numa_stat: NumaStat::default(),
+            oom_control: OomControl::default(),
+            soft_limit_in_bytes: set.low.unwrap().to_i64(),
+            stat: self
+                .open_path("memory.stat", false)
+                .and_then(read_string_from)
+                .and_then(parse_memory_stat)
+                .unwrap_or(MemoryStat::default()),
+            swappiness: self
+                .open_path("memory.swap.current", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            use_hierarchy: 0,
         }
     }
 
@@ -444,6 +547,10 @@ impl MemController {
     /// See the individual fields for more explanation, and as always, remember to consult the
     /// kernel Documentation and/or sources.
     pub fn memory_stat(&self) -> Memory {
+        if self.v2 {
+            return self.memory_stat_v2();
+        }
+
         Memory {
             fail_cnt: self
                 .open_path("memory.failcnt", false)
@@ -451,7 +558,7 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             usage_in_bytes: self
                 .open_path("memory.usage_in_bytes", false)
@@ -477,7 +584,7 @@ impl MemController {
                 .unwrap_or(OomControl::default()),
             soft_limit_in_bytes: self
                 .open_path("memory.soft_limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             stat: self
                 .open_path("memory.stat", false)
@@ -504,8 +611,8 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.kmem.limit_in_bytes", false)
-                .and_then(read_u64_from)
-                .unwrap_or(0),
+                .and_then(read_i64_from)
+                .unwrap_or(-1),
             usage_in_bytes: self
                 .open_path("memory.kmem.usage_in_bytes", false)
                 .and_then(read_u64_from)
@@ -531,7 +638,7 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.kmem.tcp.limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             usage_in_bytes: self
                 .open_path("memory.kmem.tcp.usage_in_bytes", false)
@@ -544,9 +651,32 @@ impl MemController {
         }
     }
 
+    pub fn memswap_v2(&self) -> MemSwap {
+        MemSwap {
+            fail_cnt: self
+                .open_path("memory.swap.events", false)
+                .and_then(flat_keyed_to_hashmap)
+                .and_then(|x| Ok(*x.get("fail").unwrap_or(&0) as u64))
+                .unwrap(),
+            limit_in_bytes: self
+                .open_path("memory.swap.max", false)
+                .and_then(read_i64_from)
+                .unwrap_or(0),
+            usage_in_bytes: self
+                .open_path("memory.swap.current", false)
+                .and_then(read_u64_from)
+                .unwrap_or(0),
+            max_usage_in_bytes: 0,
+        }
+    }
+
     /// Gathers information about the memory usage of the control group including the swap usage
     /// (if any).
     pub fn memswap(&self) -> MemSwap {
+        if self.v2 {
+            return self.memswap_v2();
+        }
+
         MemSwap {
             fail_cnt: self
                 .open_path("memory.memsw.failcnt", false)
@@ -554,7 +684,7 @@ impl MemController {
                 .unwrap_or(0),
             limit_in_bytes: self
                 .open_path("memory.memsw.limit_in_bytes", false)
-                .and_then(read_u64_from)
+                .and_then(read_i64_from)
                 .unwrap_or(0),
             usage_in_bytes: self
                 .open_path("memory.memsw.usage_in_bytes", false)
@@ -569,11 +699,10 @@ impl MemController {
 
     /// Reset the fail counter
     pub fn reset_fail_count(&self) -> Result<()> {
-        self.open_path("memory.failcnt", true)
-            .and_then(|mut file| {
-                file.write_all("0".to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        self.open_path("memory.failcnt", true).and_then(|mut file| {
+            file.write_all("0".to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Reset the kernel memory fail counter
@@ -604,16 +733,19 @@ impl MemController {
     }
 
     /// Set the memory usage limit of the control group, in bytes.
-    pub fn set_limit(&self, limit: u64) -> Result<()> {
-        self.open_path("memory.limit_in_bytes", true)
-            .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+    pub fn set_limit(&self, limit: i64) -> Result<()> {
+        let mut file = "memory.limit_in_bytes";
+        if self.v2 {
+            file = "memory.max";
+        }
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(limit.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Set the kernel memory limit of the control group, in bytes.
-    pub fn set_kmem_limit(&self, limit: u64) -> Result<()> {
+    pub fn set_kmem_limit(&self, limit: i64) -> Result<()> {
         self.open_path("memory.kmem.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -622,16 +754,19 @@ impl MemController {
     }
 
     /// Set the memory+swap limit of the control group, in bytes.
-    pub fn set_memswap_limit(&self, limit: u64) -> Result<()> {
-        self.open_path("memory.memsw.limit_in_bytes", true)
-            .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+    pub fn set_memswap_limit(&self, limit: i64) -> Result<()> {
+        let mut file = "memory.memsw.limit_in_bytes";
+        if self.v2 {
+            file = "memory.swap.max";
+        }
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(limit.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
-    pub fn set_tcp_limit(&self, limit: u64) -> Result<()> {
+    pub fn set_tcp_limit(&self, limit: i64) -> Result<()> {
         self.open_path("memory.kmem.tcp.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -643,12 +778,15 @@ impl MemController {
     ///
     /// This limit is enforced when the system is nearing OOM conditions. Contrast this with the
     /// hard limit, which is _always_ enforced.
-    pub fn set_soft_limit(&self, limit: u64) -> Result<()> {
-        self.open_path("memory.soft_limit_in_bytes", true)
-            .and_then(|mut file| {
-                file.write_all(limit.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+    pub fn set_soft_limit(&self, limit: i64) -> Result<()> {
+        let mut file = "memory.soft_limit_in_bytes";
+        if self.v2 {
+            file = "memory.low"
+        }
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(limit.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     /// Set how likely the kernel is to swap out parts of the address space used by the control
@@ -661,6 +799,22 @@ impl MemController {
                 file.write_all(swp.to_string().as_ref())
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
+    }
+
+    pub fn disable_oom_killer(&self) -> Result<()> {
+        self.open_path("memory.oom_control", true)
+            .and_then(|mut file| {
+                file.write_all("1".to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
+
+    pub fn register_oom_event(&self, key: &str) -> Result<Receiver<String>> {
+        if self.v2 {
+            events::notify_on_oom_v2(key, self.get_path())
+        } else {
+            events::notify_on_oom_v1(key, self.get_path())
+        }
     }
 }
 
@@ -687,7 +841,21 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+    }
+}
+
+fn read_i64_from(mut file: File) -> Result<i64> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -705,6 +873,7 @@ mod tests {
     use crate::memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
+    use std::collections::HashMap;
 
     static GOOD_VALUE: &str = "\
 total=51189 N0=51189 N1=123
@@ -805,6 +974,7 @@ total_unevictable 81920
     #[test]
     fn test_parse_memory_stat() {
         let ok = parse_memory_stat(GOOD_MEMORYSTAT_VAL.to_string()).unwrap();
+        let raw = ok.raw.clone();
         assert_eq!(
             ok,
             MemoryStat {
@@ -844,6 +1014,7 @@ total_unevictable 81920
                 total_inactive_file: 1272135680,
                 total_active_file: 2338816000,
                 total_unevictable: 81920,
+                raw: raw,
             }
         );
     }

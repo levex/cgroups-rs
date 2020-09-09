@@ -1,4 +1,5 @@
 // Copyright (c) 2018 Levente Kurusa
+// Copyright (c) 2020 Ant Group
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 //
@@ -18,8 +19,9 @@
 //! # use cgroups::*;
 //! # use cgroups::devices::*;
 //! # use cgroups::cgroup_builder::*;
-//! let v1 = cgroups::hierarchies::V1::new();
-//! let cgroup: Cgroup = CgroupBuilder::new("hello", &v1)
+//! let h = cgroups::hierarchies::auto();
+//! let h = Box::new(&*h);
+//! let cgroup: Cgroup = CgroupBuilder::new("hello", h)
 //!      .memory()
 //!          .kernel_memory_limit(1024 * 1024)
 //!          .memory_hard_limit(1024 * 1024)
@@ -45,10 +47,10 @@
 //!          .limit("2G".to_string(), 2 * 1024 * 1024 * 1024)
 //!          .done()
 //!      .blkio()
-//!          .weight(123)
-//!          .leaf_weight(99)
-//!          .weight_device(6, 1, 100, 55)
-//!          .weight_device(6, 1, 100, 55)
+//!          .weight(Some(123))
+//!          .leaf_weight(Some(99))
+//!          .weight_device(6, 1, Some(100), Some(55))
+//!          .weight_device(6, 1, Some(100), Some(55))
 //!          .throttle_iops()
 //!              .read(6, 1, 10)
 //!              .write(11, 1, 100)
@@ -60,7 +62,10 @@
 //! ```
 use crate::error::*;
 
-use crate::{pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource,  Cgroup, DeviceResource, Hierarchy, HugePageResource, NetworkPriority, Resources};
+use crate::{
+    pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource, Cgroup, DeviceResource, Hierarchy,
+    HugePageResource, MaxValue, NetworkPriority, Resources,
+};
 
 macro_rules! gen_setter {
     ($res:ident, $cont:ident, $func:ident, $name:ident, $ty:ty) => {
@@ -70,13 +75,13 @@ macro_rules! gen_setter {
             self.cgroup.resources.$res.$name = $name;
             self
         }
-    }
+    };
 }
 
 /// A control group builder instance
 pub struct CgroupBuilder<'a> {
     name: String,
-    hierarchy: &'a Hierarchy,
+    hierarchy: Box<&'a dyn Hierarchy>,
     /// Internal, unsupported field: use the associated builders instead.
     resources: Resources,
 }
@@ -85,7 +90,7 @@ impl<'a> CgroupBuilder<'a> {
     /// Start building a control group with the supplied hierarchy and name pair.
     ///
     /// Note that this does not actually create the control group until `build()` is called.
-    pub fn new(name: &'a str, hierarchy: &'a Hierarchy) -> CgroupBuilder<'a> {
+    pub fn new(name: &'a str, hierarchy: Box<&'a dyn Hierarchy>) -> CgroupBuilder<'a> {
         CgroupBuilder {
             name: name.to_owned(),
             hierarchy: hierarchy,
@@ -95,46 +100,34 @@ impl<'a> CgroupBuilder<'a> {
 
     /// Builds the memory resources of the control group.
     pub fn memory(self) -> MemoryResourceBuilder<'a> {
-        MemoryResourceBuilder {
-            cgroup: self,
-        }
+        MemoryResourceBuilder { cgroup: self }
     }
 
     /// Builds the pid resources of the control group.
     pub fn pid(self) -> PidResourceBuilder<'a> {
-        PidResourceBuilder {
-            cgroup: self,
-        }
+        PidResourceBuilder { cgroup: self }
     }
 
     /// Builds the cpu resources of the control group.
     pub fn cpu(self) -> CpuResourceBuilder<'a> {
-        CpuResourceBuilder {
-            cgroup: self,
-        }
+        CpuResourceBuilder { cgroup: self }
     }
 
     /// Builds the devices resources of the control group, disallowing or
     /// allowing access to certain devices in the system.
     pub fn devices(self) -> DeviceResourceBuilder<'a> {
-        DeviceResourceBuilder {
-            cgroup: self,
-        }
+        DeviceResourceBuilder { cgroup: self }
     }
 
     /// Builds the network resources of the control group, setting class id, or
     /// various priorities on networking interfaces.
     pub fn network(self) -> NetworkResourceBuilder<'a> {
-        NetworkResourceBuilder {
-            cgroup: self,
-        }
+        NetworkResourceBuilder { cgroup: self }
     }
 
     /// Builds the hugepage/hugetlb resources available to the control group.
     pub fn hugepages(self) -> HugepagesResourceBuilder<'a> {
-        HugepagesResourceBuilder {
-            cgroup: self,
-        }
+        HugepagesResourceBuilder { cgroup: self }
     }
 
     /// Builds the block I/O resources available for the control group.
@@ -159,12 +152,35 @@ pub struct MemoryResourceBuilder<'a> {
 }
 
 impl<'a> MemoryResourceBuilder<'a> {
-
-    gen_setter!(memory, MemController, set_kmem_limit, kernel_memory_limit, u64);
-    gen_setter!(memory, MemController, set_limit, memory_hard_limit, u64);
-    gen_setter!(memory, MemController, set_soft_limit, memory_soft_limit, u64);
-    gen_setter!(memory, MemController, set_tcp_limit, kernel_tcp_memory_limit, u64);
-    gen_setter!(memory, MemController, set_memswap_limit, memory_swap_limit, u64);
+    gen_setter!(
+        memory,
+        MemController,
+        set_kmem_limit,
+        kernel_memory_limit,
+        i64
+    );
+    gen_setter!(memory, MemController, set_limit, memory_hard_limit, i64);
+    gen_setter!(
+        memory,
+        MemController,
+        set_soft_limit,
+        memory_soft_limit,
+        i64
+    );
+    gen_setter!(
+        memory,
+        MemController,
+        set_tcp_limit,
+        kernel_tcp_memory_limit,
+        i64
+    );
+    gen_setter!(
+        memory,
+        MemController,
+        set_memswap_limit,
+        memory_swap_limit,
+        i64
+    );
     gen_setter!(memory, MemController, set_swappiness, swappiness, u64);
 
     /// Finish the construction of the memory resources of a control group.
@@ -179,8 +195,13 @@ pub struct PidResourceBuilder<'a> {
 }
 
 impl<'a> PidResourceBuilder<'a> {
-
-    gen_setter!(pid, PidController, set_pid_max, maximum_number_of_processes, pid::PidMax);
+    gen_setter!(
+        pid,
+        PidController,
+        set_pid_max,
+        maximum_number_of_processes,
+        MaxValue
+    );
 
     /// Finish the construction of the pid resources of a control group.
     pub fn done(self) -> CgroupBuilder<'a> {
@@ -194,8 +215,8 @@ pub struct CpuResourceBuilder<'a> {
 }
 
 impl<'a> CpuResourceBuilder<'a> {
-
-    gen_setter!(cpu, CpuSetController, set_cpus, cpus, String);
+    // FIXME this should all changed to options.
+    gen_setter!(cpu, CpuSetController, set_cpus, cpus, Option<String>);
     gen_setter!(cpu, CpuSetController, set_mems, mems, String);
     gen_setter!(cpu, CpuController, set_shares, shares, u64);
     gen_setter!(cpu, CpuController, set_cfs_quota, quota, i64);
@@ -215,22 +236,22 @@ pub struct DeviceResourceBuilder<'a> {
 }
 
 impl<'a> DeviceResourceBuilder<'a> {
-
     /// Restrict (or allow) a device to the tasks inside the control group.
-    pub fn device(mut self,
-                  major: i64,
-                  minor: i64,
-                  devtype: crate::devices::DeviceType,
-                  allow: bool,
-                  access: Vec<crate::devices::DevicePermissions>)
-            -> DeviceResourceBuilder<'a> {
+    pub fn device(
+        mut self,
+        major: i64,
+        minor: i64,
+        devtype: crate::devices::DeviceType,
+        allow: bool,
+        access: Vec<crate::devices::DevicePermissions>,
+    ) -> DeviceResourceBuilder<'a> {
         self.cgroup.resources.devices.update_values = true;
         self.cgroup.resources.devices.devices.push(DeviceResource {
             major,
             minor,
             devtype,
             allow,
-            access
+            access,
         });
         self
     }
@@ -247,18 +268,17 @@ pub struct NetworkResourceBuilder<'a> {
 }
 
 impl<'a> NetworkResourceBuilder<'a> {
-
     gen_setter!(network, NetclsController, set_class, class_id, u64);
 
     /// Set the priority of the tasks when operating on a networking device defined by `name` to be
     /// `priority`.
-    pub fn priority(mut self, name: String, priority: u64)
-        -> NetworkResourceBuilder<'a> {
+    pub fn priority(mut self, name: String, priority: u64) -> NetworkResourceBuilder<'a> {
         self.cgroup.resources.network.update_values = true;
-        self.cgroup.resources.network.priorities.push(NetworkPriority {
-            name,
-            priority,
-        });
+        self.cgroup
+            .resources
+            .network
+            .priorities
+            .push(NetworkPriority { name, priority });
         self
     }
 
@@ -274,15 +294,14 @@ pub struct HugepagesResourceBuilder<'a> {
 }
 
 impl<'a> HugepagesResourceBuilder<'a> {
-
     /// Limit the usage of certain hugepages (determined by `size`) to be at most `limit` bytes.
-    pub fn limit(mut self, size: String, limit: u64)
-        -> HugepagesResourceBuilder<'a> {
+    pub fn limit(mut self, size: String, limit: u64) -> HugepagesResourceBuilder<'a> {
         self.cgroup.resources.hugepages.update_values = true;
-        self.cgroup.resources.hugepages.limits.push(HugePageResource {
-            size,
-            limit,
-        });
+        self.cgroup
+            .resources
+            .hugepages
+            .limits
+            .push(HugePageResource { size, limit });
         self
     }
 
@@ -299,24 +318,34 @@ pub struct BlkIoResourcesBuilder<'a> {
 }
 
 impl<'a> BlkIoResourcesBuilder<'a> {
-
-    gen_setter!(blkio, BlkIoController, set_weight, weight, u16);
-    gen_setter!(blkio, BlkIoController, set_leaf_weight, leaf_weight, u16);
+    gen_setter!(blkio, BlkIoController, set_weight, weight, Option<u16>);
+    gen_setter!(
+        blkio,
+        BlkIoController,
+        set_leaf_weight,
+        leaf_weight,
+        Option<u16>
+    );
 
     /// Set the weight of a certain device.
-    pub fn weight_device(mut self,
-                         major: u64,
-                         minor: u64,
-                         weight: u16,
-                         leaf_weight: u16)
-        -> BlkIoResourcesBuilder<'a> {
+    pub fn weight_device(
+        mut self,
+        major: u64,
+        minor: u64,
+        weight: Option<u16>,
+        leaf_weight: Option<u16>,
+    ) -> BlkIoResourcesBuilder<'a> {
         self.cgroup.resources.blkio.update_values = true;
-        self.cgroup.resources.blkio.weight_device.push(BlkIoDeviceResource {
-            major,
-            minor,
-            weight,
-            leaf_weight,
-        });
+        self.cgroup
+            .resources
+            .blkio
+            .weight_device
+            .push(BlkIoDeviceResource {
+                major,
+                minor,
+                weight,
+                leaf_weight,
+            });
         self
     }
 
@@ -333,35 +362,41 @@ impl<'a> BlkIoResourcesBuilder<'a> {
     }
 
     /// Limit the read rate of the current metric for a certain device.
-    pub fn read(mut self, major: u64, minor: u64, rate: u64)
-        -> BlkIoResourcesBuilder<'a> {
+    pub fn read(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder<'a> {
         self.cgroup.resources.blkio.update_values = true;
-        let throttle = BlkIoDeviceThrottleResource {
-            major,
-            minor,
-            rate,
-        };
+        let throttle = BlkIoDeviceThrottleResource { major, minor, rate };
         if self.throttling_iops {
-            self.cgroup.resources.blkio.throttle_read_iops_device.push(throttle);
+            self.cgroup
+                .resources
+                .blkio
+                .throttle_read_iops_device
+                .push(throttle);
         } else {
-            self.cgroup.resources.blkio.throttle_read_bps_device.push(throttle);
+            self.cgroup
+                .resources
+                .blkio
+                .throttle_read_bps_device
+                .push(throttle);
         }
         self
     }
 
     /// Limit the write rate of the current metric for a certain device.
-    pub fn write(mut self, major: u64, minor: u64, rate: u64)
-        -> BlkIoResourcesBuilder<'a> {
+    pub fn write(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder<'a> {
         self.cgroup.resources.blkio.update_values = true;
-        let throttle = BlkIoDeviceThrottleResource {
-            major,
-            minor,
-            rate,
-        };
+        let throttle = BlkIoDeviceThrottleResource { major, minor, rate };
         if self.throttling_iops {
-            self.cgroup.resources.blkio.throttle_write_iops_device.push(throttle);
+            self.cgroup
+                .resources
+                .blkio
+                .throttle_write_iops_device
+                .push(throttle);
         } else {
-            self.cgroup.resources.blkio.throttle_write_bps_device.push(throttle);
+            self.cgroup
+                .resources
+                .blkio
+                .throttle_write_bps_device
+                .push(throttle);
         }
         self
     }

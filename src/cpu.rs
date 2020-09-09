@@ -1,4 +1,5 @@
 // Copyright (c) 2018 Levente Kurusa
+// Copyright (c) 2020 Ant Group
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 //
@@ -12,8 +13,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
@@ -28,6 +29,7 @@ use crate::{
 pub struct CpuController {
     base: PathBuf,
     path: PathBuf,
+    v2: bool,
 }
 
 /// The current state of the control group and its processes.
@@ -56,12 +58,15 @@ impl ControllerInternal for CpuController {
         &self.base
     }
 
+    fn is_v2(&self) -> bool {
+        self.v2
+    }
+
     fn apply(&self, res: &Resources) -> Result<()> {
         // get the resources that apply to this controller
         let res: &CpuResources = &res.cpu;
 
         if res.update_values {
-            // apply pid_max
             let _ = self.set_shares(res.shares);
             if self.shares()? != res.shares as u64 {
                 return Err(Error::new(ErrorKind::Other));
@@ -107,19 +112,25 @@ impl<'a> From<&'a Subsystem> for &'a CpuController {
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
 impl CpuController {
     /// Contructs a new `CpuController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
+    pub fn new(oroot: PathBuf, v2: bool) -> Self {
         let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+        if !v2 {
+            root.push(Self::controller_type().to_string());
+        }
         Self {
             base: root.clone(),
             path: root,
+            v2: v2,
         }
     }
 
@@ -135,7 +146,8 @@ impl CpuController {
                         Ok(_) => Ok(s),
                         Err(e) => Err(Error::with_cause(ReadFailed, e)),
                     }
-                }).unwrap_or("".to_string()),
+                })
+                .unwrap_or("".to_string()),
         }
     }
 
@@ -146,7 +158,12 @@ impl CpuController {
     /// `shares` to `200` ensures that control group `B` receives twice as much as CPU bandwidth.
     /// (Assuming both `A` and `B` are of the same parent)
     pub fn set_shares(&self, shares: u64) -> Result<()> {
-        self.open_path("cpu.shares", true).and_then(|mut file| {
+        let mut file = "cpu.shares";
+        if self.v2 {
+            file = "cpu.weight";
+        }
+        // NOTE: .CpuShares is not used here. Conversion is the caller's responsibility.
+        self.open_path(file, true).and_then(|mut file| {
             file.write_all(shares.to_string().as_ref())
                 .map_err(|e| Error::with_cause(WriteFailed, e))
         })
@@ -155,7 +172,11 @@ impl CpuController {
     /// Retrieve the CPU bandwidth that this control group (relative to other control groups and
     /// this control group's parent) can use.
     pub fn shares(&self) -> Result<u64> {
-        self.open_path("cpu.shares", false).and_then(read_u64_from)
+        let mut file = "cpu.shares";
+        if self.v2 {
+            file = "cpu.weight";
+        }
+        self.open_path(file, false).and_then(read_u64_from)
     }
 
     /// Specify a period (when using the CFS scheduler) of time in microseconds for how often this
@@ -190,5 +211,44 @@ impl CpuController {
     pub fn cfs_quota(&self) -> Result<u64> {
         self.open_path("cpu.cfs_quota_us", false)
             .and_then(read_u64_from)
+    }
+
+    pub fn set_cfs_quota_and_period(&self, quota: u64, period: u64) -> Result<()> {
+        if !self.v2 {
+            self.set_cfs_quota(quota)?;
+            return self.set_cfs_period(period);
+        }
+        let mut line = "max".to_string();
+        if quota > 0 {
+            line = quota.to_string();
+        }
+
+        let mut p = period;
+        if period == 0 {
+            // This default value is documented in
+            // https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
+            p = 100000
+        }
+        line = format!("{} {}", line, p);
+        self.open_path("cpu.max", true).and_then(|mut file| {
+            file.write_all(line.as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
+    }
+
+    pub fn set_rt_runtime(&self, us: i64) -> Result<()> {
+        self.open_path("cpu.rt_runtime_us", true)
+            .and_then(|mut file| {
+                file.write_all(us.to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
+
+    pub fn set_rt_period_us(&self, us: u64) -> Result<()> {
+        self.open_path("cpu.rt_period_us", true)
+            .and_then(|mut file| {
+                file.write_all(us.to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
     }
 }
