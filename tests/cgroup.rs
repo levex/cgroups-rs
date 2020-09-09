@@ -1,3 +1,8 @@
+// Copyright (c) 2018 Levente Kurusa
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! Simple unit tests about the control groups system.
 use cgroups::{Cgroup, CgroupPid, Hierarchy, Subsystem};
 use cgroups::memory::{MemController, SetMemory};

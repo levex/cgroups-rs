@@ -1,3 +1,8 @@
+// Copyright (c) 2018 Levente Kurusa
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! This module contains the implementation of the `cpu` cgroup subsystem.
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:

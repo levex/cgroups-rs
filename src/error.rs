@@ -1,3 +1,8 @@
+// Copyright (c) 2018 Levente Kurusa
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 use std::error::Error as StdError;
 use std::fmt;
 

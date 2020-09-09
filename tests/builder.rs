@@ -1,3 +1,8 @@
+// Copyright (c) 2018 Levente Kurusa
+//
+// SPDX-License-Identifier: Apache-2.0 or MIT
+//
+
 //! Some simple tests covering the builder pattern for control groups.
 use cgroups::*;
 use cgroups::cpu::*;
