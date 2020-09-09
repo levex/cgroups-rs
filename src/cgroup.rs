@@ -136,9 +136,11 @@ impl<'b> Cgroup<'b> {
     /// will change.
     pub fn delete(self) {
         if self.v2() {
-            let mut p = self.hier.root().clone();
-            p.push(self.path);
-            libc_rmdir(p.to_str().unwrap());
+            if self.path != "" {
+                let mut p = self.hier.root().clone();
+                p.push(self.path);
+                libc_rmdir(p.to_str().unwrap());
+            }
             return
         }
 

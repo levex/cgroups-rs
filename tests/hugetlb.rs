@@ -8,7 +8,7 @@ use cgroups::error::*;
 
 #[test]
 fn test_hugetlb_sizes() {
-    // no only v2
+    // now only v2
     if cgroups::hierarchies::is_cgroup2_unified_mode() {
         return
     }

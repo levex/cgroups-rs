@@ -5,7 +5,7 @@ use cgroups::{Cgroup, DeviceResource, Hierarchy};
 
 #[test]
 fn test_devices_parsing() {
-    // no only v2
+    // now only v2
     if cgroups::hierarchies::is_cgroup2_unified_mode() {
         return
     }

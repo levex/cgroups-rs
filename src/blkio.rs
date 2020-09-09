@@ -338,19 +338,19 @@ impl ControllerInternal for BlkIoController {
         let res: &BlkIoResources = &res.blkio;
 
         if res.update_values {
-            if res.weight.is_some() {
-                let _ = self.set_weight(res.weight.unwrap() as u64);
+            if let Some(weight) = res.weight {
+                let _ = self.set_weight(weight as u64);
             }
-            if res.leaf_weight.is_some() {
-                let _ = self.set_leaf_weight(res.leaf_weight.unwrap() as u64);
+            if let Some(leaf_weight) = res.leaf_weight {
+                let _ = self.set_leaf_weight(leaf_weight as u64);
             }
 
             for dev in &res.weight_device {
-                if dev.weight.is_some(){
-                    let _ = self.set_weight_for_device(dev.major, dev.minor, dev.weight.unwrap() as u64);
+                if let Some(weight) = dev.weight {
+                    let _ = self.set_weight_for_device(dev.major, dev.minor, weight as u64);
                 }
-                if dev.leaf_weight.is_some(){
-                    let _ = self.set_leaf_weight_for_device(dev.major, dev.minor, dev.leaf_weight.unwrap() as u64);
+                if let Some(leaf_weight) = dev.leaf_weight {
+                    let _ = self.set_leaf_weight_for_device(dev.major, dev.minor, leaf_weight as u64);
                 }
             }
 
@@ -774,7 +774,7 @@ impl BlkIoController {
         let mut content = format!("{}:{} {}", major, minor, iops);
         if self.v2 {
             file = "io.max";
-            content = format!("{}:{} riops={}", major, minor, iops);
+            content = format!("{}:{} wiops={}", major, minor, iops);
         }
         self.open_path(file, true)
             .and_then(|mut file| {
@@ -785,7 +785,7 @@ impl BlkIoController {
 
     /// Set the weight of the control group's tasks.
     pub fn set_weight(&self, w: u64) -> Result<()> {
-        // FIXME: not find in high kernel version.
+        // Attation: may not find in high kernel version.
         let mut file = "blkio.weight";
         if self.v2 {
             file = "io.bfq.weight";
@@ -806,8 +806,9 @@ impl BlkIoController {
     ) -> Result<()> {
         let mut file = "blkio.weight_device";
         if self.v2 {
-            // FIXME why is there no weight for device in runc ?
+            // Attation: there is no weight for device in runc
             // https://github.com/opencontainers/runc/blob/46be7b612e2533c494e6a251111de46d8e286ed5/libcontainer/cgroups/fs2/io.go#L30
+            // may depends on IO schedulers https://wiki.ubuntu.com/Kernel/Reference/IOSchedulers
             file = "io.bfq.weight";
         }
         self.open_path(file, true)
