@@ -15,9 +15,11 @@ use std::path::PathBuf;
 
 use crate::error::ErrorKind::*;
 use crate::error::*;
+use crate::{parse_max_value, read_i64_from};
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, CpuResources, Resources, Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, CpuResources, MaxValue, Resources,
+    Subsystem,
 };
 
 /// A controller that allows controlling the `cpu` subsystem of a Cgroup.
@@ -39,6 +41,13 @@ pub struct Cpu {
     ///
     /// Corresponds the `cpu.stat` file in `cpu` control group.
     pub stat: String,
+}
+
+/// The current state of the control group and its processes.
+#[derive(Debug)]
+struct CFSQuotaAndPeriod {
+    quota: MaxValue,
+    period: u64,
 }
 
 impl ControllerInternal for CpuController {
@@ -77,8 +86,8 @@ impl ControllerInternal for CpuController {
                 return Err(Error::new(ErrorKind::Other));
             }
 
-            let _ = self.set_cfs_quota(res.quota as u64);
-            if self.cfs_quota()? != res.quota as u64 {
+            let _ = self.set_cfs_quota(res.quota);
+            if self.cfs_quota()? != res.quota {
                 return Err(Error::new(ErrorKind::Other));
             }
 
@@ -182,6 +191,9 @@ impl CpuController {
     /// Specify a period (when using the CFS scheduler) of time in microseconds for how often this
     /// control group's access to the CPU should be reallocated.
     pub fn set_cfs_period(&self, us: u64) -> Result<()> {
+        if self.v2 {
+            return self.set_cfs_quota_and_period(None, Some(us));
+        }
         self.open_path("cpu.cfs_period_us", true)
             .and_then(|mut file| {
                 file.write_all(us.to_string().as_ref())
@@ -192,13 +204,22 @@ impl CpuController {
     /// Retrieve the period of time of how often this cgroup's access to the CPU should be
     /// reallocated in microseconds.
     pub fn cfs_period(&self) -> Result<u64> {
+        if self.v2 {
+            let current_value = self
+                .open_path("cpu.max", false)
+                .and_then(parse_cfs_quota_and_period)?;
+            return Ok(current_value.period);
+        }
         self.open_path("cpu.cfs_period_us", false)
             .and_then(read_u64_from)
     }
 
     /// Specify a quota (when using the CFS scheduler) of time in microseconds for which all tasks
     /// in this control group can run during one period (see: `set_cfs_period()`).
-    pub fn set_cfs_quota(&self, us: u64) -> Result<()> {
+    pub fn set_cfs_quota(&self, us: i64) -> Result<()> {
+        if self.v2 {
+            return self.set_cfs_quota_and_period(Some(us), None);
+        }
         self.open_path("cpu.cfs_quota_us", true)
             .and_then(|mut file| {
                 file.write_all(us.to_string().as_ref())
@@ -208,28 +229,59 @@ impl CpuController {
 
     /// Retrieve the quota of time for which all tasks in this cgroup can run during one period, in
     /// microseconds.
-    pub fn cfs_quota(&self) -> Result<u64> {
+    pub fn cfs_quota(&self) -> Result<i64> {
+        if self.v2 {
+            let current_value = self
+                .open_path("cpu.max", false)
+                .and_then(parse_cfs_quota_and_period)?;
+            return Ok(current_value.quota.to_i64());
+        }
+
         self.open_path("cpu.cfs_quota_us", false)
-            .and_then(read_u64_from)
+            .and_then(read_i64_from)
     }
 
-    pub fn set_cfs_quota_and_period(&self, quota: u64, period: u64) -> Result<()> {
+    pub fn set_cfs_quota_and_period(&self, quota: Option<i64>, period: Option<u64>) -> Result<()> {
         if !self.v2 {
-            self.set_cfs_quota(quota)?;
-            return self.set_cfs_period(period);
-        }
-        let mut line = "max".to_string();
-        if quota > 0 {
-            line = quota.to_string();
+            if let Some(q) = quota {
+                self.set_cfs_quota(q)?;
+            }
+            if let Some(p) = period {
+                self.set_cfs_period(p)?;
+            }
+            return Ok(());
         }
 
-        let mut p = period;
-        if period == 0 {
-            // This default value is documented in
-            // https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
-            p = 100000
-        }
-        line = format!("{} {}", line, p);
+        // https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
+
+        // cpu.max
+        // A read-write two value file which exists on non-root cgroups. The default is “max 100000”.
+        // The maximum bandwidth limit. It’s in the following format:
+        // $MAX $PERIOD
+        // which indicates that the group may consume upto $MAX in each $PERIOD duration.
+        // “max” for $MAX indicates no limit. If only one number is written, $MAX is updated.
+
+        let current_value = self
+            .open_path("cpu.max", false)
+            .and_then(parse_cfs_quota_and_period)?;
+
+        let new_quota = if let Some(q) = quota {
+            if q > 0 {
+                q.to_string()
+            } else {
+                "max".to_string()
+            }
+        } else {
+            current_value.quota.to_string()
+        };
+
+        let new_period = if let Some(p) = period {
+            p.to_string()
+        } else {
+            current_value.period.to_string()
+        };
+
+        let line = format!("{} {}", new_quota, new_period);
         self.open_path("cpu.max", true).and_then(|mut file| {
             file.write_all(line.as_ref())
                 .map_err(|e| Error::with_cause(WriteFailed, e))
@@ -251,4 +303,25 @@ impl CpuController {
                     .map_err(|e| Error::with_cause(WriteFailed, e))
             })
     }
+}
+
+fn parse_cfs_quota_and_period(mut file: File) -> Result<CFSQuotaAndPeriod> {
+    let mut content = String::new();
+    file.read_to_string(&mut content)
+        .map_err(|e| Error::with_cause(ReadFailed, e))?;
+
+    let fields = content.trim().split(' ').collect::<Vec<&str>>();
+    if fields.len() != 2 {
+        return Err(Error::from_string(format!("invaild format: {}", content)));
+    }
+
+    let quota = parse_max_value(&fields[0].to_string())?;
+    let period = fields[1]
+        .parse::<u64>()
+        .map_err(|e| Error::with_cause(ParseError, e))?;
+
+    Ok(CFSQuotaAndPeriod {
+        quota: quota,
+        period: period,
+    })
 }
