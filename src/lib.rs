@@ -768,3 +768,15 @@ pub fn libc_rmdir(p: &str) {
     // with int return value
     let _ = unsafe { libc::rmdir(p.as_ptr() as *const i8) };
 }
+
+/// read and parse an i64 data
+pub fn read_i64_from(mut file: File) -> Result<i64> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+    }
+}
