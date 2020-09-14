@@ -45,7 +45,7 @@ pub enum ErrorKind {
 #[derive(Debug)]
 pub struct Error {
     kind: ErrorKind,
-    cause: Option<Box<StdError + Send>>,
+    cause: Option<Box<StdError + Send + Sync>>,
 }
 
 impl fmt::Display for Error {
@@ -88,7 +88,7 @@ impl Error {
 
     pub(crate) fn with_cause<E>(kind: ErrorKind, cause: E) -> Self
     where
-        E: 'static + Send + StdError,
+        E: 'static + Send + Sync + StdError,
     {
         Self {
             kind,
