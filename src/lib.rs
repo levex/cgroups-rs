@@ -766,7 +766,7 @@ pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap
 /// with error: `Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }`
 pub fn libc_rmdir(p: &str) {
     // with int return value
-    let _ = unsafe { libc::rmdir(p.as_ptr() as *const i8) };
+    let _ = unsafe { libc::rmdir(p.as_ptr() as *const libc::c_char) };
 }
 
 /// read and parse an i64 data
