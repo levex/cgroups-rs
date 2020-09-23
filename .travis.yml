@@ -1,11 +1,31 @@
+# Copyright (c) 2018 Levente Kurusa
+# Copyright (c) 2020 Ant Group
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+dist: bionic
+os: linux
 language: rust
+cache: cargo
+
+arch:
+  - amd64
+  - arm64
+
+install:
+  - rustup component add rustfmt
+
+script:
+  - cargo build
+  - if [ "$TRAVIS_CPU_ARCH" == "amd64" ]; then cargo test -- --color always --nocapture ; fi
+  - cargo fmt -- --check
+
 rust:
-  - stable
-  - beta
+  - 1.44.1
   - nightly
-matrix:
+
+jobs:
   allow_failures:
     - rust: nightly
   fast_finish: true
-script:
-  - cargo build --verbose --all
