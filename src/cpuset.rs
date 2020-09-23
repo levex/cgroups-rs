@@ -125,10 +125,6 @@ impl ControllerInternal for CpuSetController {
             return;
         }
         let current = self.get_path();
-        let parent = match current.parent() {
-            Some(p) => p,
-            None => return,
-        };
 
         if current != self.get_base() {
             match copy_from_parent(current.to_str().unwrap(), "cpuset.cpus") {
@@ -204,7 +200,8 @@ impl<'a> From<&'a Subsystem> for &'a CpuSetController {
                 Subsystem::CpuSet(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    let v = std::mem::MaybeUninit::uninit();
+                    v.assume_init()
                 }
             }
         }

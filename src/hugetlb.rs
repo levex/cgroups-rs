@@ -79,7 +79,8 @@ impl<'a> From<&'a Subsystem> for &'a HugeTlbController {
                 Subsystem::HugeTlb(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    let v = std::mem::MaybeUninit::uninit();
+                    v.assume_init()
                 }
             }
         }
@@ -225,10 +226,15 @@ pub const GB: u128 = 1000 * MB;
 pub const TB: u128 = 1000 * GB;
 pub const PB: u128 = 1000 * TB;
 
+#[allow(non_upper_case_globals)]
 pub const KiB: u128 = 1024;
+#[allow(non_upper_case_globals)]
 pub const MiB: u128 = 1024 * KiB;
+#[allow(non_upper_case_globals)]
 pub const GiB: u128 = 1024 * MiB;
+#[allow(non_upper_case_globals)]
 pub const TiB: u128 = 1024 * GiB;
+#[allow(non_upper_case_globals)]
 pub const PiB: u128 = 1024 * TiB;
 
 pub fn get_binary_size_map() -> HashMap<String, u128> {

@@ -60,7 +60,7 @@ fn register_memory_event(
     }
 
     // write to file and set mode to 0700(FIXME)
-    fs::write(&event_control_path, data).map_err(|e| Error::with_cause(WriteFailed, e));
+    fs::write(&event_control_path, data).map_err(|e| Error::with_cause(WriteFailed, e))?;
 
     let mut eventfd_file = unsafe { File::from_raw_fd(eventfd) };
 
@@ -71,7 +71,7 @@ fn register_memory_event(
         loop {
             let mut buf = [0; 8];
             match eventfd_file.read(&mut buf) {
-                Err(err) => {
+                Err(_err) => {
                     return;
                 }
                 Ok(_) => {}

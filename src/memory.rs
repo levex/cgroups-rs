@@ -505,10 +505,11 @@ impl MemController {
     // for v2
     pub fn get_mem(&self) -> Result<SetMemory> {
         let mut m: SetMemory = Default::default();
-        self.get_max_value("memory.high").map(|x| m.high = Some(x));
-        self.get_max_value("memory.low").map(|x| m.low = Some(x));
-        self.get_max_value("memory.max").map(|x| m.max = Some(x));
-        self.get_max_value("memory.min").map(|x| m.min = Some(x));
+        self.get_max_value("memory.high")
+            .map(|x| m.high = Some(x))?;
+        self.get_max_value("memory.low").map(|x| m.low = Some(x))?;
+        self.get_max_value("memory.max").map(|x| m.max = Some(x))?;
+        self.get_max_value("memory.min").map(|x| m.min = Some(x))?;
 
         Ok(m)
     }
@@ -831,7 +832,8 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
                 Subsystem::Mem(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    let v = std::mem::MaybeUninit::uninit();
+                    v.assume_init()
                 }
             }
         }

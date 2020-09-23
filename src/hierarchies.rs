@@ -107,7 +107,7 @@ impl Hierarchy for V1 {
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b: &Hierarchy = self as &Hierarchy;
+        let b: &dyn Hierarchy = self as &dyn Hierarchy;
         Cgroup::load(Box::new(&*b), "".to_string())
     }
 
@@ -182,7 +182,7 @@ impl Hierarchy for V2 {
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b: &Hierarchy = self as &Hierarchy;
+        let b: &dyn Hierarchy = self as &dyn Hierarchy;
         Cgroup::load(Box::new(&*b), "".to_string())
     }
 
