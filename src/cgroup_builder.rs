@@ -60,10 +60,9 @@
 //!          .done()
 //!      .build();
 //! ```
-use crate::error::*;
 
 use crate::{
-    pid, BlkIoDeviceResource, BlkIoDeviceThrottleResource, Cgroup, DeviceResource, Hierarchy,
+    BlkIoDeviceResource, BlkIoDeviceThrottleResource, Cgroup, DeviceResource, Hierarchy,
     HugePageResource, MaxValue, NetworkPriority, Resources,
 };
 
@@ -141,7 +140,7 @@ impl<'a> CgroupBuilder<'a> {
     /// Finalize the control group, consuming the builder and creating the control group.
     pub fn build(self) -> Cgroup<'a> {
         let cg = Cgroup::new(self.hierarchy, self.name);
-        cg.apply(&self.resources);
+        let _ret = cg.apply(&self.resources);
         cg
     }
 }

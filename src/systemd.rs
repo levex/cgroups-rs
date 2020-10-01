@@ -7,7 +7,6 @@
 //!
 use std::path::PathBuf;
 
-use crate::error::ErrorKind::*;
 use crate::error::*;
 
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
@@ -53,7 +52,8 @@ impl<'a> From<&'a Subsystem> for &'a SystemdController {
                 Subsystem::Systemd(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    let v = std::mem::MaybeUninit::uninit();
+                    v.assume_init()
                 }
             }
         }

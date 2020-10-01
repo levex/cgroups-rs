@@ -43,7 +43,7 @@ impl<'b> Cgroup<'b> {
     /// Create this control group.
     fn create(&self) {
         if self.hier.v2() {
-            create_v2_cgroup(self.hier.root().clone(), &self.path);
+            let _ret = create_v2_cgroup(self.hier.root().clone(), &self.path);
         } else {
             for subsystem in &self.subsystems {
                 subsystem.to_controller().create();
@@ -272,7 +272,7 @@ fn enable_controllers(controllers: &Vec<String>, path: &PathBuf) {
     }
 }
 
-fn supported_controllers(p: &PathBuf) -> Vec<String> {
+fn supported_controllers() -> Vec<String> {
     let p = format!("{}/{}", UNIFIED_MOUNTPOINT, "cgroup.controllers");
     let ret = fs::read_to_string(p.as_str());
     ret.unwrap_or(String::new())
@@ -283,7 +283,7 @@ fn supported_controllers(p: &PathBuf) -> Vec<String> {
 
 fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
     // controler list ["memory", "cpu"]
-    let controllers = supported_controllers(&root);
+    let controllers = supported_controllers();
     let mut fp = root;
 
     // enable for root

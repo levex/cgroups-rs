@@ -17,7 +17,7 @@ install:
   - rustup component add rustfmt
 
 script:
-  - cargo build
+  - RUSTFLAGS="--deny warnings" cargo build
   - if [ "$TRAVIS_CPU_ARCH" == "amd64" ]; then cargo test -- --color always --nocapture ; fi
   - cargo fmt -- --check
 

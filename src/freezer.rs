@@ -73,7 +73,8 @@ impl<'a> From<&'a Subsystem> for &'a FreezerController {
                 Subsystem::Freezer(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    let v = std::mem::MaybeUninit::uninit();
+                    v.assume_init()
                 }
             }
         }
