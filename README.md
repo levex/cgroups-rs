@@ -1,3 +1,19 @@
+# No Longer Maintained
+
+This repository is no longer actively maintained.
+
+Several forks of cgroups-rs exist:
+
+ * [kata-containers][kata] - Roughly the same API
+ * [controlgroup-rs][ordovicia] - Complete redesign
+
+None of these forks are endorsed by the authors of this crate, and are listed for informational purposes only.
+
+[kata]: https://github.com/kata-containers/cgroups-rs
+[ordovicia]: https://github.com/ordovicia/controlgroup-rs
+
+---
+
 # cgroups-rs ![Build](https://travis-ci.org/levex/cgroups-rs.svg?branch=master)
 Native Rust library for managing control groups under Linux
 
