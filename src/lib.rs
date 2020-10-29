@@ -619,7 +619,7 @@ impl Subsystem {
         }
     }
 
-    fn to_controller(&self) -> &dyn Controller {
+    pub fn to_controller(&self) -> &dyn Controller {
         match self {
             Subsystem::Pid(cont) => cont,
             Subsystem::Mem(cont) => cont,
@@ -638,7 +638,7 @@ impl Subsystem {
         }
     }
 
-    fn controller_name(&self) -> String {
+    pub fn controller_name(&self) -> String {
         self.to_controller().control_type().to_string()
     }
 }
