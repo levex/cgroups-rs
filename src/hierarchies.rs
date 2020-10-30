@@ -8,7 +8,6 @@
 //!
 //! Currently, we only support the cgroupv1 hierarchy, but in the future we will add support for
 //! the Unified Hierarchy.
-use nix::sys::statfs;
 
 use std::fs::{self, File};
 use std::io::BufRead;
@@ -220,6 +219,8 @@ pub const UNIFIED_MOUNTPOINT: &'static str = "/sys/fs/cgroup";
 
 #[cfg(all(target_os = "linux", not(target_env = "musl")))]
 pub fn is_cgroup2_unified_mode() -> bool {
+    use nix::sys::statfs;
+
     let path = Path::new(UNIFIED_MOUNTPOINT);
     let fs_stat = statfs::statfs(path);
     if fs_stat.is_err() {

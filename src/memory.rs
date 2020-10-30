@@ -733,6 +733,15 @@ impl MemController {
             })
     }
 
+    /// Reset the max memory usage recorded
+    pub fn reset_max_usage(&self) -> Result<()> {
+        self.open_path("memory.max_usage_in_bytes", true)
+            .and_then(|mut file| {
+                file.write_all("0".to_string().as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+    }
+
     /// Set the memory usage limit of the control group, in bytes.
     pub fn set_limit(&self, limit: i64) -> Result<()> {
         let mut file = "memory.limit_in_bytes";
