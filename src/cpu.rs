@@ -18,8 +18,8 @@ use crate::error::*;
 use crate::{parse_max_value, read_i64_from};
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, CpuResources, MaxValue, Resources,
-    Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, CpuResources, CustomizedAttribute,
+    MaxValue, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `cpu` subsystem of a Cgroup.
@@ -90,6 +90,10 @@ impl ControllerInternal for CpuController {
             if self.cfs_quota()? != res.quota {
                 return Err(Error::new(ErrorKind::Other));
             }
+
+            res.attrs.iter().for_each(|(k, v)| {
+                let _ = self.set(k, v);
+            })
 
             // TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported
         }
@@ -305,6 +309,8 @@ impl CpuController {
             })
     }
 }
+
+impl CustomizedAttribute for CpuController {}
 
 fn parse_cfs_quota_and_period(mut file: File) -> Result<CFSQuotaAndPeriod> {
     let mut content = String::new();

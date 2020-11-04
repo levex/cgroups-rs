@@ -21,8 +21,8 @@ use crate::events;
 use crate::flat_keyed_to_hashmap;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, MaxValue, MemoryResources, Resources,
-    Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, CustomizedAttribute, MaxValue,
+    MemoryResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
@@ -833,6 +833,8 @@ impl ControllIdentifier for MemController {
         Controllers::Mem
     }
 }
+
+impl CustomizedAttribute for MemController {}
 
 impl<'a> From<&'a Subsystem> for &'a MemController {
     fn from(sub: &'a Subsystem) -> &'a MemController {

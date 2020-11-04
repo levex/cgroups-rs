@@ -189,9 +189,22 @@ mod sealed {
             std::path::Path::new(p).exists()
         }
     }
+
+    pub trait CustomizedAttribute: ControllerInternal {
+        fn set(&self, key: &str, value: &str) -> Result<()> {
+            self.open_path(key, true).and_then(|mut file| {
+                file.write_all(value.as_ref())
+                    .map_err(|e| Error::with_cause(WriteFailed, e))
+            })
+        }
+
+        fn get(&self, key: &str) -> Result<String> {
+            self.open_path(key, false).and_then(read_str_from)
+        }
+    }
 }
 
-pub(crate) use crate::sealed::ControllerInternal;
+pub(crate) use crate::sealed::{ControllerInternal, CustomizedAttribute};
 
 /// A Controller is a subsystem attached to the control group.
 ///
@@ -363,6 +376,14 @@ pub struct MemoryResources {
     /// Note, however, that a value of zero does not mean the process is never swapped out. Use the
     /// traditional `mlock(2)` system call for that purpose.
     pub swappiness: u64,
+    /// Customized key-value attributes
+    ///
+    /// # Usage:
+    /// ```
+    /// let resource = &mut cgroups::Resources::default();
+    /// resource.memory.attrs.insert("memory.numa_balancing", "true".to_string());
+    /// // apply here
+    pub attrs: std::collections::HashMap<&'static str, String>,
 }
 
 /// Resources limits on the number of processes.
@@ -402,6 +423,14 @@ pub struct CpuResources {
     pub realtime_runtime: i64,
     /// This is currently a no-operation.
     pub realtime_period: u64,
+    /// Customized key-value attributes
+    /// # Usage:
+    /// ```
+    /// let resource = &mut cgroups::Resources::default();
+    /// resource.cpu.attrs.insert("cpu.cfs_init_buffer_us", "10".to_string());
+    /// // apply here
+    /// ```
+    pub attrs: std::collections::HashMap<&'static str, String>,
 }
 
 /// A device resource that can be allowed or denied access to.
@@ -788,6 +817,14 @@ pub fn read_i64_from(mut file: File) -> Result<i64> {
             .trim()
             .parse()
             .map_err(|e| Error::with_cause(ParseError, e)),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+    }
+}
+
+pub fn read_str_from(mut file: File) -> Result<String> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => Ok(string.trim().to_owned()),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
