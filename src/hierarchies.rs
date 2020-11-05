@@ -50,11 +50,18 @@ impl Hierarchy for V1 {
 
     fn subsystems(&self) -> Vec<Subsystem> {
         let mut subs = vec![];
-        if self.check_support(Controllers::Pids) {
-            subs.push(Subsystem::Pid(PidController::new(self.root(), false)));
+
+        // The cgroup writeback feature requires cooperation between memcgs and blkcgs
+        // To avoid exceptions, we should add_task for blkcg before memcg(push BlkIo before Mem)
+        // For more Information: https://www.alibabacloud.com/help/doc-detail/155509.htm
+        if self.check_support(Controllers::BlkIo) {
+            subs.push(Subsystem::BlkIo(BlkIoController::new(self.root(), false)));
         }
         if self.check_support(Controllers::Mem) {
             subs.push(Subsystem::Mem(MemController::new(self.root(), false)));
+        }
+        if self.check_support(Controllers::Pids) {
+            subs.push(Subsystem::Pid(PidController::new(self.root(), false)));
         }
         if self.check_support(Controllers::CpuSet) {
             subs.push(Subsystem::CpuSet(CpuSetController::new(self.root(), false)));
@@ -76,9 +83,6 @@ impl Hierarchy for V1 {
         }
         if self.check_support(Controllers::NetCls) {
             subs.push(Subsystem::NetCls(NetClsController::new(self.root())));
-        }
-        if self.check_support(Controllers::BlkIo) {
-            subs.push(Subsystem::BlkIo(BlkIoController::new(self.root(), false)));
         }
         if self.check_support(Controllers::PerfEvent) {
             subs.push(Subsystem::PerfEvent(PerfEventController::new(self.root())));
