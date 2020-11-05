@@ -11,6 +11,25 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
+macro_rules! update_and_test {
+    ($self: ident, $set_func:ident, $value:expr, $get_func:ident) => {
+        if let Some(v) = $value {
+            $self.$set_func(v)?;
+            if $self.$get_func()? != v {
+                return Err(Error::new(Other));
+            }
+        }
+    };
+}
+
+macro_rules! update {
+    ($self: ident, $set_func:ident, $value:expr) => {
+        if let Some(v) = $value {
+            let _ = $self.$set_func(v);
+        }
+    };
+}
+
 pub mod blkio;
 pub mod cgroup;
 pub mod cgroup_builder;
@@ -357,25 +376,23 @@ pub trait Hierarchy {
 /// Resource limits for the memory subsystem.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct MemoryResources {
-    /// Whether values should be applied to the controller.
-    pub update_values: bool,
     /// How much memory (in bytes) can the kernel consume.
-    pub kernel_memory_limit: i64,
+    pub kernel_memory_limit: Option<i64>,
     /// Upper limit of memory usage of the control group's tasks.
-    pub memory_hard_limit: i64,
+    pub memory_hard_limit: Option<i64>,
     /// How much memory the tasks in the control group can use when the system is under memory
     /// pressure.
-    pub memory_soft_limit: i64,
+    pub memory_soft_limit: Option<i64>,
     /// How much of the kernel's memory (in bytes) can be used for TCP-related buffers.
-    pub kernel_tcp_memory_limit: i64,
+    pub kernel_tcp_memory_limit: Option<i64>,
     /// How much memory and swap together can the tasks in the control group use.
-    pub memory_swap_limit: i64,
+    pub memory_swap_limit: Option<i64>,
     /// Controls the tendency of the kernel to swap out parts of the address space of the tasks to
     /// disk. Lower value implies less likely.
     ///
     /// Note, however, that a value of zero does not mean the process is never swapped out. Use the
     /// traditional `mlock(2)` system call for that purpose.
-    pub swappiness: u64,
+    pub swappiness: Option<u64>,
     /// Customized key-value attributes
     ///
     /// # Usage:
@@ -389,40 +406,36 @@ pub struct MemoryResources {
 /// Resources limits on the number of processes.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct PidResources {
-    /// Whether values should be applied to the controller.
-    pub update_values: bool,
     /// The maximum number of processes that can exist in the control group.
     ///
     /// Note that attaching processes to the control group will still succeed _even_ if the limit
     /// would be violated, however forks/clones inside the control group will have with `EAGAIN` if
     /// they would violate the limit set here.
-    pub maximum_number_of_processes: MaxValue,
+    pub maximum_number_of_processes: Option<MaxValue>,
 }
 
 /// Resources limits about how the tasks can use the CPU.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct CpuResources {
-    /// Whether values should be applied to the controller.
-    pub update_values: bool,
     // cpuset
     /// A comma-separated list of CPU IDs where the task in the control group can run. Dashes
     /// between numbers indicate ranges.
     pub cpus: Option<String>,
     /// Same syntax as the `cpus` field of this structure, but applies to memory nodes instead of
     /// processors.
-    pub mems: String,
+    pub mems: Option<String>,
     // cpu
     /// Weight of how much of the total CPU time should this control group get. Note that this is
     /// hierarchical, so this is weighted against the siblings of this control group.
-    pub shares: u64,
+    pub shares: Option<u64>,
     /// In one `period`, how much can the tasks run in nanoseconds.
-    pub quota: i64,
+    pub quota: Option<i64>,
     /// Period of time in nanoseconds.
-    pub period: u64,
+    pub period: Option<u64>,
     /// This is currently a no-operation.
-    pub realtime_runtime: i64,
+    pub realtime_runtime: Option<i64>,
     /// This is currently a no-operation.
-    pub realtime_period: u64,
+    pub realtime_period: Option<u64>,
     /// Customized key-value attributes
     /// # Usage:
     /// ```
@@ -451,8 +464,6 @@ pub struct DeviceResource {
 /// Limit the usage of devices for the control group's tasks.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct DeviceResources {
-    /// Whether values should be applied to the controller.
-    pub update_values: bool,
     /// For each device in the list, the limits in the structure are applied.
     pub devices: Vec<DeviceResource>,
 }
@@ -470,12 +481,10 @@ pub struct NetworkPriority {
 /// control group.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct NetworkResources {
-    /// Whether values should be applied to the controller.
-    pub update_values: bool,
     /// The networking class identifier to attach to the packets.
     ///
     /// This can then later be used in iptables and such to have special rules.
-    pub class_id: u64,
+    pub class_id: Option<u64>,
     /// Priority of the egress traffic for each interface.
     pub priorities: Vec<NetworkPriority>,
 }
@@ -493,8 +502,6 @@ pub struct HugePageResource {
 /// Provides the ability to set consumption limit on each type of hugepages.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct HugePageResources {
-    /// Whether values should be applied to the controller.
-    pub update_values: bool,
     /// Set a limit of consumption for each hugepages type.
     pub limits: Vec<HugePageResource>,
 }
@@ -526,8 +533,6 @@ pub struct BlkIoDeviceThrottleResource {
 /// General block I/O resource limits.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BlkIoResources {
-    /// Whether values should be applied to the controller.
-    pub update_values: bool,
     /// The weight of the control group against descendant nodes.
     pub weight: Option<u16>,
     /// The weight of the control group against sibling nodes.

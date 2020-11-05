@@ -110,12 +110,8 @@ impl ControllerInternal for CpuSetController {
         // get the resources that apply to this controller
         let res: &CpuResources = &res.cpu;
 
-        if res.update_values {
-            if res.cpus.is_some() {
-                let _ = self.set_cpus(res.cpus.as_ref().unwrap().as_str());
-            }
-            let _ = self.set_mems(&res.mems);
-        }
+        update!(self, set_cpus, res.cpus.as_ref());
+        update!(self, set_mems, res.mems.as_ref());
 
         Ok(())
     }

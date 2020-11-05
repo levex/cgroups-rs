@@ -453,14 +453,12 @@ impl ControllerInternal for MemController {
         // get the resources that apply to this controller
         let memres: &MemoryResources = &res.memory;
 
-        if memres.update_values {
-            let _ = self.set_limit(memres.memory_hard_limit);
-            let _ = self.set_soft_limit(memres.memory_soft_limit);
-            let _ = self.set_kmem_limit(memres.kernel_memory_limit);
-            let _ = self.set_memswap_limit(memres.memory_swap_limit);
-            let _ = self.set_tcp_limit(memres.kernel_tcp_memory_limit);
-            let _ = self.set_swappiness(memres.swappiness);
-        }
+        update!(self, set_limit, memres.memory_hard_limit);
+        update!(self, set_soft_limit, memres.memory_soft_limit);
+        update!(self, set_kmem_limit, memres.kernel_memory_limit);
+        update!(self, set_memswap_limit, memres.memory_swap_limit);
+        update!(self, set_tcp_limit, memres.kernel_tcp_memory_limit);
+        update!(self, set_swappiness, memres.swappiness);
 
         Ok(())
     }

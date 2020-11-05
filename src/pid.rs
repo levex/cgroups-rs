@@ -50,17 +50,13 @@ impl ControllerInternal for PidController {
         // get the resources that apply to this controller
         let pidres: &PidResources = &res.pid;
 
-        if pidres.update_values {
-            // apply pid_max
-            let _ = self.set_pid_max(pidres.maximum_number_of_processes);
-
-            // now, verify
-            if self.get_pid_max()? == pidres.maximum_number_of_processes {
-                return Ok(());
-            } else {
-                return Err(Error::new(Other));
-            }
-        }
+        // apply pid_max
+        update_and_test!(
+            self,
+            set_pid_max,
+            pidres.maximum_number_of_processes,
+            get_pid_max
+        );
 
         Ok(())
     }

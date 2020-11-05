@@ -54,14 +54,13 @@ impl ControllerInternal for HugeTlbController {
         // get the resources that apply to this controller
         let res: &HugePageResources = &res.hugepages;
 
-        if res.update_values {
-            for i in &res.limits {
-                let _ = self.set_limit_in_bytes(&i.size, i.limit);
-                if self.limit_in_bytes(&i.size)? != i.limit {
-                    return Err(Error::new(Other));
-                }
+        for i in &res.limits {
+            let _ = self.set_limit_in_bytes(&i.size, i.limit);
+            if self.limit_in_bytes(&i.size)? != i.limit {
+                return Err(Error::new(Other));
             }
         }
+
         Ok(())
     }
 }

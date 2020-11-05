@@ -155,13 +155,11 @@ impl ControllerInternal for DevicesController {
         // get the resources that apply to this controller
         let res: &DeviceResources = &res.devices;
 
-        if res.update_values {
-            for i in &res.devices {
-                if i.allow {
-                    let _ = self.allow_device(i.devtype, i.major, i.minor, &i.access);
-                } else {
-                    let _ = self.deny_device(i.devtype, i.major, i.minor, &i.access);
-                }
+        for i in &res.devices {
+            if i.allow {
+                let _ = self.allow_device(i.devtype, i.major, i.minor, &i.access);
+            } else {
+                let _ = self.deny_device(i.devtype, i.major, i.minor, &i.access);
             }
         }
 

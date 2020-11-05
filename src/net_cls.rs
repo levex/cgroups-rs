@@ -47,12 +47,8 @@ impl ControllerInternal for NetClsController {
         // get the resources that apply to this controller
         let res: &NetworkResources = &res.network;
 
-        if res.update_values {
-            let _ = self.set_class(res.class_id);
-            if self.get_class()? != res.class_id {
-                return Err(Error::new(Other));
-            }
-        }
+        update_and_test!(self, set_class, res.class_id, get_class);
+
         return Ok(());
     }
 }

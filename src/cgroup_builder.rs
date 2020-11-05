@@ -47,8 +47,8 @@
 //!          .limit("2G".to_string(), 2 * 1024 * 1024 * 1024)
 //!          .done()
 //!      .blkio()
-//!          .weight(Some(123))
-//!          .leaf_weight(Some(99))
+//!          .weight(123)
+//!          .leaf_weight(99)
 //!          .weight_device(6, 1, Some(100), Some(55))
 //!          .weight_device(6, 1, Some(100), Some(55))
 //!          .throttle_iops()
@@ -70,8 +70,7 @@ macro_rules! gen_setter {
     ($res:ident, $cont:ident, $func:ident, $name:ident, $ty:ty) => {
         /// See the similarly named function in the respective controller.
         pub fn $name(mut self, $name: $ty) -> Self {
-            self.cgroup.resources.$res.update_values = true;
-            self.cgroup.resources.$res.$name = $name;
+            self.cgroup.resources.$res.$name = Some($name);
             self
         }
     };
@@ -214,8 +213,7 @@ pub struct CpuResourceBuilder<'a> {
 }
 
 impl<'a> CpuResourceBuilder<'a> {
-    // FIXME this should all changed to options.
-    gen_setter!(cpu, CpuSetController, set_cpus, cpus, Option<String>);
+    gen_setter!(cpu, CpuSetController, set_cpus, cpus, String);
     gen_setter!(cpu, CpuSetController, set_mems, mems, String);
     gen_setter!(cpu, CpuController, set_shares, shares, u64);
     gen_setter!(cpu, CpuController, set_cfs_quota, quota, i64);
@@ -244,7 +242,6 @@ impl<'a> DeviceResourceBuilder<'a> {
         allow: bool,
         access: Vec<crate::devices::DevicePermissions>,
     ) -> DeviceResourceBuilder<'a> {
-        self.cgroup.resources.devices.update_values = true;
         self.cgroup.resources.devices.devices.push(DeviceResource {
             major,
             minor,
@@ -272,7 +269,6 @@ impl<'a> NetworkResourceBuilder<'a> {
     /// Set the priority of the tasks when operating on a networking device defined by `name` to be
     /// `priority`.
     pub fn priority(mut self, name: String, priority: u64) -> NetworkResourceBuilder<'a> {
-        self.cgroup.resources.network.update_values = true;
         self.cgroup
             .resources
             .network
@@ -295,7 +291,6 @@ pub struct HugepagesResourceBuilder<'a> {
 impl<'a> HugepagesResourceBuilder<'a> {
     /// Limit the usage of certain hugepages (determined by `size`) to be at most `limit` bytes.
     pub fn limit(mut self, size: String, limit: u64) -> HugepagesResourceBuilder<'a> {
-        self.cgroup.resources.hugepages.update_values = true;
         self.cgroup
             .resources
             .hugepages
@@ -317,14 +312,8 @@ pub struct BlkIoResourcesBuilder<'a> {
 }
 
 impl<'a> BlkIoResourcesBuilder<'a> {
-    gen_setter!(blkio, BlkIoController, set_weight, weight, Option<u16>);
-    gen_setter!(
-        blkio,
-        BlkIoController,
-        set_leaf_weight,
-        leaf_weight,
-        Option<u16>
-    );
+    gen_setter!(blkio, BlkIoController, set_weight, weight, u16);
+    gen_setter!(blkio, BlkIoController, set_leaf_weight, leaf_weight, u16);
 
     /// Set the weight of a certain device.
     pub fn weight_device(
@@ -334,7 +323,6 @@ impl<'a> BlkIoResourcesBuilder<'a> {
         weight: Option<u16>,
         leaf_weight: Option<u16>,
     ) -> BlkIoResourcesBuilder<'a> {
-        self.cgroup.resources.blkio.update_values = true;
         self.cgroup
             .resources
             .blkio
@@ -362,7 +350,6 @@ impl<'a> BlkIoResourcesBuilder<'a> {
 
     /// Limit the read rate of the current metric for a certain device.
     pub fn read(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder<'a> {
-        self.cgroup.resources.blkio.update_values = true;
         let throttle = BlkIoDeviceThrottleResource { major, minor, rate };
         if self.throttling_iops {
             self.cgroup
@@ -382,7 +369,6 @@ impl<'a> BlkIoResourcesBuilder<'a> {
 
     /// Limit the write rate of the current metric for a certain device.
     pub fn write(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder<'a> {
-        self.cgroup.resources.blkio.update_values = true;
         let throttle = BlkIoDeviceThrottleResource { major, minor, rate };
         if self.throttling_iops {
             self.cgroup

@@ -75,28 +75,15 @@ impl ControllerInternal for CpuController {
         // get the resources that apply to this controller
         let res: &CpuResources = &res.cpu;
 
-        if res.update_values {
-            let _ = self.set_shares(res.shares);
-            if self.shares()? != res.shares as u64 {
-                return Err(Error::new(ErrorKind::Other));
-            }
+        update_and_test!(self, set_shares, res.shares, shares);
+        update_and_test!(self, set_cfs_period, res.period, cfs_period);
+        update_and_test!(self, set_cfs_quota, res.quota, cfs_quota);
 
-            let _ = self.set_cfs_period(res.period);
-            if self.cfs_period()? != res.period as u64 {
-                return Err(Error::new(ErrorKind::Other));
-            }
+        res.attrs.iter().for_each(|(k, v)| {
+            let _ = self.set(k, v);
+        });
 
-            let _ = self.set_cfs_quota(res.quota);
-            if self.cfs_quota()? != res.quota {
-                return Err(Error::new(ErrorKind::Other));
-            }
-
-            res.attrs.iter().for_each(|(k, v)| {
-                let _ = self.set(k, v);
-            })
-
-            // TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported
-        }
+        // TODO: rt properties (CONFIG_RT_GROUP_SCHED) are not yet supported
 
         Ok(())
     }
