@@ -265,7 +265,7 @@ pub fn auto() -> Box<dyn Hierarchy> {
     }
 }
 
-fn find_v1_mount() -> Option<String> {
+pub fn find_v1_mount() -> Option<String> {
     // Open mountinfo so we can get a parseable mount list
     let mountinfo_path = Path::new("/proc/self/mountinfo");
 
