@@ -16,8 +16,7 @@ fn pid_resources() {
     {
         let res = Resources {
             pid: PidResources {
-                update_values: true,
-                maximum_number_of_processes: MaxValue::Value(512),
+                maximum_number_of_processes: Some(MaxValue::Value(512)),
             },
             ..Default::default()
         };

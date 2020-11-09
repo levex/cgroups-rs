@@ -159,7 +159,7 @@ pub fn test_blkio_res_build() {
     let h = Box::new(&*h);
     let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build", h)
         .blkio()
-        .weight(Some(100))
+        .weight(100)
         .done()
         .build();
 
