@@ -7,7 +7,7 @@
 use log::*;
 
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -246,7 +246,7 @@ pub trait Controller {
     fn exists(&self) -> bool;
 
     /// Delete the controller.
-    fn delete(&self);
+    fn delete(&self) -> Result<()>;
 
     /// Attach a task to this controller.
     fn add_task(&self, pid: &CgroupPid) -> Result<()>;
@@ -295,10 +295,12 @@ where
     }
 
     /// Delete the controller.
-    fn delete(&self) {
-        if self.get_path().exists() {
-            libc_rmdir(self.get_path().to_str().unwrap());
+    fn delete(&self) -> Result<()> {
+        if !self.get_path().exists() {
+            return Ok(());
         }
+
+        fs::remove_dir(self.get_path()).map_err(|e| Error::with_cause(ErrorKind::RemoveFailed, e))
     }
 
     /// Attach a task to this controller.
@@ -805,13 +807,6 @@ pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap
     }
 
     Ok(h)
-}
-
-/// fs::remove_dir_all or fs::remove_dir can't work with cgroup directory sometimes.
-/// with error: `Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }`
-pub fn libc_rmdir(p: &str) {
-    // with int return value
-    let _ = unsafe { libc::rmdir(p.as_ptr() as *const libc::c_char) };
 }
 
 /// read and parse an i64 data

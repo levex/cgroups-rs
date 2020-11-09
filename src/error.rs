@@ -19,6 +19,9 @@ pub enum ErrorKind {
     /// An error occured while trying to read from a control group file.
     ReadFailed,
 
+    /// An error occured while trying to remove a control group.
+    RemoveFailed,
+
     /// An error occured while trying to parse a value from a control group file.
     ///
     /// In the future, there will be some information attached to this field.
@@ -55,6 +58,7 @@ impl fmt::Display for Error {
             ErrorKind::Common(s) => s.clone(),
             ErrorKind::WriteFailed => "unable to write to a control group file".to_string(),
             ErrorKind::ReadFailed => "unable to read a control group file".to_string(),
+            ErrorKind::RemoveFailed => "unable to remove a control group".to_string(),
             ErrorKind::ParseError => "unable to parse control group file".to_string(),
             ErrorKind::InvalidOperation => "the requested operation is invalid".to_string(),
             ErrorKind::InvalidPath => "the given path is invalid".to_string(),

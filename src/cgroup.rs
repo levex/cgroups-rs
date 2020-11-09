@@ -9,8 +9,6 @@
 use crate::error::ErrorKind::*;
 use crate::error::*;
 
-use crate::libc_rmdir;
-
 use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::collections::HashMap;
@@ -148,17 +146,17 @@ impl<'b> Cgroup<'b> {
     /// system call will fail if there are any descendants. Thus, one should check whether it was
     /// actually removed, and remove the descendants first if not. In the future, this behavior
     /// will change.
-    pub fn delete(self) {
+    pub fn delete(&self) -> Result<()> {
         if self.v2() {
             if self.path != "" {
                 let mut p = self.hier.root().clone();
-                p.push(self.path);
-                libc_rmdir(p.to_str().unwrap());
+                p.push(self.path.clone());
+                return fs::remove_dir(p).map_err(|e| Error::with_cause(RemoveFailed, e));
             }
-            return;
+            return Ok(());
         }
 
-        self.subsystems.into_iter().for_each(|sub| match sub {
+        self.subsystems.iter().try_for_each(|sub| match sub {
             Subsystem::Pid(pidc) => pidc.delete(),
             Subsystem::Mem(c) => c.delete(),
             Subsystem::CpuSet(c) => c.delete(),
@@ -173,7 +171,7 @@ impl<'b> Cgroup<'b> {
             Subsystem::HugeTlb(c) => c.delete(),
             Subsystem::Rdma(c) => c.delete(),
             Subsystem::Systemd(c) => c.delete(),
-        });
+        })
     }
 
     /// Apply a set of resource limits to the control group.
