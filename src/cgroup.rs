@@ -60,24 +60,12 @@ impl<'b> Cgroup<'b> {
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
     pub fn new<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup<'b> {
-        let relative_paths = get_cgroups_relative_paths().unwrap();
-        Cgroup::new_with_relative_paths(hier, path, relative_paths)
+        let cg = Cgroup::load(hier, path);
+        cg.create();
+        cg
     }
 
-    /// Create a handle for a control group in the hierarchy `hier`, with name `path`.
-    ///
-    /// Returns a handle to the control group (that possibly does not exist until `create()` has
-    /// been called on the cgroup.
-    ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
-    pub fn load<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup<'b> {
-        let relative_paths = get_cgroups_relative_paths().unwrap();
-        Cgroup::load_with_relative_paths(hier, path, relative_paths)
-    }
-
-    /// Create a new control group in the hierarchy `hier`, with name `path`.
-    /// and relative paths from `/proc/self/cgroup`
+    /// Create a new control group in the hierarchy `hier`, with name `path` and `relative_paths`
     ///
     /// Returns a handle to the control group that can be used to manipulate it.
     ///
@@ -93,8 +81,33 @@ impl<'b> Cgroup<'b> {
         cg
     }
 
-    /// Create a handle for a control group in the hierarchy `hier`, with name `path`,
-    /// and relative paths from `/proc/self/cgroup`
+    /// Create a handle for a control group in the hierarchy `hier`, with name `path`.
+    ///
+    /// Returns a handle to the control group (that possibly does not exist until `create()` has
+    /// been called on the cgroup.
+    ///
+    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
+    /// destroyed.
+    pub fn load<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup {
+        let path = path.as_ref();
+        let mut subsystems = hier.subsystems();
+        if path.as_os_str() != "" {
+            subsystems = subsystems
+                .into_iter()
+                .map(|x| x.enter(path))
+                .collect::<Vec<_>>();
+        }
+
+        let cg = Cgroup {
+            path: path.to_str().unwrap().to_string(),
+            subsystems: subsystems,
+            hier: hier,
+        };
+
+        cg
+    }
+
+    /// Create a handle for a control group in the hierarchy `hier`, with name `path` and `relative_paths`
     ///
     /// Returns a handle to the control group (that possibly does not exist until `create()` has
     /// been called on the cgroup.
@@ -329,13 +342,7 @@ pub fn get_cgroups_relative_paths() -> Result<HashMap<String, String>> {
 
         let keys: Vec<&str> = fl[1].split(',').collect();
         for key in &keys {
-            // this is a workaround, cgroup file are using `name=systemd`,
-            // but if file system the name is `systemd`
-            if *key == "name=systemd" {
-                m.insert("systemd".to_string(), fl[2].to_string());
-            } else {
-                m.insert(key.to_string(), fl[2].to_string());
-            }
+            m.insert(key.to_string(), fl[2].to_string());
         }
     }
     Ok(m)
