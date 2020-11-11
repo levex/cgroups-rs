@@ -5,10 +5,9 @@
 //
 
 //! Simple unit tests about the control groups system.
-use cgroups::memory::{MemController, SetMemory};
+use cgroups::memory::MemController;
 use cgroups::Controller;
-use cgroups::{Cgroup, CgroupPid, Hierarchy, Subsystem};
-use std::collections::HashMap;
+use cgroups::{Cgroup, CgroupPid, Subsystem};
 
 #[test]
 fn test_tasks_iterator() {
@@ -34,7 +33,7 @@ fn test_tasks_iterator() {
         // Verify that it was indeed removed.
         assert_eq!(tasks.next(), None);
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -75,7 +74,7 @@ fn test_cgroup_with_relative_paths() {
             _ => {}
         });
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -102,5 +101,5 @@ fn test_cgroup_v2() {
     println!("memswap {:?}", memswap);
     assert_eq!(swp, memswap.limit_in_bytes);
 
-    cg.delete();
+    cg.delete().unwrap();
 }

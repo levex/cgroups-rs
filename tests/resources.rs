@@ -6,7 +6,7 @@
 
 //! Integration test about setting resources using `apply()`
 use cgroups::pid::PidController;
-use cgroups::{Cgroup, Hierarchy, MaxValue, PidResources, Resources};
+use cgroups::{Cgroup, MaxValue, PidResources, Resources};
 
 #[test]
 fn pid_resources() {
@@ -19,7 +19,7 @@ fn pid_resources() {
             },
             ..Default::default()
         };
-        cg.apply(&res);
+        cg.apply(&res).unwrap();
 
         // verify
         let pidcontroller: &PidController = cg.controller_of().unwrap();
@@ -27,5 +27,5 @@ fn pid_resources() {
         assert_eq!(pid_max.is_ok(), true);
         assert_eq!(pid_max.unwrap(), MaxValue::Value(512));
     }
-    cg.delete();
+    cg.delete().unwrap();
 }

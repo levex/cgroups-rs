@@ -884,8 +884,6 @@ mod tests {
     use crate::memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
-    use std::collections::HashMap;
-
     static GOOD_VALUE: &str = "\
 total=51189 N0=51189 N1=123
 file=50175 N0=50175 N1=123

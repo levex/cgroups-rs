@@ -31,7 +31,7 @@ pub fn test_cpu_res_build() {
         assert_eq!(cpu.shares().unwrap(), 85);
     }
 
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -55,7 +55,7 @@ pub fn test_memory_res_build() {
         assert_eq!(c.memory_stat().limit_in_bytes, 1024 * 1024 * 1024);
     }
 
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -74,7 +74,7 @@ pub fn test_pid_res_build() {
         assert_eq!(c.get_pid_max().unwrap(), MaxValue::Value(123));
     }
 
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -102,7 +102,7 @@ pub fn test_devices_res_build() {
             }]
         );
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -124,7 +124,7 @@ pub fn test_network_res_build() {
         assert!(c.get_class().is_ok());
         assert_eq!(c.get_class().unwrap(), 1337);
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -149,7 +149,7 @@ pub fn test_hugepages_res_build() {
             4 * 2 * 1024 * 1024
         );
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -167,5 +167,5 @@ pub fn test_blkio_res_build() {
         let c: &BlkIoController = cg.controller_of().unwrap();
         assert_eq!(c.blkio().weight, 100);
     }
-    cg.delete();
+    cg.delete().unwrap();
 }

@@ -30,7 +30,7 @@ fn test_disable_oom_killer() {
             assert_eq!(m.oom_control.oom_kill_disable, true);
         }
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
@@ -87,5 +87,5 @@ fn set_mem_v2() {
         assert_eq!(m.high, Some(MaxValue::Max));
     }
 
-    cg.delete();
+    cg.delete().unwrap();
 }
