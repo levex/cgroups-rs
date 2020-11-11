@@ -13,8 +13,7 @@ use std::fs;
 #[test]
 fn test_cpuset_memory_pressure_root_cg() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg = Cgroup::new(h, String::from("test_cpuset_memory_pressure_root_cg"));
+    let cg = Cgroup::new(&*h, String::from("test_cpuset_memory_pressure_root_cg"));
     {
         let cpuset: &CpuSetController = cg.controller_of().unwrap();
 
@@ -28,8 +27,7 @@ fn test_cpuset_memory_pressure_root_cg() {
 #[test]
 fn test_cpuset_set_cpus() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg = Cgroup::new(h, String::from("test_cpuset_set_cpus"));
+    let cg = Cgroup::new(&*h, String::from("test_cpuset_set_cpus"));
     {
         let cpuset: &CpuSetController = cg.controller_of().unwrap();
 
@@ -67,8 +65,7 @@ fn test_cpuset_set_cpus() {
 #[test]
 fn test_cpuset_set_cpus_add_task() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg = Cgroup::new(h, String::from("test_cpuset_set_cpus_add_task/sub-dir"));
+    let cg = Cgroup::new(&*h, String::from("test_cpuset_set_cpus_add_task/sub-dir"));
 
     let cpuset: &CpuSetController = cg.controller_of().unwrap();
     let set = cpuset.cpuset();

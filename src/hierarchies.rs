@@ -111,7 +111,7 @@ impl Hierarchy for V1 {
 
     fn root_control_group(&self) -> Cgroup {
         let b: &dyn Hierarchy = self as &dyn Hierarchy;
-        Cgroup::load(Box::new(&*b), "".to_string())
+        Cgroup::load(&*b, "".to_string())
     }
 
     fn check_support(&self, sub: Controllers) -> bool {
@@ -186,7 +186,7 @@ impl Hierarchy for V2 {
 
     fn root_control_group(&self) -> Cgroup {
         let b: &dyn Hierarchy = self as &dyn Hierarchy;
-        Cgroup::load(Box::new(&*b), "".to_string())
+        Cgroup::load(&*b, "".to_string())
     }
 
     fn check_support(&self, _sub: Controllers) -> bool {

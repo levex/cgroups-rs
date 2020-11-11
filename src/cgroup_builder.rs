@@ -138,7 +138,7 @@ impl<'a> CgroupBuilder<'a> {
 
     /// Finalize the control group, consuming the builder and creating the control group.
     pub fn build(self) -> Cgroup<'a> {
-        let cg = Cgroup::new(self.hierarchy, self.name);
+        let cg = Cgroup::new(*self.hierarchy, self.name);
         let _ret = cg.apply(&self.resources);
         cg
     }

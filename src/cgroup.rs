@@ -33,7 +33,7 @@ pub struct Cgroup<'b> {
     subsystems: Vec<Subsystem>,
 
     /// The hierarchy.
-    hier: Box<&'b dyn Hierarchy>,
+    hier: &'b dyn Hierarchy,
     path: String,
 }
 
@@ -59,7 +59,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn new<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup<'b> {
+    pub fn new<P: AsRef<Path>>(hier: &dyn Hierarchy, path: P) -> Cgroup {
         let cg = Cgroup::load(hier, path);
         cg.create();
         cg
@@ -72,10 +72,10 @@ impl<'b> Cgroup<'b> {
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
     pub fn new_with_relative_paths<P: AsRef<Path>>(
-        hier: Box<&'b dyn Hierarchy>,
+        hier: &dyn Hierarchy,
         path: P,
         relative_paths: HashMap<String, String>,
-    ) -> Cgroup<'b> {
+    ) -> Cgroup {
         let cg = Cgroup::load_with_relative_paths(hier, path, relative_paths);
         cg.create();
         cg
@@ -88,7 +88,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn load<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup {
+    pub fn load<P: AsRef<Path>>(hier: &dyn Hierarchy, path: P) -> Cgroup {
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
@@ -115,10 +115,10 @@ impl<'b> Cgroup<'b> {
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
     pub fn load_with_relative_paths<P: AsRef<Path>>(
-        hier: Box<&'b dyn Hierarchy>,
+        hier: &dyn Hierarchy,
         path: P,
         relative_paths: HashMap<String, String>,
-    ) -> Cgroup<'b> {
+    ) -> Cgroup {
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {

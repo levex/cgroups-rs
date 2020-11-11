@@ -11,8 +11,7 @@ use cgroups::{Cgroup, Hierarchy, MaxValue, PidResources, Resources};
 #[test]
 fn pid_resources() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg = Cgroup::new(h, String::from("pid_resources"));
+    let cg = Cgroup::new(&*h, String::from("pid_resources"));
     {
         let res = Resources {
             pid: PidResources {

@@ -20,8 +20,7 @@ fn test_hugetlb_sizes() {
     }
 
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg = Cgroup::new(h, String::from("test_hugetlb_sizes"));
+    let cg = Cgroup::new(&*h, String::from("test_hugetlb_sizes"));
     {
         let hugetlb_controller: &HugeTlbController = cg.controller_of().unwrap();
         let sizes = hugetlb_controller.get_sizes();
