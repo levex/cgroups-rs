@@ -189,10 +189,8 @@ impl<'a> From<&'a Subsystem> for &'a DevicesController {
 }
 
 impl DevicesController {
-    /// Constructs a new `DevicesController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
-        let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+    /// Constructs a new `DevicesController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf) -> Self {
         Self {
             base: root.clone(),
             path: root,

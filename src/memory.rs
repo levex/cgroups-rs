@@ -465,12 +465,8 @@ impl ControllerInternal for MemController {
 }
 
 impl MemController {
-    /// Contructs a new `MemController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf, v2: bool) -> Self {
-        let mut root = oroot;
-        if !v2 {
-            root.push(Self::controller_type().to_string());
-        }
+    /// Contructs a new `MemController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf, v2: bool) -> Self {
         Self {
             base: root.clone(),
             path: root,

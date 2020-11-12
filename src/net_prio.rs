@@ -89,10 +89,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 }
 
 impl NetPrioController {
-    /// Constructs a new `NetPrioController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
-        let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+    /// Constructs a new `NetPrioController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf) -> Self {
         Self {
             base: root.clone(),
             path: root,

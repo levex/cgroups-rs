@@ -98,12 +98,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 }
 
 impl HugeTlbController {
-    /// Constructs a new `HugeTlbController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf, v2: bool) -> Self {
-        let mut root = oroot;
-        if !v2 {
-            root.push(Self::controller_type().to_string());
-        }
+    /// Constructs a new `HugeTlbController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf, v2: bool) -> Self {
         let sizes = get_hugepage_sizes().unwrap();
         Self {
             base: root.clone(),

@@ -61,12 +61,8 @@ impl<'a> From<&'a Subsystem> for &'a SystemdController {
 }
 
 impl SystemdController {
-    /// Constructs a new `SystemdController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf, v2: bool) -> Self {
-        let mut root = oroot;
-        if !v2 {
-            root.push(Self::controller_type().to_string());
-        }
+    /// Constructs a new `SystemdController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf, v2: bool) -> Self {
         Self {
             base: root.clone(),
             path: root,

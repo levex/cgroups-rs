@@ -118,10 +118,8 @@ fn read_string_from(mut file: File) -> Result<String> {
 }
 
 impl CpuAcctController {
-    /// Contructs a new `CpuAcctController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
-        let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+    /// Contructs a new `CpuAcctController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf) -> Self {
         Self {
             base: root.clone(),
             path: root,

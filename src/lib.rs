@@ -137,7 +137,7 @@ impl Controllers {
             Controllers::NetPrio => return "net_prio".to_string(),
             Controllers::HugeTlb => return "hugetlb".to_string(),
             Controllers::Rdma => return "rdma".to_string(),
-            Controllers::Systemd => return "systemd".to_string(),
+            Controllers::Systemd => return "name=systemd".to_string(),
         }
     }
 }
@@ -367,12 +367,6 @@ pub trait Hierarchy {
     fn root_control_group(&self) -> Cgroup;
 
     fn v2(&self) -> bool;
-
-    /// Checks whether a certain subsystem is supported in the hierarchy.
-    ///
-    /// This is an internal function and should not be used.
-    #[doc(hidden)]
-    fn check_support(&self, sub: Controllers) -> bool;
 }
 
 /// Resource limits for the memory subsystem.

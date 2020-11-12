@@ -122,12 +122,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 }
 
 impl CpuController {
-    /// Contructs a new `CpuController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf, v2: bool) -> Self {
-        let mut root = oroot;
-        if !v2 {
-            root.push(Self::controller_type().to_string());
-        }
+    /// Contructs a new `CpuController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf, v2: bool) -> Self {
         Self {
             base: root.clone(),
             path: root,

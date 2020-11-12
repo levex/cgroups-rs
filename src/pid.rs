@@ -101,13 +101,9 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 }
 
 impl PidController {
-    /// Constructors a new `PidController` instance, with `oroot` serving as the controller's root
+    /// Constructors a new `PidController` instance, with `root` serving as the controller's root
     /// directory.
-    pub fn new(oroot: PathBuf, v2: bool) -> Self {
-        let mut root = oroot;
-        if !v2 {
-            root.push(Self::controller_type().to_string());
-        }
+    pub fn new(root: PathBuf, v2: bool) -> Self {
         Self {
             base: root.clone(),
             path: root,
