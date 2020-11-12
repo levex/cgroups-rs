@@ -285,7 +285,7 @@ where
 
         match ::std::fs::create_dir_all(self.get_path()) {
             Ok(_) => self.post_create(),
-            Err(e) => warn!("error create_dir {:?}", e),
+            Err(e) => warn!("error create_dir: {:?} error: {:?}", self.get_path(), e),
         }
     }
 
