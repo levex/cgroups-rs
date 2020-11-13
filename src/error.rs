@@ -66,7 +66,11 @@ impl fmt::Display for Error {
             ErrorKind::Other => "an unknown error".to_string(),
         };
 
-        write!(f, "{}", msg)
+        if let Some(cause) = &self.cause {
+            write!(f, "{} caused by: {:?}", msg, cause)
+        } else {
+            write!(f, "{}", msg)
+        }
     }
 }
 
