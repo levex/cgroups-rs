@@ -67,6 +67,7 @@ use crate::pid::PidController;
 use crate::rdma::RdmaController;
 use crate::systemd::SystemdController;
 
+#[doc(inline)]
 pub use crate::cgroup::Cgroup;
 
 /// Contains all the subsystems that are available in this crate.
