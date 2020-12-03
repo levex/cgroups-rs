@@ -17,7 +17,7 @@ use libc::pid_t;
 #[test]
 fn create_and_delete_cgroup() {
     let h = cgroups::hierarchies::auto();
-    let cg = Cgroup::new(&*h, String::from("create_and_delete_cgroup"));
+    let cg = Cgroup::new(h, String::from("create_and_delete_cgroup"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
         pidcontroller.set_pid_max(MaxValue::Value(1337)).unwrap();
@@ -31,7 +31,7 @@ fn create_and_delete_cgroup() {
 #[test]
 fn test_pids_current_is_zero() {
     let h = cgroups::hierarchies::auto();
-    let cg = Cgroup::new(&*h, String::from("test_pids_current_is_zero"));
+    let cg = Cgroup::new(h, String::from("test_pids_current_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
         let current = pidcontroller.get_pid_current();
@@ -43,7 +43,7 @@ fn test_pids_current_is_zero() {
 #[test]
 fn test_pids_events_is_zero() {
     let h = cgroups::hierarchies::auto();
-    let cg = Cgroup::new(&*h, String::from("test_pids_events_is_zero"));
+    let cg = Cgroup::new(h, String::from("test_pids_events_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
         let events = pidcontroller.get_pid_events();
@@ -56,7 +56,7 @@ fn test_pids_events_is_zero() {
 #[test]
 fn test_pid_events_is_not_zero() {
     let h = cgroups::hierarchies::auto();
-    let cg = Cgroup::new(&*h, String::from("test_pid_events_is_not_zero"));
+    let cg = Cgroup::new(h, String::from("test_pid_events_is_not_zero"));
     {
         let pids: &PidController = cg.controller_of().unwrap();
         let before = pids.get_pid_events();

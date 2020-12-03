@@ -20,8 +20,7 @@
 //! # use cgroups::devices::*;
 //! # use cgroups::cgroup_builder::*;
 //! let h = cgroups::hierarchies::auto();
-//! let h = Box::new(&*h);
-//! let cgroup: Cgroup = CgroupBuilder::new("hello", h)
+//! let cgroup: Cgroup = CgroupBuilder::new("hello")
 //!      .memory()
 //!          .kernel_memory_limit(1024 * 1024)
 //!          .memory_hard_limit(1024 * 1024)
@@ -58,7 +57,7 @@
 //!              .read(6, 1, 10)
 //!              .write(11, 1, 100)
 //!          .done()
-//!      .build();
+//!      .build(h);
 //! ```
 
 use crate::{

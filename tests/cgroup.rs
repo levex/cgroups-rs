@@ -13,7 +13,7 @@ use cgroups::{Cgroup, CgroupPid, Subsystem};
 fn test_tasks_iterator() {
     let h = cgroups::hierarchies::auto();
     let pid = libc::pid_t::from(nix::unistd::getpid()) as u64;
-    let cg = Cgroup::new(&*h, String::from("test_tasks_iterator"));
+    let cg = Cgroup::new(h, String::from("test_tasks_iterator"));
     {
         // Add a task to the control group.
         cg.add_task(CgroupPid::from(pid)).unwrap();
@@ -45,7 +45,7 @@ fn test_cgroup_with_relative_paths() {
     let cgroup_root = h.root();
     let cgroup_name = "test_cgroup_with_relative_paths";
 
-    let cg = Cgroup::load(&*h, String::from(cgroup_name));
+    let cg = Cgroup::load(h, String::from(cgroup_name));
     {
         let subsystems = cg.subsystems();
         subsystems.into_iter().for_each(|sub| match sub {
@@ -83,14 +83,14 @@ fn test_cgroup_v2() {
         return;
     }
     let h = cgroups::hierarchies::auto();
-    let cg = Cgroup::load(&*h, String::from("test_v2"));
+    let cg = Cgroup::new(h, String::from("test_v2"));
 
     let mem_controller: &MemController = cg.controller_of().unwrap();
     let (mem, swp, rev) = (4 * 1024 * 1000, 2 * 1024 * 1000, 1024 * 1000);
 
-    let _ = mem_controller.set_limit(mem);
-    let _ = mem_controller.set_memswap_limit(swp);
-    let _ = mem_controller.set_soft_limit(rev);
+    mem_controller.set_limit(mem).unwrap();
+    mem_controller.set_memswap_limit(swp).unwrap();
+    mem_controller.set_soft_limit(rev).unwrap();
 
     let memory_stat = mem_controller.memory_stat();
     println!("memory_stat {:?}", memory_stat);

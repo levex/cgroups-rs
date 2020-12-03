@@ -17,7 +17,7 @@ fn test_devices_parsing() {
     }
 
     let h = cgroups::hierarchies::auto();
-    let cg = Cgroup::new(&*h, String::from("test_devices_parsing"));
+    let cg = Cgroup::new(h, String::from("test_devices_parsing"));
     {
         let devices: &DevicesController = cg.controller_of().unwrap();
 

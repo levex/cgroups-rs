@@ -11,7 +11,7 @@ use cgroups::{Cgroup, MaxValue};
 #[test]
 fn test_disable_oom_killer() {
     let h = cgroups::hierarchies::auto();
-    let cg = Cgroup::new(&*h, String::from("test_disable_oom_killer"));
+    let cg = Cgroup::new(h, String::from("test_disable_oom_killer"));
     {
         let mem_controller: &MemController = cg.controller_of().unwrap();
 
@@ -40,7 +40,7 @@ fn set_mem_v2() {
         return;
     }
 
-    let cg = Cgroup::new(&*h, String::from("set_mem_v2"));
+    let cg = Cgroup::new(h, String::from("set_mem_v2"));
     {
         let mem_controller: &MemController = cg.controller_of().unwrap();
 

@@ -18,12 +18,11 @@ use cgroups::*;
 #[test]
 pub fn test_cpu_res_build() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg: Cgroup = CgroupBuilder::new("test_cpu_res_build", h)
+    let cg: Cgroup = CgroupBuilder::new("test_cpu_res_build")
         .cpu()
         .shares(85)
         .done()
-        .build();
+        .build(h);
 
     {
         let cpu: &CpuController = cg.controller_of().unwrap();
@@ -37,14 +36,13 @@ pub fn test_cpu_res_build() {
 #[test]
 pub fn test_memory_res_build() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg: Cgroup = CgroupBuilder::new("test_memory_res_build", h)
+    let cg: Cgroup = CgroupBuilder::new("test_memory_res_build")
         .memory()
         .kernel_memory_limit(128 * 1024 * 1024)
         .swappiness(70)
         .memory_hard_limit(1024 * 1024 * 1024)
         .done()
-        .build();
+        .build(h);
 
     {
         let c: &MemController = cg.controller_of().unwrap();
@@ -61,12 +59,11 @@ pub fn test_memory_res_build() {
 #[test]
 pub fn test_pid_res_build() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg: Cgroup = CgroupBuilder::new("test_pid_res_build", h)
+    let cg: Cgroup = CgroupBuilder::new("test_pid_res_build")
         .pid()
         .maximum_number_of_processes(MaxValue::Value(123))
         .done()
-        .build();
+        .build(h);
 
     {
         let c: &PidController = cg.controller_of().unwrap();
@@ -81,12 +78,11 @@ pub fn test_pid_res_build() {
 #[ignore] // ignore this test for now, not sure why my kernel doesn't like it
 pub fn test_devices_res_build() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg: Cgroup = CgroupBuilder::new("test_devices_res_build", h)
+    let cg: Cgroup = CgroupBuilder::new("test_devices_res_build")
         .devices()
         .device(1, 6, DeviceType::Char, true, vec![DevicePermissions::Read])
         .done()
-        .build();
+        .build(h);
 
     {
         let c: &DevicesController = cg.controller_of().unwrap();
@@ -112,12 +108,11 @@ pub fn test_network_res_build() {
         // FIXME add cases for v2
         return;
     }
-    let h = Box::new(&*h);
-    let cg: Cgroup = CgroupBuilder::new("test_network_res_build", h)
+    let cg: Cgroup = CgroupBuilder::new("test_network_res_build")
         .network()
         .class_id(1337)
         .done()
-        .build();
+        .build(h);
 
     {
         let c: &NetClsController = cg.controller_of().unwrap();
@@ -134,12 +129,11 @@ pub fn test_hugepages_res_build() {
         // FIXME add cases for v2
         return;
     }
-    let h = Box::new(&*h);
-    let cg: Cgroup = CgroupBuilder::new("test_hugepages_res_build", h)
+    let cg: Cgroup = CgroupBuilder::new("test_hugepages_res_build")
         .hugepages()
         .limit("2MB".to_string(), 4 * 2 * 1024 * 1024)
         .done()
-        .build();
+        .build(h);
 
     {
         let c: &HugeTlbController = cg.controller_of().unwrap();
@@ -156,12 +150,11 @@ pub fn test_hugepages_res_build() {
 #[ignore] // high version kernel not support `blkio.weight`
 pub fn test_blkio_res_build() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
-    let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build", h)
+    let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build")
         .blkio()
         .weight(100)
         .done()
-        .build();
+        .build(h);
 
     {
         let c: &BlkIoController = cg.controller_of().unwrap();
