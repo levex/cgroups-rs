@@ -71,7 +71,7 @@ use crate::systemd::SystemdController;
 pub use crate::cgroup::Cgroup;
 
 /// Contains all the subsystems that are available in this crate.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Subsystem {
     /// Controller for the `Pid` subsystem, see `PidController` for more information.
     Pid(PidController),
@@ -104,7 +104,7 @@ pub enum Subsystem {
 }
 
 #[doc(hidden)]
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Controllers {
     Pids,
     Mem,
@@ -357,7 +357,7 @@ pub trait ControllIdentifier {
 
 /// Control group hierarchy (right now, only V1 is supported, but in the future Unified will be
 /// implemented as well).
-pub trait Hierarchy {
+pub trait Hierarchy: std::fmt::Debug + Send {
     /// Returns what subsystems are supported by the hierarchy.
     fn subsystems(&self) -> Vec<Subsystem>;
 

@@ -32,10 +32,12 @@ use crate::{Controllers, Hierarchy, Subsystem};
 use crate::cgroup::Cgroup;
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
+#[derive(Debug)]
 pub struct V1 {
     mountinfo: Vec<Mountinfo>,
 }
 
+#[derive(Debug)]
 pub struct V2 {
     root: String,
 }
@@ -98,8 +100,7 @@ impl Hierarchy for V1 {
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b: &dyn Hierarchy = self as &dyn Hierarchy;
-        Cgroup::load(&*b, "".to_string())
+        Cgroup::load(auto(), "".to_string())
     }
 
     fn root(&self) -> PathBuf {
@@ -170,8 +171,7 @@ impl Hierarchy for V2 {
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b: &dyn Hierarchy = self as &dyn Hierarchy;
-        Cgroup::load(&*b, "".to_string())
+        Cgroup::load(auto(), "".to_string())
     }
 
     fn root(&self) -> PathBuf {

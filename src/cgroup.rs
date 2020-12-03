@@ -28,16 +28,37 @@ use std::path::{Path, PathBuf};
 /// > specialized behaviour.
 ///
 /// This crate is an attempt at providing a Rust-native way of managing these cgroups.
-pub struct Cgroup<'b> {
+#[derive(Debug)]
+pub struct Cgroup {
     /// The list of subsystems that control this cgroup
     subsystems: Vec<Subsystem>,
 
     /// The hierarchy.
-    hier: &'b dyn Hierarchy,
+    hier: Box<dyn Hierarchy>,
     path: String,
 }
 
-impl<'b> Cgroup<'b> {
+impl Clone for Cgroup {
+    fn clone(&self) -> Self {
+        Cgroup {
+            subsystems: self.subsystems.clone(),
+            path: self.path.clone(),
+            hier: crate::hierarchies::auto(),
+        }
+    }
+}
+
+impl Default for Cgroup {
+    fn default() -> Self {
+        Cgroup {
+            subsystems: Vec::new(),
+            hier: crate::hierarchies::auto(),
+            path: "".to_string(),
+        }
+    }
+}
+
+impl Cgroup {
     /// Create this control group.
     fn create(&self) {
         if self.hier.v2() {
@@ -56,10 +77,7 @@ impl<'b> Cgroup<'b> {
     /// Create a new control group in the hierarchy `hier`, with name `path`.
     ///
     /// Returns a handle to the control group that can be used to manipulate it.
-    ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
-    pub fn new<P: AsRef<Path>>(hier: &dyn Hierarchy, path: P) -> Cgroup {
+    pub fn new<P: AsRef<Path>>(hier: Box<dyn Hierarchy>, path: P) -> Cgroup {
         let cg = Cgroup::load(hier, path);
         cg.create();
         cg
@@ -68,11 +86,8 @@ impl<'b> Cgroup<'b> {
     /// Create a new control group in the hierarchy `hier`, with name `path` and `relative_paths`
     ///
     /// Returns a handle to the control group that can be used to manipulate it.
-    ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
     pub fn new_with_relative_paths<P: AsRef<Path>>(
-        hier: &dyn Hierarchy,
+        hier: Box<dyn Hierarchy>,
         path: P,
         relative_paths: HashMap<String, String>,
     ) -> Cgroup {
@@ -85,10 +100,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Returns a handle to the control group (that possibly does not exist until `create()` has
     /// been called on the cgroup.
-    ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
-    pub fn load<P: AsRef<Path>>(hier: &dyn Hierarchy, path: P) -> Cgroup {
+    pub fn load<P: AsRef<Path>>(hier: Box<dyn Hierarchy>, path: P) -> Cgroup {
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
@@ -101,7 +113,7 @@ impl<'b> Cgroup<'b> {
         let cg = Cgroup {
             path: path.to_str().unwrap().to_string(),
             subsystems: subsystems,
-            hier: hier,
+            hier,
         };
 
         cg
@@ -111,11 +123,8 @@ impl<'b> Cgroup<'b> {
     ///
     /// Returns a handle to the control group (that possibly does not exist until `create()` has
     /// been called on the cgroup.
-    ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
     pub fn load_with_relative_paths<P: AsRef<Path>>(
-        hier: &dyn Hierarchy,
+        hier: Box<dyn Hierarchy>,
         path: P,
         relative_paths: HashMap<String, String>,
     ) -> Cgroup {
@@ -141,7 +150,7 @@ impl<'b> Cgroup<'b> {
 
         let cg = Cgroup {
             subsystems: subsystems,
-            hier: hier,
+            hier,
             path: path.to_str().unwrap().to_string(),
         };
 
