@@ -702,6 +702,11 @@ impl MemController {
 
     /// Reset the kernel memory fail counter
     pub fn reset_kmem_fail_count(&self) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.failcnt", true)
             .and_then(|mut file| {
                 file.write_all("0".to_string().as_ref())
@@ -711,6 +716,11 @@ impl MemController {
 
     /// Reset the TCP related fail counter
     pub fn reset_tcp_fail_count(&self) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.tcp.failcnt", true)
             .and_then(|mut file| {
                 file.write_all("0".to_string().as_ref())
@@ -750,6 +760,11 @@ impl MemController {
 
     /// Set the kernel memory limit of the control group, in bytes.
     pub fn set_kmem_limit(&self, limit: i64) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -771,6 +786,11 @@ impl MemController {
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
     pub fn set_tcp_limit(&self, limit: i64) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.tcp.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
