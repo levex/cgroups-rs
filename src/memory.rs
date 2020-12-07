@@ -818,11 +818,15 @@ impl MemController {
     ///
     /// Note that a value of zero does not imply that the process will not be swapped out.
     pub fn set_swappiness(&self, swp: u64) -> Result<()> {
-        self.open_path("memory.swappiness", true)
-            .and_then(|mut file| {
-                file.write_all(swp.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        let mut file = "memory.swappiness";
+        if self.v2 {
+            file = "memory.swap.max"
+        }
+
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(swp.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     pub fn disable_oom_killer(&self) -> Result<()> {
