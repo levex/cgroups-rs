@@ -104,6 +104,54 @@ impl ControllerInternal for CpuSetController {
 
         Ok(())
     }
+
+     // copy_parent_if_needed copies the cpuset.cpus and cpuset.mems from the parent
+    // directory to the current directory if the file's contents are 0
+    fn copy_parent_if_needed(&self, current: &str, parent: &str) -> Result<()> {
+        let cpus_str: &str = "cpuset.cpus";
+        let mems_str: &str = "cpuset.mems";
+
+        let current_cpus_path = ::std::path::Path::new(current).join(cpus_str);
+        let current_mems_path = ::std::path::Path::new(current).join(mems_str);
+        let parent_cpus_path = ::std::path::Path::new(parent).join(cpus_str);
+        let parent_mems_path = ::std::path::Path::new(parent).join(mems_str);
+
+        let current_cpus = match ::std::fs::read_to_string(current_cpus_path.to_str().unwrap()) {
+            Ok(cpus) => String::from(cpus.trim()),
+            Err(e) => return Err(Error::with_cause(ReadFailed, e)),
+        };
+
+        let current_mems = match ::std::fs::read_to_string(current_mems_path.to_str().unwrap()) {
+            Ok(mems) => String::from(mems.trim()),
+            Err(e) => return Err(Error::with_cause(ReadFailed, e)),
+        };
+
+        let parent_cpus = match ::std::fs::read_to_string(parent_cpus_path.to_str().unwrap()) {
+            Ok(cpus) => cpus,
+            Err(e) => return Err(Error::with_cause(ReadFailed, e)),
+        };
+
+        let parent_mems = match ::std::fs::read_to_string(parent_mems_path.to_str().unwrap()) {
+            Ok(mems) => mems,
+            Err(e) => return Err(Error::with_cause(ReadFailed, e)),
+        };
+
+        if current_cpus == "" {
+            match ::std::fs::write(current_cpus_path.to_str().unwrap(), parent_cpus.as_bytes()) {
+                Ok(_) => (),
+                Err(e) => return Err(Error::with_cause(WriteFailed, e)),
+            }
+        }
+
+        if current_mems == "" {
+            match ::std::fs::write(current_mems_path.to_str().unwrap(), parent_mems.as_bytes()) {
+                Ok(_) => (),
+                Err(e) => return Err(Error::with_cause(WriteFailed, e)),
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl ControllIdentifier for CpuSetController {

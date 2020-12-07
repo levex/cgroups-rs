@@ -147,6 +147,11 @@ mod sealed {
             }
         }
 
+        // Copy the parent values to this controller
+        fn copy_parent_if_needed(&self, current: &str, parent: &str) -> Result<()> {
+            Ok(())
+        }
+
         #[doc(hidden)]
         fn path_exists(&self, p: &str) -> bool {
             if let Err(_) = self.verify_path() {
@@ -213,6 +218,16 @@ impl<T> Controller for T where T: ControllerInternal {
         match ::std::fs::create_dir(self.get_path()) {
             Ok(_) => (),
             Err(e) => warn!("error create_dir {:?}", e),
+        }
+
+        let current = self.get_path();
+        let parent = match current.parent() {
+            Some(p) => p,
+            None => return,
+        };
+
+        if current != self.get_base() {
+            self.copy_parent_if_needed(current.to_str().unwrap(), parent.to_str().unwrap());
         }
     }
 
