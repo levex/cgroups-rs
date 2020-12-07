@@ -43,19 +43,7 @@ impl ControllIdentifier for PerfEventController {
     }
 }
 
-impl<'a> From<&'a Subsystem> for &'a PerfEventController {
-    fn from(sub: &'a Subsystem) -> &'a PerfEventController {
-        unsafe {
-            match sub {
-                Subsystem::PerfEvent(c) => c,
-                _ => {
-                    assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
-                }
-            }
-        }
-    }
-}
+impl_from_subsystem_for_controller!(Subsystem::PerfEvent, PerfEventController);
 
 impl PerfEventController {
     /// Constructs a new `PerfEventController` with `oroot` serving as the root of the control group.

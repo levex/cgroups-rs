@@ -8,7 +8,8 @@ fn test_tasks_iterator() {
     let cg = Cgroup::new(&hier, String::from("test_tasks_iterator"));
     {
         // Add a task to the control group.
-        cg.add_task(CgroupPid::from(pid));
+        cg.add_task(CgroupPid::from(pid))
+            .expect("Failed to add task to cgroup");
         let mut tasks = cg.tasks().into_iter();
         // Verify that the task is indeed in the control group
         assert_eq!(tasks.next(), Some(CgroupPid::from(pid)));

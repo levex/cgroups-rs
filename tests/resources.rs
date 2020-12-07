@@ -14,7 +14,7 @@ fn pid_resources() {
             },
             ..Default::default()
         };
-        cg.apply(&res);
+        cg.apply(&res).expect("Failed to add resources to cgroup");
 
         // verify
         let pidcontroller: &PidController = cg.controller_of().unwrap();

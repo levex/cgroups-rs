@@ -11,16 +11,18 @@ fn test_devices_parsing() {
         let devices: &DevicesController = cg.controller_of().unwrap();
 
         // Deny access to all devices first
-        devices.deny_device(
-            DeviceType::All,
-            -1,
-            -1,
-            &vec![
-                DevicePermissions::Read,
-                DevicePermissions::Write,
-                DevicePermissions::MkNod,
-            ],
-        );
+        devices
+            .deny_device(
+                DeviceType::All,
+                -1,
+                -1,
+                &vec![
+                    DevicePermissions::Read,
+                    DevicePermissions::Write,
+                    DevicePermissions::MkNod,
+                ],
+            )
+            .expect("Failed to deny device");
         // Acquire the list of allowed devices after we denied all
         let allowed_devices = devices.allowed_devices();
         // Verify that there are no devices that we can access.
@@ -28,7 +30,9 @@ fn test_devices_parsing() {
         assert_eq!(allowed_devices.unwrap(), Vec::new());
 
         // Now add mknod access to /dev/null device
-        devices.allow_device(DeviceType::Char, 1, 3, &vec![DevicePermissions::MkNod]);
+        devices
+            .allow_device(DeviceType::Char, 1, 3, &vec![DevicePermissions::MkNod])
+            .expect("Failed to allow device");
         let allowed_devices = devices.allowed_devices();
         assert!(allowed_devices.is_ok());
         let allowed_devices = allowed_devices.unwrap();
@@ -45,7 +49,9 @@ fn test_devices_parsing() {
         );
 
         // Now deny, this device explicitly.
-        devices.deny_device(DeviceType::Char, 1, 3, &DevicePermissions::all());
+        devices
+            .deny_device(DeviceType::Char, 1, 3, &DevicePermissions::all())
+            .expect("Failed to deny device");
         // Finally, check that.
         let allowed_devices = devices.allowed_devices();
         // Verify that there are no devices that we can access.

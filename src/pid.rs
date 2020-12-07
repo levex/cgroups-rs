@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, PidResources, Resources, Subsystem,
@@ -82,24 +82,15 @@ impl ControllIdentifier for PidController {
     }
 }
 
-impl<'a> From<&'a Subsystem> for &'a PidController {
-    fn from(sub: &'a Subsystem) -> &'a PidController {
-        unsafe {
-            match sub {
-                Subsystem::Pid(c) => c,
-                _ => {
-                    assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
-                }
-            }
-        }
-    }
-}
+impl_from_subsystem_for_controller!(Subsystem::Pid, PidController);
 
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
-        Ok(_) => string.trim().parse().map_err(|e| Error::with_cause(ParseError, e)),
+        Ok(_) => string
+            .trim()
+            .parse()
+            .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
@@ -145,14 +136,16 @@ impl PidController {
             let mut string = String::new();
             let res = file.read_to_string(&mut string);
             match res {
-                Ok(_) => if string.trim() == "max" {
-                    Ok(PidMax::Max)
-                } else {
-                    match string.trim().parse() {
-                        Ok(val) => Ok(PidMax::Value(val)),
-                        Err(e) => Err(Error::with_cause(ParseError, e)),
+                Ok(_) => {
+                    if string.trim() == "max" {
+                        Ok(PidMax::Max)
+                    } else {
+                        match string.trim().parse() {
+                            Ok(val) => Ok(PidMax::Value(val)),
+                            Err(e) => Err(Error::with_cause(ParseError, e)),
+                        }
                     }
-                },
+                }
                 Err(e) => Err(Error::with_cause(ReadFailed, e)),
             }
         })

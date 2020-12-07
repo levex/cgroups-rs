@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::*;
 use crate::error::ErrorKind::*;
+use crate::error::*;
 
 use crate::{ControllIdentifier, ControllerInternal, Controllers, Resources, Subsystem};
 
@@ -77,19 +77,7 @@ impl ControllIdentifier for CpuAcctController {
     }
 }
 
-impl<'a> From<&'a Subsystem> for &'a CpuAcctController {
-    fn from(sub: &'a Subsystem) -> &'a CpuAcctController {
-        unsafe {
-            match sub {
-                Subsystem::CpuAcct(c) => c,
-                _ => {
-                    assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
-                }
-            }
-        }
-    }
-}
+impl_from_subsystem_for_controller!(Subsystem::CpuAcct, CpuAcctController);
 
 fn read_u64_from(mut file: File) -> Result<u64> {
     let mut string = String::new();
@@ -162,7 +150,9 @@ impl CpuAcctController {
 
     /// Reset the statistics the kernel has gathered about the control group.
     pub fn reset(&self) -> Result<()> {
-        self.open_path("cpuacct.usage", true)
-            .and_then(|mut file| file.write_all(b"0").map_err(|e| Error::with_cause(WriteFailed, e)))
+        self.open_path("cpuacct.usage", true).and_then(|mut file| {
+            file.write_all(b"0")
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 }

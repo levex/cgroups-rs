@@ -24,7 +24,7 @@ pub struct Cgroup<'b> {
     subsystems: Vec<Subsystem>,
 
     /// The hierarchy.
-    hier: &'b Hierarchy,
+    hier: &'b dyn Hierarchy,
 }
 
 impl<'b> Cgroup<'b> {
@@ -41,7 +41,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn new<P: AsRef<Path>>(hier: &Hierarchy, path: P) -> Cgroup {
+    pub fn new<P: AsRef<Path>>(hier: &dyn Hierarchy, path: P) -> Cgroup {
         let cg = Cgroup::load(hier, path);
         cg.create();
         cg
@@ -54,7 +54,7 @@ impl<'b> Cgroup<'b> {
     ///
     /// Note that if the handle goes out of scope and is dropped, the control group is _not_
     /// destroyed.
-    pub fn load<P: AsRef<Path>>(hier: &Hierarchy, path: P) -> Cgroup {
+    pub fn load<P: AsRef<Path>>(hier: &dyn Hierarchy, path: P) -> Cgroup {
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
