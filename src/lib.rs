@@ -246,6 +246,12 @@ pub trait Controller {
     /// Does this controller already exist?
     fn exists(&self) -> bool;
 
+    /// Set notify_on_release
+    fn set_notify_on_release(&self, enable: bool) -> Result<()>;
+
+    /// Set release_agent
+    fn set_release_agent(&self, path: &str) -> Result<()>;
+
     /// Delete the controller.
     fn delete(&self) -> Result<()>;
 
@@ -290,6 +296,22 @@ where
         }
     }
 
+    /// Set notify_on_release
+    fn set_notify_on_release(&self, enable: bool) -> Result<()> {
+        self.open_path("notify_on_release", true)
+            .and_then(|mut file| {
+                write!(file, "{}", enable as i32)
+                    .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+            })
+    }
+
+    /// Set release_agent
+    fn set_release_agent(&self, path: &str) -> Result<()> {
+        self.open_path("release_agent", true).and_then(|mut file| {
+            file.write_all(path.as_bytes())
+                .map_err(|e| Error::with_cause(ErrorKind::WriteFailed, e))
+        })
+    }
     /// Does this controller already exist?
     fn exists(&self) -> bool {
         self.get_path().exists()

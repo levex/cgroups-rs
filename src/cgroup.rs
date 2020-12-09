@@ -260,6 +260,22 @@ impl Cgroup {
             .try_for_each(|sub| sub.to_controller().add_task_by_tgid(&pid))
     }
 
+    /// Set notify_on_release to the control group.
+    pub fn set_notify_on_release(&self, enable: bool) -> Result<()> {
+        self.subsystems()
+            .iter()
+            .try_for_each(|sub| sub.to_controller().set_notify_on_release(enable))
+    }
+
+    /// Set release_agent
+    pub fn set_release_agent(&self, path: &str) -> Result<()> {
+        self.hier
+            .root_control_group()
+            .subsystems()
+            .iter()
+            .try_for_each(|sub| sub.to_controller().set_release_agent(path))
+    }
+
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the
     /// control group.
     pub fn tasks(&self) -> Vec<CgroupPid> {
