@@ -86,6 +86,8 @@ impl Cgroup {
     /// Create a new control group in the hierarchy `hier`, with name `path` and `relative_paths`
     ///
     /// Returns a handle to the control group that can be used to manipulate it.
+    ///
+    /// Note that this method is only meaningful for cgroup v1, call it is equivalent to call `new` in the v2 mode
     pub fn new_with_relative_paths<P: AsRef<Path>>(
         hier: Box<dyn Hierarchy>,
         path: P,
@@ -123,11 +125,18 @@ impl Cgroup {
     ///
     /// Returns a handle to the control group (that possibly does not exist until `create()` has
     /// been called on the cgroup.
+    ///
+    /// Note that this method is only meaningful for cgroup v1, call it is equivalent to call `load` in the v2 mode
     pub fn load_with_relative_paths<P: AsRef<Path>>(
         hier: Box<dyn Hierarchy>,
         path: P,
         relative_paths: HashMap<String, String>,
     ) -> Cgroup {
+        // relative_paths only valid for cgroup v1
+        if hier.v2() {
+            return Self::load(hier, path);
+        }
+
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
