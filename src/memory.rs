@@ -17,6 +17,7 @@ use std::sync::mpsc::Receiver;
 use crate::error::ErrorKind::*;
 use crate::error::*;
 use crate::events;
+use crate::read_i64_from;
 
 use crate::flat_keyed_to_hashmap;
 
@@ -870,17 +871,6 @@ impl<'a> From<&'a Subsystem> for &'a MemController {
 }
 
 fn read_u64_from(mut file: File) -> Result<u64> {
-    let mut string = String::new();
-    match file.read_to_string(&mut string) {
-        Ok(_) => string
-            .trim()
-            .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
-    }
-}
-
-fn read_i64_from(mut file: File) -> Result<i64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => string

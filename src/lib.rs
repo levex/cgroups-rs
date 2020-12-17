@@ -219,7 +219,13 @@ mod sealed {
         }
 
         fn get(&self, key: &str) -> Result<String> {
-            self.open_path(key, false).and_then(read_str_from)
+            self.open_path(key, false).and_then(|mut file: File| {
+                let mut string = String::new();
+                match file.read_to_string(&mut string) {
+                    Ok(_) => Ok(string.trim().to_owned()),
+                    Err(e) => Err(Error::with_cause(ReadFailed, e)),
+                }
+            })
         }
     }
 }
@@ -827,21 +833,13 @@ pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap
 }
 
 /// read and parse an i64 data
-pub fn read_i64_from(mut file: File) -> Result<i64> {
+fn read_i64_from(mut file: File) -> Result<i64> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => string
             .trim()
             .parse()
             .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
-    }
-}
-
-pub fn read_str_from(mut file: File) -> Result<String> {
-    let mut string = String::new();
-    match file.read_to_string(&mut string) {
-        Ok(_) => Ok(string.trim().to_owned()),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
