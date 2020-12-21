@@ -16,10 +16,10 @@
 //! by a call to `build()`.
 //!
 //! ```rust,no_run
-//! # use cgroups::*;
-//! # use cgroups::devices::*;
-//! # use cgroups::cgroup_builder::*;
-//! let h = cgroups::hierarchies::auto();
+//! # use cgroups_rs::*;
+//! # use cgroups_rs::devices::*;
+//! # use cgroups_rs::cgroup_builder::*;
+//! let h = cgroups_rs::hierarchies::auto();
 //! let cgroup: Cgroup = CgroupBuilder::new("hello")
 //!      .memory()
 //!          .kernel_memory_limit(1024 * 1024)

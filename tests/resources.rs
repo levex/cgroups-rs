@@ -5,12 +5,12 @@
 //
 
 //! Integration test about setting resources using `apply()`
-use cgroups::pid::PidController;
-use cgroups::{Cgroup, MaxValue, PidResources, Resources};
+use cgroups_rs::pid::PidController;
+use cgroups_rs::{Cgroup, MaxValue, PidResources, Resources};
 
 #[test]
 fn pid_resources() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg = Cgroup::new(h, String::from("pid_resources"));
     {
         let res = Resources {

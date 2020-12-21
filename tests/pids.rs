@@ -5,9 +5,9 @@
 //
 
 //! Integration tests about the pids subsystem
-use cgroups::pid::PidController;
-use cgroups::Controller;
-use cgroups::{Cgroup, MaxValue};
+use cgroups_rs::pid::PidController;
+use cgroups_rs::Controller;
+use cgroups_rs::{Cgroup, MaxValue};
 
 use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::{fork, ForkResult};
@@ -16,7 +16,7 @@ use libc::pid_t;
 
 #[test]
 fn create_and_delete_cgroup() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg = Cgroup::new(h, String::from("create_and_delete_cgroup"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
@@ -30,7 +30,7 @@ fn create_and_delete_cgroup() {
 
 #[test]
 fn test_pids_current_is_zero() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg = Cgroup::new(h, String::from("test_pids_current_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
@@ -42,7 +42,7 @@ fn test_pids_current_is_zero() {
 
 #[test]
 fn test_pids_events_is_zero() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg = Cgroup::new(h, String::from("test_pids_events_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
@@ -55,7 +55,7 @@ fn test_pids_events_is_zero() {
 
 #[test]
 fn test_pid_events_is_not_zero() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg = Cgroup::new(h, String::from("test_pid_events_is_not_zero"));
     {
         let pids: &PidController = cg.controller_of().unwrap();
