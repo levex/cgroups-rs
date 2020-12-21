@@ -422,7 +422,7 @@ pub struct MemoryResources {
     ///
     /// # Usage:
     /// ```
-    /// let resource = &mut cgroups::Resources::default();
+    /// let resource = &mut cgroups_rs::Resources::default();
     /// resource.memory.attrs.insert("memory.numa_balancing", "true".to_string());
     /// // apply here
     pub attrs: std::collections::HashMap<&'static str, String>,
@@ -464,7 +464,7 @@ pub struct CpuResources {
     /// Customized key-value attributes
     /// # Usage:
     /// ```
-    /// let resource = &mut cgroups::Resources::default();
+    /// let resource = &mut cgroups_rs::Resources::default();
     /// resource.cpu.attrs.insert("cpu.cfs_init_buffer_us", "10".to_string());
     /// // apply here
     /// ```

@@ -5,13 +5,13 @@
 //
 
 //! Simple unit tests about the control groups system.
-use cgroups::memory::MemController;
-use cgroups::Controller;
-use cgroups::{Cgroup, CgroupPid, Subsystem};
+use cgroups_rs::memory::MemController;
+use cgroups_rs::Controller;
+use cgroups_rs::{Cgroup, CgroupPid, Subsystem};
 
 #[test]
 fn test_tasks_iterator() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let pid = libc::pid_t::from(nix::unistd::getpid()) as u64;
     let cg = Cgroup::new(h, String::from("test_tasks_iterator"));
     {
@@ -38,10 +38,10 @@ fn test_tasks_iterator() {
 
 #[test]
 fn test_cgroup_with_relative_paths() {
-    if cgroups::hierarchies::is_cgroup2_unified_mode() {
+    if cgroups_rs::hierarchies::is_cgroup2_unified_mode() {
         return;
     }
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cgroup_root = h.root();
     let cgroup_name = "test_cgroup_with_relative_paths";
 
@@ -79,10 +79,10 @@ fn test_cgroup_with_relative_paths() {
 
 #[test]
 fn test_cgroup_v2() {
-    if !cgroups::hierarchies::is_cgroup2_unified_mode() {
+    if !cgroups_rs::hierarchies::is_cgroup2_unified_mode() {
         return;
     }
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg = Cgroup::new(h, String::from("test_v2"));
 
     let mem_controller: &MemController = cg.controller_of().unwrap();

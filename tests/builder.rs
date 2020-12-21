@@ -5,19 +5,19 @@
 //
 
 //! Some simple tests covering the builder pattern for control groups.
-use cgroups::blkio::*;
-use cgroups::cgroup_builder::*;
-use cgroups::cpu::*;
-use cgroups::devices::*;
-use cgroups::hugetlb::*;
-use cgroups::memory::*;
-use cgroups::net_cls::*;
-use cgroups::pid::*;
-use cgroups::*;
+use cgroups_rs::blkio::*;
+use cgroups_rs::cgroup_builder::*;
+use cgroups_rs::cpu::*;
+use cgroups_rs::devices::*;
+use cgroups_rs::hugetlb::*;
+use cgroups_rs::memory::*;
+use cgroups_rs::net_cls::*;
+use cgroups_rs::pid::*;
+use cgroups_rs::*;
 
 #[test]
 pub fn test_cpu_res_build() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg: Cgroup = CgroupBuilder::new("test_cpu_res_build")
         .cpu()
         .shares(85)
@@ -35,7 +35,7 @@ pub fn test_cpu_res_build() {
 
 #[test]
 pub fn test_memory_res_build() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg: Cgroup = CgroupBuilder::new("test_memory_res_build")
         .memory()
         .kernel_memory_limit(128 * 1024 * 1024)
@@ -58,7 +58,7 @@ pub fn test_memory_res_build() {
 
 #[test]
 pub fn test_pid_res_build() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg: Cgroup = CgroupBuilder::new("test_pid_res_build")
         .pid()
         .maximum_number_of_processes(MaxValue::Value(123))
@@ -77,7 +77,7 @@ pub fn test_pid_res_build() {
 #[test]
 #[ignore] // ignore this test for now, not sure why my kernel doesn't like it
 pub fn test_devices_res_build() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg: Cgroup = CgroupBuilder::new("test_devices_res_build")
         .devices()
         .device(1, 6, DeviceType::Char, true, vec![DevicePermissions::Read])
@@ -103,7 +103,7 @@ pub fn test_devices_res_build() {
 
 #[test]
 pub fn test_network_res_build() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     if h.v2() {
         // FIXME add cases for v2
         return;
@@ -124,7 +124,7 @@ pub fn test_network_res_build() {
 
 #[test]
 pub fn test_hugepages_res_build() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     if h.v2() {
         // FIXME add cases for v2
         return;
@@ -149,7 +149,7 @@ pub fn test_hugepages_res_build() {
 #[test]
 #[ignore] // high version kernel not support `blkio.weight`
 pub fn test_blkio_res_build() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg: Cgroup = CgroupBuilder::new("test_blkio_res_build")
         .blkio()
         .weight(100)

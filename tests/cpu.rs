@@ -4,12 +4,12 @@
 //
 
 //! Simple unit tests about the CPU control groups system.
-use cgroups::cpu::CpuController;
-use cgroups::Cgroup;
+use cgroups_rs::cpu::CpuController;
+use cgroups_rs::Cgroup;
 
 #[test]
 fn test_cfs_quota_and_periods() {
-    let h = cgroups::hierarchies::auto();
+    let h = cgroups_rs::hierarchies::auto();
     let cg = Cgroup::new(h, String::from("test_cfs_quota_and_periods"));
 
     let cpu_controller: &CpuController = cg.controller_of().unwrap();

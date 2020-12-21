@@ -1,12 +1,12 @@
 [package]
-name = "cgroups"
+name = "cgroups-rs"
 description = "Native Rust crate for managing control groups on Linux"
-repository = "https://github.com/levex/cgroups-rs"
+repository = "https://github.com/kata-containers/cgroups-rs"
 keywords = ["linux", "cgroup", "containers", "isolation"]
 categories = ["os", "api-bindings", "os::unix-apis"]
 license = "MIT OR Apache-2.0"
 version = "0.2.0"
-authors = ["Levente Kurusa <lkurusa@acm.org>", "Sam Wilson <tecywiz121@hotmail.com>"]
+authors = ["The Kata Containers community <kata-dev@lists.katacontainers.io>", "Levente Kurusa <lkurusa@acm.org>", "Sam Wilson <tecywiz121@hotmail.com>"]
 edition = "2018"
 
 [dependencies]
