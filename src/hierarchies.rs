@@ -9,12 +9,9 @@
 //! Currently, we only support the cgroupv1 hierarchy, but in the future we will add support for
 //! the Unified Hierarchy.
 
-use std::fs::{self, File};
-use std::io::BufRead;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
-
-use log::*;
+use procinfo::pid::{mountinfo_self, Mountinfo};
+use std::fs;
+use std::path::PathBuf;
 
 use crate::blkio::BlkIoController;
 use crate::cpu::CpuController;
@@ -35,10 +32,12 @@ use crate::{Controllers, Hierarchy, Subsystem};
 use crate::cgroup::Cgroup;
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
+#[derive(Debug)]
 pub struct V1 {
-    mount_point: String,
+    mountinfo: Vec<Mountinfo>,
 }
 
+#[derive(Debug)]
 pub struct V2 {
     root: String,
 }
@@ -50,80 +49,71 @@ impl Hierarchy for V1 {
 
     fn subsystems(&self) -> Vec<Subsystem> {
         let mut subs = vec![];
-        if self.check_support(Controllers::Pids) {
-            subs.push(Subsystem::Pid(PidController::new(self.root(), false)));
+
+        // The cgroup writeback feature requires cooperation between memcgs and blkcgs
+        // To avoid exceptions, we should add_task for blkcg before memcg(push BlkIo before Mem)
+        // For more Information: https://www.alibabacloud.com/help/doc-detail/155509.htm
+        if let Some(root) = self.get_mount_point(Controllers::BlkIo) {
+            subs.push(Subsystem::BlkIo(BlkIoController::new(root, false)));
         }
-        if self.check_support(Controllers::Mem) {
-            subs.push(Subsystem::Mem(MemController::new(self.root(), false)));
+        if let Some(root) = self.get_mount_point(Controllers::Mem) {
+            subs.push(Subsystem::Mem(MemController::new(root, false)));
         }
-        if self.check_support(Controllers::CpuSet) {
-            subs.push(Subsystem::CpuSet(CpuSetController::new(self.root(), false)));
+        if let Some(root) = self.get_mount_point(Controllers::Pids) {
+            subs.push(Subsystem::Pid(PidController::new(root, false)));
         }
-        if self.check_support(Controllers::CpuAcct) {
-            subs.push(Subsystem::CpuAcct(CpuAcctController::new(self.root())));
+        if let Some(root) = self.get_mount_point(Controllers::CpuSet) {
+            subs.push(Subsystem::CpuSet(CpuSetController::new(root, false)));
         }
-        if self.check_support(Controllers::Cpu) {
-            subs.push(Subsystem::Cpu(CpuController::new(self.root(), false)));
+        if let Some(root) = self.get_mount_point(Controllers::CpuAcct) {
+            subs.push(Subsystem::CpuAcct(CpuAcctController::new(root)));
         }
-        if self.check_support(Controllers::Devices) {
-            subs.push(Subsystem::Devices(DevicesController::new(self.root())));
+        if let Some(root) = self.get_mount_point(Controllers::Cpu) {
+            subs.push(Subsystem::Cpu(CpuController::new(root, false)));
         }
-        if self.check_support(Controllers::Freezer) {
-            subs.push(Subsystem::Freezer(FreezerController::new(
-                self.root(),
-                false,
-            )));
+        if let Some(root) = self.get_mount_point(Controllers::Devices) {
+            subs.push(Subsystem::Devices(DevicesController::new(root)));
         }
-        if self.check_support(Controllers::NetCls) {
-            subs.push(Subsystem::NetCls(NetClsController::new(self.root())));
+        if let Some(root) = self.get_mount_point(Controllers::Freezer) {
+            subs.push(Subsystem::Freezer(FreezerController::new(root, false)));
         }
-        if self.check_support(Controllers::BlkIo) {
-            subs.push(Subsystem::BlkIo(BlkIoController::new(self.root(), false)));
+        if let Some(root) = self.get_mount_point(Controllers::NetCls) {
+            subs.push(Subsystem::NetCls(NetClsController::new(root)));
         }
-        if self.check_support(Controllers::PerfEvent) {
-            subs.push(Subsystem::PerfEvent(PerfEventController::new(self.root())));
+        if let Some(root) = self.get_mount_point(Controllers::PerfEvent) {
+            subs.push(Subsystem::PerfEvent(PerfEventController::new(root)));
         }
-        if self.check_support(Controllers::NetPrio) {
-            subs.push(Subsystem::NetPrio(NetPrioController::new(self.root())));
+        if let Some(root) = self.get_mount_point(Controllers::NetPrio) {
+            subs.push(Subsystem::NetPrio(NetPrioController::new(root)));
         }
-        if self.check_support(Controllers::HugeTlb) {
-            subs.push(Subsystem::HugeTlb(HugeTlbController::new(
-                self.root(),
-                false,
-            )));
+        if let Some(root) = self.get_mount_point(Controllers::HugeTlb) {
+            subs.push(Subsystem::HugeTlb(HugeTlbController::new(root, false)));
         }
-        if self.check_support(Controllers::Rdma) {
-            subs.push(Subsystem::Rdma(RdmaController::new(self.root())));
+        if let Some(root) = self.get_mount_point(Controllers::Rdma) {
+            subs.push(Subsystem::Rdma(RdmaController::new(root)));
         }
-        if self.check_support(Controllers::Systemd) {
-            subs.push(Subsystem::Systemd(SystemdController::new(
-                self.root(),
-                false,
-            )));
+        if let Some(root) = self.get_mount_point(Controllers::Systemd) {
+            subs.push(Subsystem::Systemd(SystemdController::new(root, false)));
         }
 
         subs
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b: &dyn Hierarchy = self as &dyn Hierarchy;
-        Cgroup::load(Box::new(&*b), "".to_string())
-    }
-
-    fn check_support(&self, sub: Controllers) -> bool {
-        let root = self.root().read_dir().unwrap();
-        for entry in root {
-            if let Ok(entry) = entry {
-                if entry.file_name().into_string().unwrap() == sub.to_string() {
-                    return true;
-                }
-            }
-        }
-        return false;
+        Cgroup::load(auto(), "".to_string())
     }
 
     fn root(&self) -> PathBuf {
-        PathBuf::from(self.mount_point.clone())
+        self.mountinfo
+            .iter()
+            .find_map(|m| {
+                if m.fs_type.0 == "cgroup" {
+                    return Some(m.mount_point.parent().unwrap());
+                }
+                None
+            })
+            .unwrap()
+            .to_path_buf()
     }
 }
 
@@ -181,12 +171,7 @@ impl Hierarchy for V2 {
     }
 
     fn root_control_group(&self) -> Cgroup {
-        let b: &dyn Hierarchy = self as &dyn Hierarchy;
-        Cgroup::load(Box::new(&*b), "".to_string())
-    }
-
-    fn check_support(&self, _sub: Controllers) -> bool {
-        return false;
+        Cgroup::load(auto(), "".to_string())
     }
 
     fn root(&self) -> PathBuf {
@@ -198,10 +183,18 @@ impl V1 {
     /// Finds where control groups are mounted to and returns a hierarchy in which control groups
     /// can be created.
     pub fn new() -> V1 {
-        let mount_point = find_v1_mount().unwrap();
         V1 {
-            mount_point: mount_point,
+            mountinfo: mountinfo_self().unwrap(),
         }
+    }
+
+    pub fn get_mount_point(&self, controller: Controllers) -> Option<PathBuf> {
+        self.mountinfo.iter().find_map(|m| {
+            if m.fs_type.0 == "cgroup" && m.super_opts.contains(&controller.to_string()) {
+                return Some(m.mount_point.clone());
+            }
+            None
+        })
     }
 }
 
@@ -221,7 +214,7 @@ pub const UNIFIED_MOUNTPOINT: &'static str = "/sys/fs/cgroup";
 pub fn is_cgroup2_unified_mode() -> bool {
     use nix::sys::statfs;
 
-    let path = Path::new(UNIFIED_MOUNTPOINT);
+    let path = std::path::Path::new(UNIFIED_MOUNTPOINT);
     let fs_stat = statfs::statfs(path);
     if fs_stat.is_err() {
         return false;
@@ -259,41 +252,4 @@ pub fn auto() -> Box<dyn Hierarchy> {
     } else {
         Box::new(V1::new())
     }
-}
-
-fn find_v1_mount() -> Option<String> {
-    // Open mountinfo so we can get a parseable mount list
-    let mountinfo_path = Path::new("/proc/self/mountinfo");
-
-    // If /proc isn't mounted, or something else happens, then bail out
-    if mountinfo_path.exists() == false {
-        return None;
-    }
-
-    let mountinfo_file = File::open(mountinfo_path).unwrap();
-    let mountinfo_reader = BufReader::new(&mountinfo_file);
-    for _line in mountinfo_reader.lines() {
-        let line = _line.unwrap();
-        let mut fields = line.split_whitespace();
-        let index = line.find(" - ").unwrap();
-        let more_fields = line[index + 3..].split_whitespace().collect::<Vec<_>>();
-        if more_fields.len() == 0 {
-            continue;
-        }
-        if more_fields[0] == "cgroup" {
-            if more_fields.len() < 3 {
-                continue;
-            }
-            let cgroups_mount = fields.nth(4).unwrap();
-            if let Some(parent) = std::path::Path::new(cgroups_mount).parent() {
-                if let Some(path) = parent.as_os_str().to_str() {
-                    debug!("found cgroups {:?} from {:?}", path, cgroups_mount);
-                    return Some(path.to_string());
-                }
-            }
-            continue;
-        }
-    }
-
-    None
 }

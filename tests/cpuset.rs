@@ -6,14 +6,13 @@
 
 use cgroups::cpuset::CpuSetController;
 use cgroups::error::ErrorKind;
-use cgroups::{Cgroup, CgroupPid, CpuResources, Hierarchy, Resources};
+use cgroups::{Cgroup, CgroupPid};
 
 use std::fs;
 
 #[test]
 fn test_cpuset_memory_pressure_root_cg() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("test_cpuset_memory_pressure_root_cg"));
     {
         let cpuset: &CpuSetController = cg.controller_of().unwrap();
@@ -22,13 +21,12 @@ fn test_cpuset_memory_pressure_root_cg() {
         let res = cpuset.set_enable_memory_pressure(true);
         assert_eq!(res.unwrap_err().kind(), &ErrorKind::InvalidOperation);
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
 fn test_cpuset_set_cpus() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("test_cpuset_set_cpus"));
     {
         let cpuset: &CpuSetController = cg.controller_of().unwrap();
@@ -61,13 +59,12 @@ fn test_cpuset_set_cpus() {
             assert_eq!(format!("{}-{}", set.cpus[0].0, set.cpus[0].1), cpus);
         }
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
 fn test_cpuset_set_cpus_add_task() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("test_cpuset_set_cpus_add_task/sub-dir"));
 
     let cpuset: &CpuSetController = cg.controller_of().unwrap();
@@ -92,5 +89,5 @@ fn test_cpuset_set_cpus_add_task() {
     println!("tasks after deleted: {:?}", tasks);
     assert_eq!(0, tasks.len());
 
-    cg.delete();
+    cg.delete().unwrap();
 }

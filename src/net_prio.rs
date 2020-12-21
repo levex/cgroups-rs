@@ -48,10 +48,8 @@ impl ControllerInternal for NetPrioController {
         // get the resources that apply to this controller
         let res: &NetworkResources = &res.network;
 
-        if res.update_values {
-            for i in &res.priorities {
-                let _ = self.set_if_prio(&i.name, i.priority);
-            }
+        for i in &res.priorities {
+            let _ = self.set_if_prio(&i.name, i.priority);
         }
 
         Ok(())
@@ -91,10 +89,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 }
 
 impl NetPrioController {
-    /// Constructs a new `NetPrioController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
-        let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+    /// Constructs a new `NetPrioController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf) -> Self {
         Self {
             base: root.clone(),
             path: root,

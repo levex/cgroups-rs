@@ -9,8 +9,6 @@
 use crate::error::ErrorKind::*;
 use crate::error::*;
 
-use crate::libc_rmdir;
-
 use crate::{CgroupPid, ControllIdentifier, Controller, Hierarchy, Resources, Subsystem};
 
 use std::collections::HashMap;
@@ -30,16 +28,37 @@ use std::path::{Path, PathBuf};
 /// > specialized behaviour.
 ///
 /// This crate is an attempt at providing a Rust-native way of managing these cgroups.
-pub struct Cgroup<'b> {
+#[derive(Debug)]
+pub struct Cgroup {
     /// The list of subsystems that control this cgroup
     subsystems: Vec<Subsystem>,
 
     /// The hierarchy.
-    hier: Box<&'b dyn Hierarchy>,
+    hier: Box<dyn Hierarchy>,
     path: String,
 }
 
-impl<'b> Cgroup<'b> {
+impl Clone for Cgroup {
+    fn clone(&self) -> Self {
+        Cgroup {
+            subsystems: self.subsystems.clone(),
+            path: self.path.clone(),
+            hier: crate::hierarchies::auto(),
+        }
+    }
+}
+
+impl Default for Cgroup {
+    fn default() -> Self {
+        Cgroup {
+            subsystems: Vec::new(),
+            hier: crate::hierarchies::auto(),
+            path: "".to_string(),
+        }
+    }
+}
+
+impl Cgroup {
     /// Create this control group.
     fn create(&self) {
         if self.hier.v2() {
@@ -58,56 +77,66 @@ impl<'b> Cgroup<'b> {
     /// Create a new control group in the hierarchy `hier`, with name `path`.
     ///
     /// Returns a handle to the control group that can be used to manipulate it.
+    pub fn new<P: AsRef<Path>>(hier: Box<dyn Hierarchy>, path: P) -> Cgroup {
+        let cg = Cgroup::load(hier, path);
+        cg.create();
+        cg
+    }
+
+    /// Create a new control group in the hierarchy `hier`, with name `path` and `relative_paths`
     ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
-    pub fn new<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup<'b> {
-        let relative_paths = get_cgroups_relative_paths().unwrap();
-        Cgroup::new_with_relative_paths(hier, path, relative_paths)
+    /// Returns a handle to the control group that can be used to manipulate it.
+    ///
+    /// Note that this method is only meaningful for cgroup v1, call it is equivalent to call `new` in the v2 mode
+    pub fn new_with_relative_paths<P: AsRef<Path>>(
+        hier: Box<dyn Hierarchy>,
+        path: P,
+        relative_paths: HashMap<String, String>,
+    ) -> Cgroup {
+        let cg = Cgroup::load_with_relative_paths(hier, path, relative_paths);
+        cg.create();
+        cg
     }
 
     /// Create a handle for a control group in the hierarchy `hier`, with name `path`.
     ///
     /// Returns a handle to the control group (that possibly does not exist until `create()` has
     /// been called on the cgroup.
-    ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
-    pub fn load<P: AsRef<Path>>(hier: Box<&'b dyn Hierarchy>, path: P) -> Cgroup<'b> {
-        let relative_paths = get_cgroups_relative_paths().unwrap();
-        Cgroup::load_with_relative_paths(hier, path, relative_paths)
-    }
+    pub fn load<P: AsRef<Path>>(hier: Box<dyn Hierarchy>, path: P) -> Cgroup {
+        let path = path.as_ref();
+        let mut subsystems = hier.subsystems();
+        if path.as_os_str() != "" {
+            subsystems = subsystems
+                .into_iter()
+                .map(|x| x.enter(path))
+                .collect::<Vec<_>>();
+        }
 
-    /// Create a new control group in the hierarchy `hier`, with name `path`.
-    /// and relative paths from `/proc/self/cgroup`
-    ///
-    /// Returns a handle to the control group that can be used to manipulate it.
-    ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
-    pub fn new_with_relative_paths<P: AsRef<Path>>(
-        hier: Box<&'b dyn Hierarchy>,
-        path: P,
-        relative_paths: HashMap<String, String>,
-    ) -> Cgroup<'b> {
-        let cg = Cgroup::load_with_relative_paths(hier, path, relative_paths);
-        cg.create();
+        let cg = Cgroup {
+            path: path.to_str().unwrap().to_string(),
+            subsystems: subsystems,
+            hier,
+        };
+
         cg
     }
 
-    /// Create a handle for a control group in the hierarchy `hier`, with name `path`,
-    /// and relative paths from `/proc/self/cgroup`
+    /// Create a handle for a control group in the hierarchy `hier`, with name `path` and `relative_paths`
     ///
     /// Returns a handle to the control group (that possibly does not exist until `create()` has
     /// been called on the cgroup.
     ///
-    /// Note that if the handle goes out of scope and is dropped, the control group is _not_
-    /// destroyed.
+    /// Note that this method is only meaningful for cgroup v1, call it is equivalent to call `load` in the v2 mode
     pub fn load_with_relative_paths<P: AsRef<Path>>(
-        hier: Box<&'b dyn Hierarchy>,
+        hier: Box<dyn Hierarchy>,
         path: P,
         relative_paths: HashMap<String, String>,
-    ) -> Cgroup<'b> {
+    ) -> Cgroup {
+        // relative_paths only valid for cgroup v1
+        if hier.v2() {
+            return Self::load(hier, path);
+        }
+
         let path = path.as_ref();
         let mut subsystems = hier.subsystems();
         if path.as_os_str() != "" {
@@ -130,7 +159,7 @@ impl<'b> Cgroup<'b> {
 
         let cg = Cgroup {
             subsystems: subsystems,
-            hier: hier,
+            hier,
             path: path.to_str().unwrap().to_string(),
         };
 
@@ -148,17 +177,17 @@ impl<'b> Cgroup<'b> {
     /// system call will fail if there are any descendants. Thus, one should check whether it was
     /// actually removed, and remove the descendants first if not. In the future, this behavior
     /// will change.
-    pub fn delete(self) {
+    pub fn delete(&self) -> Result<()> {
         if self.v2() {
             if self.path != "" {
                 let mut p = self.hier.root().clone();
-                p.push(self.path);
-                libc_rmdir(p.to_str().unwrap());
+                p.push(self.path.clone());
+                return fs::remove_dir(p).map_err(|e| Error::with_cause(RemoveFailed, e));
             }
-            return;
+            return Ok(());
         }
 
-        self.subsystems.into_iter().for_each(|sub| match sub {
+        self.subsystems.iter().try_for_each(|sub| match sub {
             Subsystem::Pid(pidc) => pidc.delete(),
             Subsystem::Mem(c) => c.delete(),
             Subsystem::CpuSet(c) => c.delete(),
@@ -173,7 +202,7 @@ impl<'b> Cgroup<'b> {
             Subsystem::HugeTlb(c) => c.delete(),
             Subsystem::Rdma(c) => c.delete(),
             Subsystem::Systemd(c) => c.delete(),
-        });
+        })
     }
 
     /// Apply a set of resource limits to the control group.
@@ -231,6 +260,29 @@ impl<'b> Cgroup<'b> {
                 .iter()
                 .try_for_each(|sub| sub.to_controller().add_task(&pid))
         }
+    }
+
+    /// Attach a task to the control group by thread group id.
+    pub fn add_task_by_tgid(&self, pid: CgroupPid) -> Result<()> {
+        self.subsystems()
+            .iter()
+            .try_for_each(|sub| sub.to_controller().add_task_by_tgid(&pid))
+    }
+
+    /// Set notify_on_release to the control group.
+    pub fn set_notify_on_release(&self, enable: bool) -> Result<()> {
+        self.subsystems()
+            .iter()
+            .try_for_each(|sub| sub.to_controller().set_notify_on_release(enable))
+    }
+
+    /// Set release_agent
+    pub fn set_release_agent(&self, path: &str) -> Result<()> {
+        self.hier
+            .root_control_group()
+            .subsystems()
+            .iter()
+            .try_for_each(|sub| sub.to_controller().set_release_agent(path))
     }
 
     /// Returns an Iterator that can be used to iterate over the tasks that are currently in the
@@ -324,13 +376,7 @@ pub fn get_cgroups_relative_paths() -> Result<HashMap<String, String>> {
 
         let keys: Vec<&str> = fl[1].split(',').collect();
         for key in &keys {
-            // this is a workaround, cgroup file are using `name=systemd`,
-            // but if file system the name is `systemd`
-            if *key == "name=systemd" {
-                m.insert("systemd".to_string(), fl[2].to_string());
-            } else {
-                m.insert(key.to_string(), fl[2].to_string());
-            }
+            m.insert(key.to_string(), fl[2].to_string());
         }
     }
     Ok(m)

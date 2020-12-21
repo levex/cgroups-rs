@@ -47,12 +47,8 @@ impl ControllerInternal for NetClsController {
         // get the resources that apply to this controller
         let res: &NetworkResources = &res.network;
 
-        if res.update_values {
-            let _ = self.set_class(res.class_id);
-            if self.get_class()? != res.class_id {
-                return Err(Error::new(Other));
-            }
-        }
+        update_and_test!(self, set_class, res.class_id, get_class);
+
         return Ok(());
     }
 }
@@ -90,10 +86,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 }
 
 impl NetClsController {
-    /// Constructs a new `NetClsController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
-        let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+    /// Constructs a new `NetClsController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf) -> Self {
         Self {
             base: root.clone(),
             path: root,

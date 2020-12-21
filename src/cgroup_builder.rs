@@ -20,8 +20,7 @@
 //! # use cgroups::devices::*;
 //! # use cgroups::cgroup_builder::*;
 //! let h = cgroups::hierarchies::auto();
-//! let h = Box::new(&*h);
-//! let cgroup: Cgroup = CgroupBuilder::new("hello", h)
+//! let cgroup: Cgroup = CgroupBuilder::new("hello")
 //!      .memory()
 //!          .kernel_memory_limit(1024 * 1024)
 //!          .memory_hard_limit(1024 * 1024)
@@ -47,8 +46,8 @@
 //!          .limit("2G".to_string(), 2 * 1024 * 1024 * 1024)
 //!          .done()
 //!      .blkio()
-//!          .weight(Some(123))
-//!          .leaf_weight(Some(99))
+//!          .weight(123)
+//!          .leaf_weight(99)
 //!          .weight_device(6, 1, Some(100), Some(55))
 //!          .weight_device(6, 1, Some(100), Some(55))
 //!          .throttle_iops()
@@ -58,7 +57,7 @@
 //!              .read(6, 1, 10)
 //!              .write(11, 1, 100)
 //!          .done()
-//!      .build();
+//!      .build(h);
 //! ```
 
 use crate::{
@@ -70,67 +69,64 @@ macro_rules! gen_setter {
     ($res:ident, $cont:ident, $func:ident, $name:ident, $ty:ty) => {
         /// See the similarly named function in the respective controller.
         pub fn $name(mut self, $name: $ty) -> Self {
-            self.cgroup.resources.$res.update_values = true;
-            self.cgroup.resources.$res.$name = $name;
+            self.cgroup.resources.$res.$name = Some($name);
             self
         }
     };
 }
 
 /// A control group builder instance
-pub struct CgroupBuilder<'a> {
+pub struct CgroupBuilder {
     name: String,
-    hierarchy: Box<&'a dyn Hierarchy>,
     /// Internal, unsupported field: use the associated builders instead.
     resources: Resources,
 }
 
-impl<'a> CgroupBuilder<'a> {
+impl CgroupBuilder {
     /// Start building a control group with the supplied hierarchy and name pair.
     ///
     /// Note that this does not actually create the control group until `build()` is called.
-    pub fn new(name: &'a str, hierarchy: Box<&'a dyn Hierarchy>) -> CgroupBuilder<'a> {
+    pub fn new(name: &str) -> CgroupBuilder {
         CgroupBuilder {
             name: name.to_owned(),
-            hierarchy: hierarchy,
             resources: Resources::default(),
         }
     }
 
     /// Builds the memory resources of the control group.
-    pub fn memory(self) -> MemoryResourceBuilder<'a> {
+    pub fn memory(self) -> MemoryResourceBuilder {
         MemoryResourceBuilder { cgroup: self }
     }
 
     /// Builds the pid resources of the control group.
-    pub fn pid(self) -> PidResourceBuilder<'a> {
+    pub fn pid(self) -> PidResourceBuilder {
         PidResourceBuilder { cgroup: self }
     }
 
     /// Builds the cpu resources of the control group.
-    pub fn cpu(self) -> CpuResourceBuilder<'a> {
+    pub fn cpu(self) -> CpuResourceBuilder {
         CpuResourceBuilder { cgroup: self }
     }
 
     /// Builds the devices resources of the control group, disallowing or
     /// allowing access to certain devices in the system.
-    pub fn devices(self) -> DeviceResourceBuilder<'a> {
+    pub fn devices(self) -> DeviceResourceBuilder {
         DeviceResourceBuilder { cgroup: self }
     }
 
     /// Builds the network resources of the control group, setting class id, or
     /// various priorities on networking interfaces.
-    pub fn network(self) -> NetworkResourceBuilder<'a> {
+    pub fn network(self) -> NetworkResourceBuilder {
         NetworkResourceBuilder { cgroup: self }
     }
 
     /// Builds the hugepage/hugetlb resources available to the control group.
-    pub fn hugepages(self) -> HugepagesResourceBuilder<'a> {
+    pub fn hugepages(self) -> HugepagesResourceBuilder {
         HugepagesResourceBuilder { cgroup: self }
     }
 
     /// Builds the block I/O resources available for the control group.
-    pub fn blkio(self) -> BlkIoResourcesBuilder<'a> {
+    pub fn blkio(self) -> BlkIoResourcesBuilder {
         BlkIoResourcesBuilder {
             cgroup: self,
             throttling_iops: false,
@@ -138,19 +134,19 @@ impl<'a> CgroupBuilder<'a> {
     }
 
     /// Finalize the control group, consuming the builder and creating the control group.
-    pub fn build(self) -> Cgroup<'a> {
-        let cg = Cgroup::new(self.hierarchy, self.name);
+    pub fn build(self, hier: Box<dyn Hierarchy>) -> Cgroup {
+        let cg = Cgroup::new(hier, self.name);
         let _ret = cg.apply(&self.resources);
         cg
     }
 }
 
 /// A builder that configures the memory controller of a control group.
-pub struct MemoryResourceBuilder<'a> {
-    cgroup: CgroupBuilder<'a>,
+pub struct MemoryResourceBuilder {
+    cgroup: CgroupBuilder,
 }
 
-impl<'a> MemoryResourceBuilder<'a> {
+impl MemoryResourceBuilder {
     gen_setter!(
         memory,
         MemController,
@@ -183,17 +179,17 @@ impl<'a> MemoryResourceBuilder<'a> {
     gen_setter!(memory, MemController, set_swappiness, swappiness, u64);
 
     /// Finish the construction of the memory resources of a control group.
-    pub fn done(self) -> CgroupBuilder<'a> {
+    pub fn done(self) -> CgroupBuilder {
         self.cgroup
     }
 }
 
 /// A builder that configures the pid controller of a control group.
-pub struct PidResourceBuilder<'a> {
-    cgroup: CgroupBuilder<'a>,
+pub struct PidResourceBuilder {
+    cgroup: CgroupBuilder,
 }
 
-impl<'a> PidResourceBuilder<'a> {
+impl PidResourceBuilder {
     gen_setter!(
         pid,
         PidController,
@@ -203,19 +199,18 @@ impl<'a> PidResourceBuilder<'a> {
     );
 
     /// Finish the construction of the pid resources of a control group.
-    pub fn done(self) -> CgroupBuilder<'a> {
+    pub fn done(self) -> CgroupBuilder {
         self.cgroup
     }
 }
 
 /// A builder that configures the cpuset & cpu controllers of a control group.
-pub struct CpuResourceBuilder<'a> {
-    cgroup: CgroupBuilder<'a>,
+pub struct CpuResourceBuilder {
+    cgroup: CgroupBuilder,
 }
 
-impl<'a> CpuResourceBuilder<'a> {
-    // FIXME this should all changed to options.
-    gen_setter!(cpu, CpuSetController, set_cpus, cpus, Option<String>);
+impl CpuResourceBuilder {
+    gen_setter!(cpu, CpuSetController, set_cpus, cpus, String);
     gen_setter!(cpu, CpuSetController, set_mems, mems, String);
     gen_setter!(cpu, CpuController, set_shares, shares, u64);
     gen_setter!(cpu, CpuController, set_cfs_quota, quota, i64);
@@ -224,17 +219,17 @@ impl<'a> CpuResourceBuilder<'a> {
     gen_setter!(cpu, CpuController, set_rt_period, realtime_period, u64);
 
     /// Finish the construction of the cpu resources of a control group.
-    pub fn done(self) -> CgroupBuilder<'a> {
+    pub fn done(self) -> CgroupBuilder {
         self.cgroup
     }
 }
 
 /// A builder that configures the devices controller of a control group.
-pub struct DeviceResourceBuilder<'a> {
-    cgroup: CgroupBuilder<'a>,
+pub struct DeviceResourceBuilder {
+    cgroup: CgroupBuilder,
 }
 
-impl<'a> DeviceResourceBuilder<'a> {
+impl DeviceResourceBuilder {
     /// Restrict (or allow) a device to the tasks inside the control group.
     pub fn device(
         mut self,
@@ -243,8 +238,7 @@ impl<'a> DeviceResourceBuilder<'a> {
         devtype: crate::devices::DeviceType,
         allow: bool,
         access: Vec<crate::devices::DevicePermissions>,
-    ) -> DeviceResourceBuilder<'a> {
-        self.cgroup.resources.devices.update_values = true;
+    ) -> DeviceResourceBuilder {
         self.cgroup.resources.devices.devices.push(DeviceResource {
             major,
             minor,
@@ -256,23 +250,22 @@ impl<'a> DeviceResourceBuilder<'a> {
     }
 
     /// Finish the construction of the devices resources of a control group.
-    pub fn done(self) -> CgroupBuilder<'a> {
+    pub fn done(self) -> CgroupBuilder {
         self.cgroup
     }
 }
 
 /// A builder that configures the net_cls & net_prio controllers of a control group.
-pub struct NetworkResourceBuilder<'a> {
-    cgroup: CgroupBuilder<'a>,
+pub struct NetworkResourceBuilder {
+    cgroup: CgroupBuilder,
 }
 
-impl<'a> NetworkResourceBuilder<'a> {
+impl NetworkResourceBuilder {
     gen_setter!(network, NetclsController, set_class, class_id, u64);
 
     /// Set the priority of the tasks when operating on a networking device defined by `name` to be
     /// `priority`.
-    pub fn priority(mut self, name: String, priority: u64) -> NetworkResourceBuilder<'a> {
-        self.cgroup.resources.network.update_values = true;
+    pub fn priority(mut self, name: String, priority: u64) -> NetworkResourceBuilder {
         self.cgroup
             .resources
             .network
@@ -282,20 +275,19 @@ impl<'a> NetworkResourceBuilder<'a> {
     }
 
     /// Finish the construction of the network resources of a control group.
-    pub fn done(self) -> CgroupBuilder<'a> {
+    pub fn done(self) -> CgroupBuilder {
         self.cgroup
     }
 }
 
 /// A builder that configures the hugepages controller of a control group.
-pub struct HugepagesResourceBuilder<'a> {
-    cgroup: CgroupBuilder<'a>,
+pub struct HugepagesResourceBuilder {
+    cgroup: CgroupBuilder,
 }
 
-impl<'a> HugepagesResourceBuilder<'a> {
+impl HugepagesResourceBuilder {
     /// Limit the usage of certain hugepages (determined by `size`) to be at most `limit` bytes.
-    pub fn limit(mut self, size: String, limit: u64) -> HugepagesResourceBuilder<'a> {
-        self.cgroup.resources.hugepages.update_values = true;
+    pub fn limit(mut self, size: String, limit: u64) -> HugepagesResourceBuilder {
         self.cgroup
             .resources
             .hugepages
@@ -305,26 +297,20 @@ impl<'a> HugepagesResourceBuilder<'a> {
     }
 
     /// Finish the construction of the network resources of a control group.
-    pub fn done(self) -> CgroupBuilder<'a> {
+    pub fn done(self) -> CgroupBuilder {
         self.cgroup
     }
 }
 
 /// A builder that configures the blkio controller of a control group.
-pub struct BlkIoResourcesBuilder<'a> {
-    cgroup: CgroupBuilder<'a>,
+pub struct BlkIoResourcesBuilder {
+    cgroup: CgroupBuilder,
     throttling_iops: bool,
 }
 
-impl<'a> BlkIoResourcesBuilder<'a> {
-    gen_setter!(blkio, BlkIoController, set_weight, weight, Option<u16>);
-    gen_setter!(
-        blkio,
-        BlkIoController,
-        set_leaf_weight,
-        leaf_weight,
-        Option<u16>
-    );
+impl BlkIoResourcesBuilder {
+    gen_setter!(blkio, BlkIoController, set_weight, weight, u16);
+    gen_setter!(blkio, BlkIoController, set_leaf_weight, leaf_weight, u16);
 
     /// Set the weight of a certain device.
     pub fn weight_device(
@@ -333,8 +319,7 @@ impl<'a> BlkIoResourcesBuilder<'a> {
         minor: u64,
         weight: Option<u16>,
         leaf_weight: Option<u16>,
-    ) -> BlkIoResourcesBuilder<'a> {
-        self.cgroup.resources.blkio.update_values = true;
+    ) -> BlkIoResourcesBuilder {
         self.cgroup
             .resources
             .blkio
@@ -349,20 +334,19 @@ impl<'a> BlkIoResourcesBuilder<'a> {
     }
 
     /// Start configuring the I/O operations per second metric.
-    pub fn throttle_iops(mut self) -> BlkIoResourcesBuilder<'a> {
+    pub fn throttle_iops(mut self) -> BlkIoResourcesBuilder {
         self.throttling_iops = true;
         self
     }
 
     /// Start configuring the bytes per second metric.
-    pub fn throttle_bps(mut self) -> BlkIoResourcesBuilder<'a> {
+    pub fn throttle_bps(mut self) -> BlkIoResourcesBuilder {
         self.throttling_iops = false;
         self
     }
 
     /// Limit the read rate of the current metric for a certain device.
-    pub fn read(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder<'a> {
-        self.cgroup.resources.blkio.update_values = true;
+    pub fn read(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder {
         let throttle = BlkIoDeviceThrottleResource { major, minor, rate };
         if self.throttling_iops {
             self.cgroup
@@ -381,8 +365,7 @@ impl<'a> BlkIoResourcesBuilder<'a> {
     }
 
     /// Limit the write rate of the current metric for a certain device.
-    pub fn write(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder<'a> {
-        self.cgroup.resources.blkio.update_values = true;
+    pub fn write(mut self, major: u64, minor: u64, rate: u64) -> BlkIoResourcesBuilder {
         let throttle = BlkIoDeviceThrottleResource { major, minor, rate };
         if self.throttling_iops {
             self.cgroup
@@ -401,7 +384,7 @@ impl<'a> BlkIoResourcesBuilder<'a> {
     }
 
     /// Finish the construction of the blkio resources of a control group.
-    pub fn done(self) -> CgroupBuilder<'a> {
+    pub fn done(self) -> CgroupBuilder {
         self.cgroup
     }
 }

@@ -7,47 +7,42 @@
 //! Integration tests about the pids subsystem
 use cgroups::pid::PidController;
 use cgroups::Controller;
-use cgroups::{Cgroup, CgroupPid, Hierarchy, MaxValue, PidResources, Resources};
+use cgroups::{Cgroup, MaxValue};
 
 use nix::sys::wait::{waitpid, WaitStatus};
-use nix::unistd::{fork, ForkResult, Pid};
+use nix::unistd::{fork, ForkResult};
 
 use libc::pid_t;
-
-use std::thread;
 
 #[test]
 fn create_and_delete_cgroup() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("create_and_delete_cgroup"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
-        pidcontroller.set_pid_max(MaxValue::Value(1337));
+        pidcontroller.set_pid_max(MaxValue::Value(1337)).unwrap();
         let max = pidcontroller.get_pid_max();
         assert!(max.is_ok());
         assert_eq!(max.unwrap(), MaxValue::Value(1337));
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
 fn test_pids_current_is_zero() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("test_pids_current_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
         let current = pidcontroller.get_pid_current();
         assert_eq!(current.unwrap(), 0);
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
 fn test_pids_events_is_zero() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("test_pids_events_is_zero"));
     {
         let pidcontroller: &PidController = cg.controller_of().unwrap();
@@ -55,13 +50,12 @@ fn test_pids_events_is_zero() {
         assert!(events.is_ok());
         assert_eq!(events.unwrap(), 0);
     }
-    cg.delete();
+    cg.delete().unwrap();
 }
 
 #[test]
 fn test_pid_events_is_not_zero() {
     let h = cgroups::hierarchies::auto();
-    let h = Box::new(&*h);
     let cg = Cgroup::new(h, String::from("test_pid_events_is_not_zero"));
     {
         let pids: &PidController = cg.controller_of().unwrap();
@@ -105,5 +99,5 @@ fn test_pid_events_is_not_zero() {
             Err(_) => panic!("failed to fork"),
         }
     }
-    cg.delete();
+    cg.delete().unwrap();
 }

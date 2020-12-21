@@ -17,12 +17,13 @@ use std::sync::mpsc::Receiver;
 use crate::error::ErrorKind::*;
 use crate::error::*;
 use crate::events;
+use crate::read_i64_from;
 
 use crate::flat_keyed_to_hashmap;
 
 use crate::{
-    ControllIdentifier, ControllerInternal, Controllers, MaxValue, MemoryResources, Resources,
-    Subsystem,
+    ControllIdentifier, ControllerInternal, Controllers, CustomizedAttribute, MaxValue,
+    MemoryResources, Resources, Subsystem,
 };
 
 /// A controller that allows controlling the `memory` subsystem of a Cgroup.
@@ -453,26 +454,20 @@ impl ControllerInternal for MemController {
         // get the resources that apply to this controller
         let memres: &MemoryResources = &res.memory;
 
-        if memres.update_values {
-            let _ = self.set_limit(memres.memory_hard_limit);
-            let _ = self.set_soft_limit(memres.memory_soft_limit);
-            let _ = self.set_kmem_limit(memres.kernel_memory_limit);
-            let _ = self.set_memswap_limit(memres.memory_swap_limit);
-            let _ = self.set_tcp_limit(memres.kernel_tcp_memory_limit);
-            let _ = self.set_swappiness(memres.swappiness);
-        }
+        update!(self, set_limit, memres.memory_hard_limit);
+        update!(self, set_soft_limit, memres.memory_soft_limit);
+        update!(self, set_kmem_limit, memres.kernel_memory_limit);
+        update!(self, set_memswap_limit, memres.memory_swap_limit);
+        update!(self, set_tcp_limit, memres.kernel_tcp_memory_limit);
+        update!(self, set_swappiness, memres.swappiness);
 
         Ok(())
     }
 }
 
 impl MemController {
-    /// Contructs a new `MemController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf, v2: bool) -> Self {
-        let mut root = oroot;
-        if !v2 {
-            root.push(Self::controller_type().to_string());
-        }
+    /// Contructs a new `MemController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf, v2: bool) -> Self {
         Self {
             base: root.clone(),
             path: root,
@@ -708,6 +703,11 @@ impl MemController {
 
     /// Reset the kernel memory fail counter
     pub fn reset_kmem_fail_count(&self) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.failcnt", true)
             .and_then(|mut file| {
                 file.write_all("0".to_string().as_ref())
@@ -717,6 +717,11 @@ impl MemController {
 
     /// Reset the TCP related fail counter
     pub fn reset_tcp_fail_count(&self) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.tcp.failcnt", true)
             .and_then(|mut file| {
                 file.write_all("0".to_string().as_ref())
@@ -756,6 +761,11 @@ impl MemController {
 
     /// Set the kernel memory limit of the control group, in bytes.
     pub fn set_kmem_limit(&self, limit: i64) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -777,6 +787,11 @@ impl MemController {
 
     /// Set how much kernel memory can be used for TCP-related buffers by the control group.
     pub fn set_tcp_limit(&self, limit: i64) -> Result<()> {
+        // Ignore kmem because there is no kmem in cgroup v2
+        if self.v2 {
+            return Ok(());
+        }
+
         self.open_path("memory.kmem.tcp.limit_in_bytes", true)
             .and_then(|mut file| {
                 file.write_all(limit.to_string().as_ref())
@@ -804,11 +819,15 @@ impl MemController {
     ///
     /// Note that a value of zero does not imply that the process will not be swapped out.
     pub fn set_swappiness(&self, swp: u64) -> Result<()> {
-        self.open_path("memory.swappiness", true)
-            .and_then(|mut file| {
-                file.write_all(swp.to_string().as_ref())
-                    .map_err(|e| Error::with_cause(WriteFailed, e))
-            })
+        let mut file = "memory.swappiness";
+        if self.v2 {
+            file = "memory.swap.max"
+        }
+
+        self.open_path(file, true).and_then(|mut file| {
+            file.write_all(swp.to_string().as_ref())
+                .map_err(|e| Error::with_cause(WriteFailed, e))
+        })
     }
 
     pub fn disable_oom_killer(&self) -> Result<()> {
@@ -833,6 +852,8 @@ impl ControllIdentifier for MemController {
         Controllers::Mem
     }
 }
+
+impl CustomizedAttribute for MemController {}
 
 impl<'a> From<&'a Subsystem> for &'a MemController {
     fn from(sub: &'a Subsystem) -> &'a MemController {
@@ -860,17 +881,6 @@ fn read_u64_from(mut file: File) -> Result<u64> {
     }
 }
 
-fn read_i64_from(mut file: File) -> Result<i64> {
-    let mut string = String::new();
-    match file.read_to_string(&mut string) {
-        Ok(_) => string
-            .trim()
-            .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
-    }
-}
-
 fn read_string_from(mut file: File) -> Result<String> {
     let mut string = String::new();
     match file.read_to_string(&mut string) {
@@ -884,8 +894,6 @@ mod tests {
     use crate::memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
-    use std::collections::HashMap;
-
     static GOOD_VALUE: &str = "\
 total=51189 N0=51189 N1=123
 file=50175 N0=50175 N1=123

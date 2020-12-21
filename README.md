@@ -9,24 +9,29 @@ is planned for the Unified hierarchy.
 ## Create a control group using the builder pattern
 
 ``` rust
-// Acquire a handle for the V1 cgroup hierarchy.
-let hier = ::hierarchies::V1::new();
+
+
+use cgroups::*;
+use cgroups::cgroup_builder::*;
+
+// Acquire a handle for the cgroup hierarchy.
+let hier = cgroups::hierarchies::auto();
 
 // Use the builder pattern (see the documentation to create the control group)
 //
 // This creates a control group named "example" in the V1 hierarchy.
-let cg: Cgroup = CgroupBuilder::new("example", &v1)
-	.cpu()
-		.shares(85)
-		.done()
-	.build();
+    let cg: Cgroup = CgroupBuilder::new("example")
+        .cpu()
+        .shares(85)
+        .done()
+        .build(hier);
 
 // Now `cg` is a control group that gets 85% of the CPU time in relative to
 // other control groups.
 
 // Get a handle to the CPU controller.
-let cpus: &CpuController = cg.controller_of().unwrap();
-cpus.add_task(1234u64);
+let cpus: &cgroups::cpu::CpuController = cg.controller_of().unwrap();
+cpus.add_task(&CgroupPid::from(1234u64));
 
 // [...]
 

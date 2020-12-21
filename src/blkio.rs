@@ -344,39 +344,36 @@ impl ControllerInternal for BlkIoController {
         // get the resources that apply to this controller
         let res: &BlkIoResources = &res.blkio;
 
-        if res.update_values {
-            if let Some(weight) = res.weight {
-                let _ = self.set_weight(weight as u64);
-            }
-            if let Some(leaf_weight) = res.leaf_weight {
-                let _ = self.set_leaf_weight(leaf_weight as u64);
-            }
+        if let Some(weight) = res.weight {
+            let _ = self.set_weight(weight as u64);
+        }
+        if let Some(leaf_weight) = res.leaf_weight {
+            let _ = self.set_leaf_weight(leaf_weight as u64);
+        }
 
-            for dev in &res.weight_device {
-                if let Some(weight) = dev.weight {
-                    let _ = self.set_weight_for_device(dev.major, dev.minor, weight as u64);
-                }
-                if let Some(leaf_weight) = dev.leaf_weight {
-                    let _ =
-                        self.set_leaf_weight_for_device(dev.major, dev.minor, leaf_weight as u64);
-                }
+        for dev in &res.weight_device {
+            if let Some(weight) = dev.weight {
+                let _ = self.set_weight_for_device(dev.major, dev.minor, weight as u64);
             }
+            if let Some(leaf_weight) = dev.leaf_weight {
+                let _ = self.set_leaf_weight_for_device(dev.major, dev.minor, leaf_weight as u64);
+            }
+        }
 
-            for dev in &res.throttle_read_bps_device {
-                let _ = self.throttle_read_bps_for_device(dev.major, dev.minor, dev.rate);
-            }
+        for dev in &res.throttle_read_bps_device {
+            let _ = self.throttle_read_bps_for_device(dev.major, dev.minor, dev.rate);
+        }
 
-            for dev in &res.throttle_write_bps_device {
-                let _ = self.throttle_write_bps_for_device(dev.major, dev.minor, dev.rate);
-            }
+        for dev in &res.throttle_write_bps_device {
+            let _ = self.throttle_write_bps_for_device(dev.major, dev.minor, dev.rate);
+        }
 
-            for dev in &res.throttle_read_iops_device {
-                let _ = self.throttle_read_iops_for_device(dev.major, dev.minor, dev.rate);
-            }
+        for dev in &res.throttle_read_iops_device {
+            let _ = self.throttle_read_iops_for_device(dev.major, dev.minor, dev.rate);
+        }
 
-            for dev in &res.throttle_write_iops_device {
-                let _ = self.throttle_write_iops_for_device(dev.major, dev.minor, dev.rate);
-            }
+        for dev in &res.throttle_write_iops_device {
+            let _ = self.throttle_write_iops_for_device(dev.major, dev.minor, dev.rate);
         }
 
         Ok(())
@@ -424,12 +421,8 @@ fn read_u64_from(mut file: File) -> Result<u64> {
 }
 
 impl BlkIoController {
-    /// Constructs a new `BlkIoController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf, v2: bool) -> Self {
-        let mut root = oroot;
-        if !v2 {
-            root.push(Self::controller_type().to_string());
-        }
+    /// Constructs a new `BlkIoController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf, v2: bool) -> Self {
         Self {
             base: root.clone(),
             path: root,

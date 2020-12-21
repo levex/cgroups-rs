@@ -155,13 +155,11 @@ impl ControllerInternal for DevicesController {
         // get the resources that apply to this controller
         let res: &DeviceResources = &res.devices;
 
-        if res.update_values {
-            for i in &res.devices {
-                if i.allow {
-                    let _ = self.allow_device(i.devtype, i.major, i.minor, &i.access);
-                } else {
-                    let _ = self.deny_device(i.devtype, i.major, i.minor, &i.access);
-                }
+        for i in &res.devices {
+            if i.allow {
+                let _ = self.allow_device(i.devtype, i.major, i.minor, &i.access);
+            } else {
+                let _ = self.deny_device(i.devtype, i.major, i.minor, &i.access);
             }
         }
 
@@ -191,10 +189,8 @@ impl<'a> From<&'a Subsystem> for &'a DevicesController {
 }
 
 impl DevicesController {
-    /// Constructs a new `DevicesController` with `oroot` serving as the root of the control group.
-    pub fn new(oroot: PathBuf) -> Self {
-        let mut root = oroot;
-        root.push(Self::controller_type().to_string());
+    /// Constructs a new `DevicesController` with `root` serving as the root of the control group.
+    pub fn new(root: PathBuf) -> Self {
         Self {
             base: root.clone(),
             path: root,
