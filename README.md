@@ -1,8 +1,7 @@
-# cgroups-rs ![Build](https://travis-ci.org/levex/cgroups-rs.svg?branch=master)
+# cgroups-rs ![Build](https://travis-ci.org/kata-containers/cgroups-rs.svg?branch=master)
 Native Rust library for managing control groups under Linux
 
-Right now the crate only support the original, V1 hierarchy, however support
-is planned for the Unified hierarchy.
+Both v1 and v2 of cgroups are supported.
 
 # Examples
 
