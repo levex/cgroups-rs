@@ -15,7 +15,7 @@ use std::path::PathBuf;
 
 use crate::error::ErrorKind::*;
 use crate::error::*;
-use crate::{parse_max_value, read_i64_from};
+use crate::{parse_max_value, read_i64_from, read_u64_from};
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, CpuResources, CustomizedAttribute,
@@ -107,17 +107,6 @@ impl<'a> From<&'a Subsystem> for &'a CpuController {
                 }
             }
         }
-    }
-}
-
-fn read_u64_from(mut file: File) -> Result<u64> {
-    let mut string = String::new();
-    match file.read_to_string(&mut string) {
-        Ok(_) => string
-            .trim()
-            .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
