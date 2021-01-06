@@ -386,7 +386,7 @@ pub trait ControllIdentifier {
 
 /// Control group hierarchy (right now, only V1 is supported, but in the future Unified will be
 /// implemented as well).
-pub trait Hierarchy: std::fmt::Debug + Send {
+pub trait Hierarchy: std::fmt::Debug + Send + Sync {
     /// Returns what subsystems are supported by the hierarchy.
     fn subsystems(&self) -> Vec<Subsystem>;
 
