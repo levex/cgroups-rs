@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 macro_rules! update_and_test {
     ($self: ident, $set_func:ident, $value:expr, $get_func:ident) => {
@@ -832,14 +833,35 @@ pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap
     Ok(h)
 }
 
-/// read and parse an i64 data
-fn read_i64_from(mut file: File) -> Result<i64> {
+fn read_from<T>(mut file: File) -> Result<T>
+where
+    T: FromStr,
+    <T as FromStr>::Err: 'static + Send + Sync + std::error::Error,
+{
     let mut string = String::new();
     match file.read_to_string(&mut string) {
         Ok(_) => string
             .trim()
-            .parse()
+            .parse::<T>()
             .map_err(|e| Error::with_cause(ParseError, e)),
         Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
+}
+
+fn read_string_from(mut file: File) -> Result<String> {
+    let mut string = String::new();
+    match file.read_to_string(&mut string) {
+        Ok(_) => Ok(string.trim().to_string()),
+        Err(e) => Err(Error::with_cause(ReadFailed, e)),
+    }
+}
+
+/// read and parse an u64 data
+fn read_u64_from(file: File) -> Result<u64> {
+    read_from::<u64>(file)
+}
+
+/// read and parse an i64 data
+fn read_i64_from(file: File) -> Result<i64> {
+    read_from::<i64>(file)
 }

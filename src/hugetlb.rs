@@ -8,13 +8,12 @@
 //!
 //! See the Kernel's documentation for more information about this subsystem, found at:
 //!  [Documentation/cgroup-v1/hugetlb.txt](https://www.kernel.org/doc/Documentation/cgroup-v1/hugetlb.txt)
-use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 
 use crate::error::ErrorKind::*;
 use crate::error::*;
-use crate::flat_keyed_to_vec;
+use crate::{flat_keyed_to_vec, read_u64_from};
 
 use crate::{
     ControllIdentifier, ControllerInternal, Controllers, HugePageResources, Resources, Subsystem,
@@ -83,17 +82,6 @@ impl<'a> From<&'a Subsystem> for &'a HugeTlbController {
                 }
             }
         }
-    }
-}
-
-fn read_u64_from(mut file: File) -> Result<u64> {
-    let mut string = String::new();
-    match file.read_to_string(&mut string) {
-        Ok(_) => string
-            .trim()
-            .parse()
-            .map_err(|e| Error::with_cause(ParseError, e)),
-        Err(e) => Err(Error::with_cause(ReadFailed, e)),
     }
 }
 
