@@ -5,7 +5,7 @@ repository = "https://github.com/kata-containers/cgroups-rs"
 keywords = ["linux", "cgroup", "containers", "isolation"]
 categories = ["os", "api-bindings", "os::unix-apis"]
 license = "MIT OR Apache-2.0"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Kata Containers community <kata-dev@lists.katacontainers.io>", "Levente Kurusa <lkurusa@acm.org>", "Sam Wilson <tecywiz121@hotmail.com>"]
 edition = "2018"
 
