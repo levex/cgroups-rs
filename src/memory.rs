@@ -460,6 +460,10 @@ impl ControllerInternal for MemController {
         update!(self, set_tcp_limit, memres.kernel_tcp_memory_limit);
         update!(self, set_swappiness, memres.swappiness);
 
+        memres.attrs.iter().for_each(|(k, v)| {
+            let _ = self.set(k, v);
+        });
+
         Ok(())
     }
 }
