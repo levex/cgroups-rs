@@ -56,6 +56,7 @@ pub struct OomControl {
     pub oom_kill: u64,
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn parse_oom_control(s: String) -> Result<OomControl> {
     let spl = s.split_whitespace().collect::<Vec<_>>();
 
@@ -122,9 +123,10 @@ pub struct NumaStat {
     pub hierarchical_unevictable_pages_per_node: Vec<u64>,
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn parse_numa_stat(s: String) -> Result<NumaStat> {
     // Parse the number of nodes
-    let _nodes = (s.split_whitespace().collect::<Vec<_>>().len() - 8) / 8;
+    let _nodes = (s.split_whitespace().count() - 8) / 8;
     let mut ls = s.lines();
     let total_line = ls.next().unwrap();
     let file_line = ls.next().unwrap();
@@ -142,10 +144,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
             .parse::<u64>()
             .unwrap_or(0),
         total_pages_per_node: {
-            let spl = &total_line.split(" ").collect::<Vec<_>>()[1..];
+            let spl = &total_line.split(' ').collect::<Vec<_>>()[1..];
             spl.iter()
                 .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
+                    x.split('=').collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
                 })
@@ -157,10 +159,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
             .parse::<u64>()
             .unwrap_or(0),
         file_pages_per_node: {
-            let spl = &file_line.split(" ").collect::<Vec<_>>()[1..];
+            let spl = &file_line.split(' ').collect::<Vec<_>>()[1..];
             spl.iter()
                 .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
+                    x.split('=').collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
                 })
@@ -172,10 +174,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
             .parse::<u64>()
             .unwrap_or(0),
         anon_pages_per_node: {
-            let spl = &anon_line.split(" ").collect::<Vec<_>>()[1..];
+            let spl = &anon_line.split(' ').collect::<Vec<_>>()[1..];
             spl.iter()
                 .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
+                    x.split('=').collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
                 })
@@ -187,10 +189,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
             .parse::<u64>()
             .unwrap_or(0),
         unevictable_pages_per_node: {
-            let spl = &unevict_line.split(" ").collect::<Vec<_>>()[1..];
+            let spl = &unevict_line.split(' ').collect::<Vec<_>>()[1..];
             spl.iter()
                 .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
+                    x.split('=').collect::<Vec<_>>()[1]
                         .parse::<u64>()
                         .unwrap_or(0)
                 })
@@ -209,10 +211,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
         },
         hierarchical_total_pages_per_node: {
             if !hier_total_line.is_empty() {
-                let spl = &hier_total_line.split(" ").collect::<Vec<_>>()[1..];
+                let spl = &hier_total_line.split(' ').collect::<Vec<_>>()[1..];
                 spl.iter()
                     .map(|x| {
-                        x.split("=").collect::<Vec<_>>()[1]
+                        x.split('=').collect::<Vec<_>>()[1]
                             .parse::<u64>()
                             .unwrap_or(0)
                     })
@@ -234,10 +236,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
         },
         hierarchical_file_pages_per_node: {
             if !hier_file_line.is_empty() {
-                let spl = &hier_file_line.split(" ").collect::<Vec<_>>()[1..];
+                let spl = &hier_file_line.split(' ').collect::<Vec<_>>()[1..];
                 spl.iter()
                     .map(|x| {
-                        x.split("=").collect::<Vec<_>>()[1]
+                        x.split('=').collect::<Vec<_>>()[1]
                             .parse::<u64>()
                             .unwrap_or(0)
                     })
@@ -259,10 +261,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
         },
         hierarchical_anon_pages_per_node: {
             if !hier_anon_line.is_empty() {
-                let spl = &hier_anon_line.split(" ").collect::<Vec<_>>()[1..];
+                let spl = &hier_anon_line.split(' ').collect::<Vec<_>>()[1..];
                 spl.iter()
                     .map(|x| {
-                        x.split("=").collect::<Vec<_>>()[1]
+                        x.split('=').collect::<Vec<_>>()[1]
                             .parse::<u64>()
                             .unwrap_or(0)
                     })
@@ -284,10 +286,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
         },
         hierarchical_unevictable_pages_per_node: {
             if !hier_unevict_line.is_empty() {
-                let spl = &hier_unevict_line.split(" ").collect::<Vec<_>>()[1..];
+                let spl = &hier_unevict_line.split(' ').collect::<Vec<_>>()[1..];
                 spl.iter()
                     .map(|x| {
-                        x.split("=").collect::<Vec<_>>()[1]
+                        x.split('=').collect::<Vec<_>>()[1]
                             .parse::<u64>()
                             .unwrap_or(0)
                     })
@@ -340,6 +342,7 @@ pub struct MemoryStat {
     pub raw: HashMap<String, u64>,
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn parse_memory_stat(s: String) -> Result<MemoryStat> {
     let mut raw = HashMap::new();
 
@@ -393,7 +396,7 @@ fn parse_memory_stat(s: String) -> Result<MemoryStat> {
         total_inactive_file: *raw.get("total_inactive_file").unwrap_or(&0),
         total_active_file: *raw.get("total_active_file").unwrap_or(&0),
         total_unevictable: *raw.get("total_unevictable").unwrap_or(&0),
-        raw: raw,
+        raw,
     })
 }
 
@@ -532,7 +535,7 @@ impl MemController {
         Self {
             base: root.clone(),
             path: root,
-            v2: v2,
+            v2,
         }
     }
 
@@ -547,8 +550,8 @@ impl MemController {
         for value in values {
             let v = value.0;
             let f = value.1;
-            if v.is_some() {
-                let v = v.unwrap().to_string();
+            if let Some(v) = v {
+                let v = v.to_string();
                 self.open_path(f, true).and_then(|mut file| {
                     file.write_all(v.as_ref())
                         .map_err(|e| Error::with_cause(WriteFailed, e))
@@ -589,7 +592,7 @@ impl MemController {
                 .open_path("memory.stat", false)
                 .and_then(read_string_from)
                 .and_then(parse_memory_stat)
-                .unwrap_or(MemoryStat::default()),
+                .unwrap_or_default(),
             swappiness: self
                 .open_path("memory.swap.current", false)
                 .and_then(read_u64_from)
@@ -633,12 +636,12 @@ impl MemController {
                 .open_path("memory.numa_stat", false)
                 .and_then(read_string_from)
                 .and_then(parse_numa_stat)
-                .unwrap_or(NumaStat::default()),
+                .unwrap_or_default(),
             oom_control: self
                 .open_path("memory.oom_control", false)
                 .and_then(read_string_from)
                 .and_then(parse_oom_control)
-                .unwrap_or(OomControl::default()),
+                .unwrap_or_default(),
             soft_limit_in_bytes: self
                 .open_path("memory.soft_limit_in_bytes", false)
                 .and_then(read_i64_from)
@@ -647,7 +650,7 @@ impl MemController {
                 .open_path("memory.stat", false)
                 .and_then(read_string_from)
                 .and_then(parse_memory_stat)
-                .unwrap_or(MemoryStat::default()),
+                .unwrap_or_default(),
             swappiness: self
                 .open_path("memory.swappiness", false)
                 .and_then(read_u64_from)
@@ -681,7 +684,7 @@ impl MemController {
             slabinfo: self
                 .open_path("memory.kmem.slabinfo", false)
                 .and_then(read_string_from)
-                .unwrap_or("".to_string()),
+                .unwrap_or_default(),
         }
     }
 
@@ -713,7 +716,7 @@ impl MemController {
             fail_cnt: self
                 .open_path("memory.swap.events", false)
                 .and_then(flat_keyed_to_hashmap)
-                .and_then(|x| Ok(*x.get("fail").unwrap_or(&0) as u64))
+                .map(|x| *x.get("fail").unwrap_or(&0) as u64)
                 .unwrap(),
             limit_in_bytes: self
                 .open_path("memory.swap.max", false)
@@ -1143,7 +1146,7 @@ total_unevictable 81920
                 total_inactive_file: 1272135680,
                 total_active_file: 2338816000,
                 total_unevictable: 81920,
-                raw: raw,
+                raw,
             }
         );
     }

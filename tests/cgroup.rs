@@ -48,7 +48,7 @@ fn test_cgroup_with_relative_paths() {
     let cg = Cgroup::load(h, String::from(cgroup_name));
     {
         let subsystems = cg.subsystems();
-        subsystems.into_iter().for_each(|sub| match sub {
+        subsystems.iter().for_each(|sub| match sub {
             Subsystem::Pid(c) => {
                 let cgroup_path = c.path().to_str().unwrap();
                 let relative_path = "/pids/";

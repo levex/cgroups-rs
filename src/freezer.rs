@@ -87,7 +87,7 @@ impl FreezerController {
         Self {
             base: root.clone(),
             path: root,
-            v2: v2,
+            v2,
         }
     }
 

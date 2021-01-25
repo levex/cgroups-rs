@@ -62,7 +62,7 @@ impl Cgroup {
     /// Create this control group.
     fn create(&self) {
         if self.hier.v2() {
-            let _ret = create_v2_cgroup(self.hier.root().clone(), &self.path);
+            let _ret = create_v2_cgroup(self.hier.root(), &self.path);
         } else {
             for subsystem in &self.subsystems {
                 subsystem.to_controller().create();
@@ -112,13 +112,11 @@ impl Cgroup {
                 .collect::<Vec<_>>();
         }
 
-        let cg = Cgroup {
+        Cgroup {
             path: path.to_str().unwrap().to_string(),
-            subsystems: subsystems,
+            subsystems,
             hier,
-        };
-
-        cg
+        }
     }
 
     /// Create a handle for a control group in the hierarchy `hier`, with name `path` and `relative_paths`
@@ -146,7 +144,7 @@ impl Cgroup {
                     let cn = x.controller_name();
                     if relative_paths.contains_key(&cn) {
                         let rp = relative_paths.get(&cn).unwrap();
-                        let valid_path = rp.trim_start_matches("/").to_string();
+                        let valid_path = rp.trim_start_matches('/').to_string();
                         let mut p = PathBuf::from(valid_path);
                         p.push(path);
                         x.enter(p.as_ref())
@@ -157,13 +155,11 @@ impl Cgroup {
                 .collect::<Vec<_>>();
         }
 
-        let cg = Cgroup {
-            subsystems: subsystems,
+        Cgroup {
+            subsystems,
             hier,
             path: path.to_str().unwrap().to_string(),
-        };
-
-        cg
+        }
     }
 
     /// The list of subsystems that this control group supports.
@@ -179,8 +175,8 @@ impl Cgroup {
     /// will change.
     pub fn delete(&self) -> Result<()> {
         if self.v2() {
-            if self.path != "" {
-                let mut p = self.hier.root().clone();
+            if !self.path.is_empty() {
+                let mut p = self.hier.root();
                 p.push(self.path.clone());
                 return fs::remove_dir(p).map_err(|e| Error::with_cause(RemoveFailed, e));
             }
@@ -222,7 +218,7 @@ impl Cgroup {
     /// let cpu: &CpuController = control_group.controller_of()
     ///                             .expect("No cpu controller attached!");
     /// ```
-    pub fn controller_of<'a, T>(self: &'a Self) -> Option<&'a T>
+    pub fn controller_of<'a, T>(&'a self) -> Option<&'a T>
     where
         &'a T: From<&'a Subsystem>,
         T: Controller + ControllIdentifier,
@@ -249,7 +245,7 @@ impl Cgroup {
     pub fn add_task(&self, pid: CgroupPid) -> Result<()> {
         if self.v2() {
             let subsystems = self.subsystems();
-            if subsystems.len() > 0 {
+            if !subsystems.is_empty() {
                 let c = subsystems[0].to_controller();
                 c.add_task(&pid)
             } else {
@@ -291,7 +287,7 @@ impl Cgroup {
         // Collect the tasks from all subsystems
         let mut v = if self.v2() {
             let subsystems = self.subsystems();
-            if subsystems.len() > 0 {
+            if !subsystems.is_empty() {
                 let c = subsystems[0].to_controller();
                 c.tasks()
             } else {
@@ -313,9 +309,9 @@ impl Cgroup {
     }
 }
 
-pub const UNIFIED_MOUNTPOINT: &'static str = "/sys/fs/cgroup";
+pub const UNIFIED_MOUNTPOINT: &str = "/sys/fs/cgroup";
 
-fn enable_controllers(controllers: &Vec<String>, path: &PathBuf) {
+fn enable_controllers(controllers: &[String], path: &PathBuf) {
     let mut f = path.clone();
     f.push("cgroup.subtree_control");
     for c in controllers {
@@ -327,8 +323,8 @@ fn enable_controllers(controllers: &Vec<String>, path: &PathBuf) {
 fn supported_controllers() -> Vec<String> {
     let p = format!("{}/{}", UNIFIED_MOUNTPOINT, "cgroup.controllers");
     let ret = fs::read_to_string(p.as_str());
-    ret.unwrap_or(String::new())
-        .split(" ")
+    ret.unwrap_or_default()
+        .split(' ')
         .map(|x| x.to_string())
         .collect::<Vec<String>>()
 }
@@ -342,16 +338,15 @@ fn create_v2_cgroup(root: PathBuf, path: &str) -> Result<()> {
     enable_controllers(&controllers, &fp);
 
     // path: "a/b/c"
-    let elements = path.split("/").collect::<Vec<&str>>();
+    let elements = path.split('/').collect::<Vec<&str>>();
     let last_index = elements.len() - 1;
     for (i, ele) in elements.iter().enumerate() {
         // ROOT/a
         fp.push(ele);
         // create dir, need not check if is a file or directory
         if !fp.exists() {
-            match ::std::fs::create_dir(fp.clone()) {
-                Err(e) => return Err(Error::with_cause(ErrorKind::FsError, e)),
-                Ok(_) => {}
+            if let Err(e) = std::fs::create_dir(fp.clone()) {
+                return Err(Error::with_cause(ErrorKind::FsError, e));
             }
         }
 

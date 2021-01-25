@@ -27,7 +27,7 @@ fn test_devices_parsing() {
                 DeviceType::All,
                 -1,
                 -1,
-                &vec![
+                &[
                     DevicePermissions::Read,
                     DevicePermissions::Write,
                     DevicePermissions::MkNod,
@@ -42,7 +42,7 @@ fn test_devices_parsing() {
 
         // Now add mknod access to /dev/null device
         devices
-            .allow_device(DeviceType::Char, 1, 3, &vec![DevicePermissions::MkNod])
+            .allow_device(DeviceType::Char, 1, 3, &[DevicePermissions::MkNod])
             .unwrap();
         let allowed_devices = devices.allowed_devices();
         assert!(allowed_devices.is_ok());

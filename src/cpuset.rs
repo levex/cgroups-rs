@@ -146,7 +146,7 @@ fn find_no_empty_parent(from: &str, file: &str) -> Result<(String, Vec<PathBuf>)
                 Err(e) => return Err(Error::with_cause(ReadFailed, e)),
             };
 
-        if current_value != "" {
+        if !current_value.is_empty() {
             return Ok((current_value, v));
         }
         v.push(current_path.clone());
@@ -167,7 +167,7 @@ fn copy_from_parent(current: &str, file: &str) -> Result<()> {
     // find not empty cpus/memes from current directory.
     let (value, parents) = find_no_empty_parent(current, file)?;
 
-    if value == "" || parents.len() == 0 {
+    if value.is_empty() || parents.is_empty() {
         return Ok(());
     }
 
@@ -208,17 +208,17 @@ impl<'a> From<&'a Subsystem> for &'a CpuSetController {
 fn parse_range(s: String) -> Result<Vec<(u64, u64)>> {
     let mut fin = Vec::new();
 
-    if s == "".to_string() {
+    if s.is_empty() {
         return Ok(fin);
     }
 
     // first split by commas
-    let comma_split = s.split(",");
+    let comma_split = s.split(',');
 
     for sp in comma_split {
-        if sp.contains("-") {
+        if sp.contains('-') {
             // this is a true range
-            let dash_split = sp.split("-").collect::<Vec<_>>();
+            let dash_split = sp.split('-').collect::<Vec<_>>();
             if dash_split.len() != 2 {
                 return Err(Error::new(ParseError));
             }
@@ -247,7 +247,7 @@ impl CpuSetController {
         Self {
             base: root.clone(),
             path: root,
-            v2: v2,
+            v2,
         }
     }
 
@@ -257,7 +257,7 @@ impl CpuSetController {
         CpuSet {
             cpu_exclusive: {
                 self.open_path("cpuset.cpu_exclusive", false)
-                    .and_then(|file| read_u64_from(file))
+                    .and_then(read_u64_from)
                     .map(|x| x == 1)
                     .unwrap_or(false)
             },
@@ -265,19 +265,19 @@ impl CpuSetController {
                 self.open_path("cpuset.cpus", false)
                     .and_then(read_string_from)
                     .and_then(parse_range)
-                    .unwrap_or(Vec::new())
+                    .unwrap_or_default()
             },
             effective_cpus: {
                 self.open_path("cpuset.effective_cpus", false)
                     .and_then(read_string_from)
                     .and_then(parse_range)
-                    .unwrap_or(Vec::new())
+                    .unwrap_or_default()
             },
             effective_mems: {
                 self.open_path("cpuset.effective_mems", false)
                     .and_then(read_string_from)
                     .and_then(parse_range)
-                    .unwrap_or(Vec::new())
+                    .unwrap_or_default()
             },
             mem_exclusive: {
                 self.open_path("cpuset.mem_exclusive", false)
@@ -324,7 +324,7 @@ impl CpuSetController {
                 self.open_path("cpuset.mems", false)
                     .and_then(read_string_from)
                     .and_then(parse_range)
-                    .unwrap_or(Vec::new())
+                    .unwrap_or_default()
             },
             sched_load_balance: {
                 self.open_path("cpuset.sched_load_balance", false)
