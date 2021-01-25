@@ -330,7 +330,7 @@ where
             return Ok(());
         }
 
-        fs::remove_dir(self.get_path()).map_err(|e| Error::with_cause(ErrorKind::RemoveFailed, e))
+        remove_dir(self.get_path())
     }
 
     /// Attach a task to this controller.
@@ -377,6 +377,30 @@ where
     fn v2(&self) -> bool {
         self.is_v2()
     }
+}
+
+// remove_dir aims to remove cgroup path. It does so recursively,
+// by removing any subdirectories (sub-cgroups) first.
+fn remove_dir(dir: &PathBuf) -> Result<()> {
+    // try the fast path first.
+    if fs::remove_dir(dir).is_ok() {
+        return Ok(());
+    }
+
+    if dir.exists() {
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir).map_err(|e| Error::with_cause(ReadFailed, e))? {
+                let entry = entry.map_err(|e| Error::with_cause(ReadFailed, e))?;
+                let path = entry.path();
+                if path.is_dir() {
+                    remove_dir(&path)?;
+                }
+            }
+            fs::remove_dir(dir).map_err(|e| Error::with_cause(RemoveFailed, e))?;
+        }
+    }
+
+    Ok(())
 }
 
 #[doc(hidden)]
