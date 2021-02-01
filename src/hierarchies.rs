@@ -9,8 +9,9 @@
 //! Currently, we only support the cgroupv1 hierarchy, but in the future we will add support for
 //! the Unified Hierarchy.
 
-use procinfo::pid::{mountinfo_self, Mountinfo};
 use std::fs;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use crate::blkio::BlkIoController;
@@ -30,6 +31,75 @@ use crate::systemd::SystemdController;
 use crate::{Controllers, Hierarchy, Subsystem};
 
 use crate::cgroup::Cgroup;
+
+/// Process mounts information.
+///
+/// See `proc(5)` for format details.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct Mountinfo {
+    /// Mount pathname relative to the process's root.
+    pub mount_point: PathBuf,
+    /// Filesystem type (main type with optional sub-type).
+    pub fs_type: (String, Option<String>),
+    /// Superblock options.
+    pub super_opts: Vec<String>,
+}
+
+pub(crate) fn parse_mountinfo_for_line(line: &str) -> Option<Mountinfo> {
+    let s_values: Vec<_> = line.split(" - ").collect();
+    if s_values.len() != 2 {
+        return None;
+    }
+
+    let s0_values: Vec<_> = s_values[0].trim().split(' ').collect();
+    let s1_values: Vec<_> = s_values[1].trim().split(' ').collect();
+    if s0_values.len() < 6 || s1_values.len() < 3 {
+        return None;
+    }
+    let mount_point = PathBuf::from(s0_values[4]);
+    let fs_type_values: Vec<_> = s1_values[0].trim().split('.').collect();
+    let fs_type = match fs_type_values.len() {
+        1 => (fs_type_values[0].to_string(), None),
+        2 => (
+            fs_type_values[0].to_string(),
+            Some(fs_type_values[1].to_string()),
+        ),
+        _ => return None,
+    };
+
+    let super_opts: Vec<String> = s1_values[2].trim().split(',').map(String::from).collect();
+    Some(Mountinfo {
+        mount_point,
+        fs_type,
+        super_opts,
+    })
+}
+
+/// Parses the provided mountinfo file.
+fn mountinfo_file(file: &mut File) -> Vec<Mountinfo> {
+    let mut r = Vec::new();
+    for line in BufReader::new(file).lines() {
+        match line {
+            Ok(line) => {
+                if let Some(mi) = parse_mountinfo_for_line(&line) {
+                    if mi.fs_type.0 == "cgroup" {
+                        r.push(mi);
+                    }
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+    r
+}
+
+/// Returns mounts information for the current process.
+pub fn mountinfo_self() -> Vec<Mountinfo> {
+    match File::open("/proc/self/mountinfo") {
+        Ok(mut file) => mountinfo_file(&mut file),
+        Err(_) => vec![],
+    }
+}
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
 #[derive(Debug)]
@@ -184,7 +254,7 @@ impl V1 {
     /// can be created.
     pub fn new() -> V1 {
         V1 {
-            mountinfo: mountinfo_self().unwrap(),
+            mountinfo: mountinfo_self(),
         }
     }
 
@@ -251,5 +321,38 @@ pub fn auto() -> Box<dyn Hierarchy> {
         Box::new(V2::new())
     } else {
         Box::new(V1::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_mount() {
+        let mountinfo = vec![
+            ("29 26 0:26 / /sys/fs/cgroup/cpuset,cpu,cpuacct rw,nosuid,nodev,noexec,relatime shared:10 - cgroup cgroup rw,cpuset,cpu,cpuacct",
+             Mountinfo{mount_point: PathBuf::from("/sys/fs/cgroup/cpuset,cpu,cpuacct"), fs_type: ("cgroup".to_string(), None), super_opts: vec![
+                "rw".to_string(),
+                "cpuset".to_string(),
+                "cpu".to_string(),
+                "cpuacct".to_string(),
+             ]}),
+            ("121 1731 0:42 / /shm rw,nosuid,nodev,noexec,relatime shared:68 master:66 - tmpfs shm rw,size=65536k",
+             Mountinfo{mount_point: PathBuf::from("/shm"), fs_type: ("tmpfs".to_string(), None), super_opts: vec![
+                "rw".to_string(),
+                "size=65536k".to_string(),
+             ]}),
+            ("121 1731 0:42 / /shm rw,nosuid,nodev,noexec,relatime shared:68 master:66 - tmpfs.123 shm rw,size=65536k",
+             Mountinfo{mount_point: PathBuf::from("/shm"), fs_type: ("tmpfs".to_string(), Some("123".to_string())), super_opts: vec![
+                "rw".to_string(),
+                "size=65536k".to_string(),
+             ]}),
+        ];
+
+        for mi in mountinfo {
+            let info = parse_mountinfo_for_line(mi.0).unwrap();
+            assert_eq!(info, mi.1)
+        }
     }
 }
