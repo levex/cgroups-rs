@@ -62,7 +62,7 @@ fn test_pid_events_is_not_zero() {
         let before = pids.get_pid_events();
         let before = before.unwrap();
 
-        match fork() {
+        match unsafe { fork() } {
             Ok(ForkResult::Parent { child, .. }) => {
                 // move the process into the control group
                 let _ = pids.add_task(&(pid_t::from(child) as u64).into());
@@ -89,7 +89,7 @@ fn test_pid_events_is_not_zero() {
             Ok(ForkResult::Child) => loop {
                 let pids_max = pids.get_pid_max();
                 if pids_max.is_ok() && pids_max.unwrap() == MaxValue::Value(1) {
-                    if let Err(_) = fork() {
+                    if let Err(_) = unsafe { fork() } {
                         unsafe { libc::exit(0) };
                     } else {
                         unsafe { libc::exit(1) };
