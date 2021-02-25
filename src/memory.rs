@@ -59,10 +59,28 @@ pub struct OomControl {
 fn parse_oom_control(s: String) -> Result<OomControl> {
     let spl = s.split_whitespace().collect::<Vec<_>>();
 
+    let oom_kill_disable = if spl.len() > 1 {
+        spl[1].parse::<u64>().unwrap() == 1
+    } else {
+        false
+    };
+
+    let under_oom = if spl.len() > 3 {
+        spl[3].parse::<u64>().unwrap() == 1
+    } else {
+        false
+    };
+
+    let oom_kill = if spl.len() > 5 {
+        spl[5].parse::<u64>().unwrap()
+    } else {
+        0
+    };
+
     Ok(OomControl {
-        oom_kill_disable: spl[1].parse::<u64>().unwrap() == 1,
-        under_oom: spl[3].parse::<u64>().unwrap() == 1,
-        oom_kill: spl[5].parse::<u64>().unwrap(),
+        oom_kill_disable,
+        under_oom,
+        oom_kill,
     })
 }
 
@@ -918,6 +936,7 @@ mod tests {
     use crate::memory::{
         parse_memory_stat, parse_numa_stat, parse_oom_control, MemoryStat, NumaStat, OomControl,
     };
+
     static GOOD_VALUE: &str = "\
 total=51189 N0=51189 N1=123
 file=50175 N0=50175 N1=123
@@ -936,7 +955,17 @@ anon=1014 N0=1014 N1=123
 unevictable=0 N0=0 N1=123
 ";
 
-    static GOOD_OOMCONTROL_VAL: &str = "\
+    static GOOD_OOMCONTROL_VAL_1: &str = "\
+oom_kill_disable 0
+oom_kill 1337
+";
+
+    static GOOD_OOMCONTROL_VAL_2: &str = "\
+oom_kill_disable 0
+under_oom 1
+";
+
+    static GOOD_OOMCONTROL_VAL_3: &str = "\
 oom_kill_disable 0
 under_oom 1
 oom_kill 1337
@@ -1033,7 +1062,34 @@ total_unevictable 81920
 
     #[test]
     fn test_parse_oom_control() {
-        let ok = parse_oom_control(GOOD_OOMCONTROL_VAL.to_string()).unwrap();
+        let ok = parse_oom_control("".to_string()).unwrap();
+        assert_eq!(
+            ok,
+            OomControl {
+                oom_kill_disable: false,
+                under_oom: false,
+                oom_kill: 0,
+            }
+        );
+        let ok = parse_oom_control(GOOD_OOMCONTROL_VAL_1.to_string()).unwrap();
+        assert_eq!(
+            ok,
+            OomControl {
+                oom_kill_disable: false,
+                under_oom: false,
+                oom_kill: 0,
+            }
+        );
+        let ok = parse_oom_control(GOOD_OOMCONTROL_VAL_2.to_string()).unwrap();
+        assert_eq!(
+            ok,
+            OomControl {
+                oom_kill_disable: false,
+                under_oom: true,
+                oom_kill: 0,
+            }
+        );
+        let ok = parse_oom_control(GOOD_OOMCONTROL_VAL_3.to_string()).unwrap();
         assert_eq!(
             ok,
             OomControl {
