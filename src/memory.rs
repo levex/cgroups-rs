@@ -112,10 +112,10 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
     let file_line = ls.next().unwrap();
     let anon_line = ls.next().unwrap();
     let unevict_line = ls.next().unwrap();
-    let hier_total_line = ls.next().unwrap();
-    let hier_file_line = ls.next().unwrap();
-    let hier_anon_line = ls.next().unwrap();
-    let hier_unevict_line = ls.next().unwrap();
+    let hier_total_line = ls.next().unwrap_or_default();
+    let hier_file_line = ls.next().unwrap_or_default();
+    let hier_anon_line = ls.next().unwrap_or_default();
+    let hier_unevict_line = ls.next().unwrap_or_default();
 
     Ok(NumaStat {
         total_pages: total_line
@@ -178,65 +178,105 @@ fn parse_numa_stat(s: String) -> Result<NumaStat> {
                 })
                 .collect()
         },
-        hierarchical_total_pages: hier_total_line
-            .split(|x| x == ' ' || x == '=')
-            .collect::<Vec<_>>()[1]
-            .parse::<u64>()
-            .unwrap_or(0),
+        hierarchical_total_pages: {
+            if !hier_total_line.is_empty() {
+                hier_total_line
+                    .split(|x| x == ' ' || x == '=')
+                    .collect::<Vec<_>>()[1]
+                    .parse::<u64>()
+                    .unwrap_or(0)
+            } else {
+                0
+            }
+        },
         hierarchical_total_pages_per_node: {
-            let spl = &hier_total_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter()
-                .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
-                        .parse::<u64>()
-                        .unwrap_or(0)
-                })
-                .collect()
+            if !hier_total_line.is_empty() {
+                let spl = &hier_total_line.split(" ").collect::<Vec<_>>()[1..];
+                spl.iter()
+                    .map(|x| {
+                        x.split("=").collect::<Vec<_>>()[1]
+                            .parse::<u64>()
+                            .unwrap_or(0)
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            }
         },
-        hierarchical_file_pages: hier_file_line
-            .split(|x| x == ' ' || x == '=')
-            .collect::<Vec<_>>()[1]
-            .parse::<u64>()
-            .unwrap_or(0),
+        hierarchical_file_pages: {
+            if !hier_file_line.is_empty() {
+                hier_file_line
+                    .split(|x| x == ' ' || x == '=')
+                    .collect::<Vec<_>>()[1]
+                    .parse::<u64>()
+                    .unwrap_or(0)
+            } else {
+                0
+            }
+        },
         hierarchical_file_pages_per_node: {
-            let spl = &hier_file_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter()
-                .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
-                        .parse::<u64>()
-                        .unwrap_or(0)
-                })
-                .collect()
+            if !hier_file_line.is_empty() {
+                let spl = &hier_file_line.split(" ").collect::<Vec<_>>()[1..];
+                spl.iter()
+                    .map(|x| {
+                        x.split("=").collect::<Vec<_>>()[1]
+                            .parse::<u64>()
+                            .unwrap_or(0)
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            }
         },
-        hierarchical_anon_pages: hier_anon_line
-            .split(|x| x == ' ' || x == '=')
-            .collect::<Vec<_>>()[1]
-            .parse::<u64>()
-            .unwrap_or(0),
+        hierarchical_anon_pages: {
+            if !hier_anon_line.is_empty() {
+                hier_anon_line
+                    .split(|x| x == ' ' || x == '=')
+                    .collect::<Vec<_>>()[1]
+                    .parse::<u64>()
+                    .unwrap_or(0)
+            } else {
+                0
+            }
+        },
         hierarchical_anon_pages_per_node: {
-            let spl = &hier_anon_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter()
-                .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
-                        .parse::<u64>()
-                        .unwrap_or(0)
-                })
-                .collect()
+            if !hier_anon_line.is_empty() {
+                let spl = &hier_anon_line.split(" ").collect::<Vec<_>>()[1..];
+                spl.iter()
+                    .map(|x| {
+                        x.split("=").collect::<Vec<_>>()[1]
+                            .parse::<u64>()
+                            .unwrap_or(0)
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            }
         },
-        hierarchical_unevictable_pages: hier_unevict_line
-            .split(|x| x == ' ' || x == '=')
-            .collect::<Vec<_>>()[1]
-            .parse::<u64>()
-            .unwrap_or(0),
+        hierarchical_unevictable_pages: {
+            if !hier_unevict_line.is_empty() {
+                hier_unevict_line
+                    .split(|x| x == ' ' || x == '=')
+                    .collect::<Vec<_>>()[1]
+                    .parse::<u64>()
+                    .unwrap_or(0)
+            } else {
+                0
+            }
+        },
         hierarchical_unevictable_pages_per_node: {
-            let spl = &hier_unevict_line.split(" ").collect::<Vec<_>>()[1..];
-            spl.iter()
-                .map(|x| {
-                    x.split("=").collect::<Vec<_>>()[1]
-                        .parse::<u64>()
-                        .unwrap_or(0)
-                })
-                .collect()
+            if !hier_unevict_line.is_empty() {
+                let spl = &hier_unevict_line.split(" ").collect::<Vec<_>>()[1..];
+                spl.iter()
+                    .map(|x| {
+                        x.split("=").collect::<Vec<_>>()[1]
+                            .parse::<u64>()
+                            .unwrap_or(0)
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            }
         },
     })
 }
@@ -889,6 +929,13 @@ hierarchical_anon=770402 N0=770402 N1=123
 hierarchical_unevictable=20 N0=20 N1=123
 ";
 
+    static GOOD_VALUE_NON_HIERARCHICAL: &str = "\
+total=51189 N0=51189 N1=123
+file=50175 N0=50175 N1=123
+anon=1014 N0=1014 N1=123
+unevictable=0 N0=0 N1=123
+";
+
     static GOOD_OOMCONTROL_VAL: &str = "\
 oom_kill_disable 0
 under_oom 1
@@ -957,6 +1004,29 @@ total_unevictable 81920
                 hierarchical_anon_pages_per_node: vec![770402, 123],
                 hierarchical_unevictable_pages: 20,
                 hierarchical_unevictable_pages_per_node: vec![20, 123],
+            }
+        );
+        let ok = parse_numa_stat(GOOD_VALUE_NON_HIERARCHICAL.to_string()).unwrap();
+        assert_eq!(
+            ok,
+            NumaStat {
+                total_pages: 51189,
+                total_pages_per_node: vec![51189, 123],
+                file_pages: 50175,
+                file_pages_per_node: vec![50175, 123],
+                anon_pages: 1014,
+                anon_pages_per_node: vec![1014, 123],
+                unevictable_pages: 0,
+                unevictable_pages_per_node: vec![0, 123],
+
+                hierarchical_total_pages: 0,
+                hierarchical_total_pages_per_node: vec![],
+                hierarchical_file_pages: 0,
+                hierarchical_file_pages_per_node: vec![],
+                hierarchical_anon_pages: 0,
+                hierarchical_anon_pages_per_node: vec![],
+                hierarchical_unevictable_pages: 0,
+                hierarchical_unevictable_pages_per_node: vec![],
             }
         );
     }
