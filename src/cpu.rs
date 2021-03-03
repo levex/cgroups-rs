@@ -116,7 +116,7 @@ impl CpuController {
         Self {
             base: root.clone(),
             path: root,
-            v2: v2,
+            v2,
         }
     }
 
@@ -133,7 +133,7 @@ impl CpuController {
                         Err(e) => Err(Error::with_cause(ReadFailed, e)),
                     }
                 })
-                .unwrap_or("".to_string()),
+                .unwrap_or_default(),
         }
     }
 
@@ -299,8 +299,5 @@ fn parse_cfs_quota_and_period(mut file: File) -> Result<CFSQuotaAndPeriod> {
         .parse::<u64>()
         .map_err(|e| Error::with_cause(ParseError, e))?;
 
-    Ok(CFSQuotaAndPeriod {
-        quota: quota,
-        period: period,
-    })
+    Ok(CFSQuotaAndPeriod { quota, period })
 }

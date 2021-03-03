@@ -4,9 +4,11 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 //
 
+#![allow(clippy::unnecessary_unwrap)]
 use log::*;
 
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -123,23 +125,23 @@ pub enum Controllers {
     Systemd,
 }
 
-impl Controllers {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Controllers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Controllers::Pids => return "pids".to_string(),
-            Controllers::Mem => return "memory".to_string(),
-            Controllers::CpuSet => return "cpuset".to_string(),
-            Controllers::CpuAcct => return "cpuacct".to_string(),
-            Controllers::Cpu => return "cpu".to_string(),
-            Controllers::Devices => return "devices".to_string(),
-            Controllers::Freezer => return "freezer".to_string(),
-            Controllers::NetCls => return "net_cls".to_string(),
-            Controllers::BlkIo => return "blkio".to_string(),
-            Controllers::PerfEvent => return "perf_event".to_string(),
-            Controllers::NetPrio => return "net_prio".to_string(),
-            Controllers::HugeTlb => return "hugetlb".to_string(),
-            Controllers::Rdma => return "rdma".to_string(),
-            Controllers::Systemd => return "name=systemd".to_string(),
+            Controllers::Pids => write!(f, "pids"),
+            Controllers::Mem => write!(f, "memory"),
+            Controllers::CpuSet => write!(f, "cpuset"),
+            Controllers::CpuAcct => write!(f, "cpuacct"),
+            Controllers::Cpu => write!(f, "cpu"),
+            Controllers::Devices => write!(f, "devices"),
+            Controllers::Freezer => write!(f, "freezer"),
+            Controllers::NetCls => write!(f, "net_cls"),
+            Controllers::BlkIo => write!(f, "blkio"),
+            Controllers::PerfEvent => write!(f, "perf_event"),
+            Controllers::NetPrio => write!(f, "net_prio"),
+            Controllers::HugeTlb => write!(f, "hugetlb"),
+            Controllers::Rdma => write!(f, "rdma"),
+            Controllers::Systemd => write!(f, "name=systemd"),
         }
     }
 }
@@ -179,13 +181,13 @@ mod sealed {
 
             if w {
                 match File::create(&path) {
-                    Err(e) => return Err(Error::with_cause(ErrorKind::WriteFailed, e)),
-                    Ok(file) => return Ok(file),
+                    Err(e) => Err(Error::with_cause(ErrorKind::WriteFailed, e)),
+                    Ok(file) => Ok(file),
                 }
             } else {
                 match File::open(&path) {
-                    Err(e) => return Err(Error::with_cause(ErrorKind::ReadFailed, e)),
-                    Ok(file) => return Ok(file),
+                    Err(e) => Err(Error::with_cause(ErrorKind::ReadFailed, e)),
+                    Ok(file) => Ok(file),
                 }
             }
         }
@@ -203,7 +205,7 @@ mod sealed {
 
         #[doc(hidden)]
         fn path_exists(&self, p: &str) -> bool {
-            if let Err(_) = self.verify_path() {
+            if self.verify_path().is_err() {
                 return false;
             }
 
@@ -295,7 +297,7 @@ where
     /// Create this controller
     fn create(&self) {
         self.verify_path()
-            .expect(format!("path should be valid: {:?}", self.path()).as_str());
+            .unwrap_or_else(|_| panic!("path should be valid: {:?}", self.path()));
 
         match ::std::fs::create_dir_all(self.get_path()) {
             Ok(_) => self.post_create(),
@@ -360,7 +362,7 @@ where
             file = "cgroup.procs";
         }
         self.open_path(file, false)
-            .and_then(|file| {
+            .map(|file| {
                 let bf = BufReader::new(file);
                 let mut v = Vec::new();
                 for line in bf.lines() {
@@ -369,9 +371,9 @@ where
                         v.push(n);
                     }
                 }
-                Ok(v.into_iter().map(CgroupPid::from).collect())
+                v.into_iter().map(CgroupPid::from).collect()
             })
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     fn v2(&self) -> bool {
@@ -387,17 +389,15 @@ fn remove_dir(dir: &PathBuf) -> Result<()> {
         return Ok(());
     }
 
-    if dir.exists() {
-        if dir.is_dir() {
-            for entry in fs::read_dir(dir).map_err(|e| Error::with_cause(ReadFailed, e))? {
-                let entry = entry.map_err(|e| Error::with_cause(ReadFailed, e))?;
-                let path = entry.path();
-                if path.is_dir() {
-                    remove_dir(&path)?;
-                }
+    if dir.exists() && dir.is_dir() {
+        for entry in fs::read_dir(dir).map_err(|e| Error::with_cause(ReadFailed, e))? {
+            let entry = entry.map_err(|e| Error::with_cause(ReadFailed, e))?;
+            let path = entry.path();
+            if path.is_dir() {
+                remove_dir(&path)?;
             }
-            fs::remove_dir(dir).map_err(|e| Error::with_cause(RemoveFailed, e))?;
         }
+        fs::remove_dir(dir).map_err(|e| Error::with_cause(RemoveFailed, e))?;
     }
 
     Ok(())
@@ -641,75 +641,61 @@ impl<'a> From<&'a std::process::Child> for CgroupPid {
 impl Subsystem {
     fn enter(self, path: &Path) -> Self {
         match self {
-            Subsystem::Pid(cont) => Subsystem::Pid({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::Pid(mut cont) => Subsystem::Pid({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::Mem(cont) => Subsystem::Mem({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::Mem(mut cont) => Subsystem::Mem({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::CpuSet(cont) => Subsystem::CpuSet({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::CpuSet(mut cont) => Subsystem::CpuSet({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::CpuAcct(cont) => Subsystem::CpuAcct({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::CpuAcct(mut cont) => Subsystem::CpuAcct({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::Cpu(cont) => Subsystem::Cpu({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::Cpu(mut cont) => Subsystem::Cpu({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::Devices(cont) => Subsystem::Devices({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::Devices(mut cont) => Subsystem::Devices({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::Freezer(cont) => Subsystem::Freezer({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::Freezer(mut cont) => Subsystem::Freezer({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::NetCls(cont) => Subsystem::NetCls({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::NetCls(mut cont) => Subsystem::NetCls({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::BlkIo(cont) => Subsystem::BlkIo({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::BlkIo(mut cont) => Subsystem::BlkIo({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::PerfEvent(cont) => Subsystem::PerfEvent({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::PerfEvent(mut cont) => Subsystem::PerfEvent({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::NetPrio(cont) => Subsystem::NetPrio({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::NetPrio(mut cont) => Subsystem::NetPrio({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::HugeTlb(cont) => Subsystem::HugeTlb({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::HugeTlb(mut cont) => Subsystem::HugeTlb({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::Rdma(cont) => Subsystem::Rdma({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::Rdma(mut cont) => Subsystem::Rdma({
+                cont.get_path_mut().push(path);
+                cont
             }),
-            Subsystem::Systemd(cont) => Subsystem::Systemd({
-                let mut c = cont.clone();
-                c.get_path_mut().push(path);
-                c
+            Subsystem::Systemd(mut cont) => Subsystem::Systemd({
+                cont.get_path_mut().push(path);
+                cont
             }),
         }
     }
@@ -760,16 +746,18 @@ impl MaxValue {
             MaxValue::Value(num) => *num,
         }
     }
+}
 
-    fn to_string(&self) -> String {
+impl fmt::Display for MaxValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MaxValue::Max => "max".to_string(),
-            MaxValue::Value(num) => num.to_string(),
+            MaxValue::Max => write!(f, "max"),
+            MaxValue::Value(num) => write!(f, "{}", num.to_string()),
         }
     }
 }
 
-pub fn parse_max_value(s: &String) -> Result<MaxValue> {
+pub fn parse_max_value(s: &str) -> Result<MaxValue> {
     if s.trim() == "max" {
         return Ok(MaxValue::Max);
     }
@@ -791,11 +779,8 @@ pub fn flat_keyed_to_vec(mut file: File) -> Result<Vec<(String, i64)>> {
     for line in content.lines() {
         let parts: Vec<&str> = line.split(' ').collect();
         if parts.len() == 2 {
-            match parts[1].parse::<i64>() {
-                Ok(i) => {
-                    v.push((parts[0].to_string(), i));
-                }
-                Err(_) => {}
+            if let Ok(i) = parts[1].parse::<i64>() {
+                v.push((parts[0].to_string(), i));
             }
         }
     }
@@ -814,11 +799,8 @@ pub fn flat_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, i64>> {
     for line in content.lines() {
         let parts: Vec<&str> = line.split(' ').collect();
         if parts.len() == 2 {
-            match parts[1].parse::<i64>() {
-                Ok(i) => {
-                    h.insert(parts[0].to_string(), i);
-                }
-                Err(_) => {}
+            if let Ok(i) = parts[1].parse::<i64>() {
+                h.insert(parts[0].to_string(), i);
             }
         }
     }
@@ -836,18 +818,15 @@ pub fn nested_keyed_to_hashmap(mut file: File) -> Result<HashMap<String, HashMap
     let mut h = HashMap::new();
     for line in content.lines() {
         let parts: Vec<&str> = line.split(' ').collect();
-        if parts.len() == 0 {
+        if parts.is_empty() {
             continue;
         }
         let mut th = HashMap::new();
-        for item in parts[1..].into_iter() {
+        for item in parts[1..].iter() {
             let fields: Vec<&str> = item.split('=').collect();
             if fields.len() == 2 {
-                match fields[1].parse::<i64>() {
-                    Ok(i) => {
-                        th.insert(fields[0].to_string(), i);
-                    }
-                    Err(_) => {}
+                if let Ok(i) = fields[1].parse::<i64>() {
+                    th.insert(fields[0].to_string(), i);
                 }
             }
         }

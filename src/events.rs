@@ -53,7 +53,7 @@ fn register_memory_event(
 
     let event_control_path = cg_dir.join("cgroup.event_control");
     let data;
-    if arg == "" {
+    if arg.is_empty() {
         data = format!("{} {}", eventfd, event_file.as_raw_fd());
     } else {
         data = format!("{} {} {}", eventfd, event_file.as_raw_fd(), arg);
@@ -70,11 +70,8 @@ fn register_memory_event(
     thread::spawn(move || {
         loop {
             let mut buf = [0; 8];
-            match eventfd_file.read(&mut buf) {
-                Err(_err) => {
-                    return;
-                }
-                Ok(_) => {}
+            if eventfd_file.read(&mut buf).is_err() {
+                return;
             }
 
             // When a cgroup is destroyed, an event is sent to eventfd.

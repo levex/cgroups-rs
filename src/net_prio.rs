@@ -94,6 +94,7 @@ impl NetPrioController {
     }
 
     /// A map of priorities for each network interface.
+    #[allow(clippy::iter_nth_zero, clippy::unnecessary_unwrap)]
     pub fn ifpriomap(&self) -> Result<HashMap<String, u64>> {
         self.open_path("net_prio.ifpriomap", false)
             .and_then(|file| {
@@ -105,6 +106,7 @@ impl NetPrioController {
                         let mut acc = acc.unwrap();
                         let l = line.unwrap();
                         let mut sp = l.split_whitespace();
+
                         let ifname = sp.nth(0);
                         let ifprio = sp.nth(1);
                         if ifname.is_none() || ifprio.is_none() {

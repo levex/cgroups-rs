@@ -49,7 +49,7 @@ impl ControllerInternal for NetClsController {
 
         update_and_test!(self, set_class, res.class_id, get_class);
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -96,6 +96,6 @@ impl NetClsController {
     /// Get the network class id of the outgoing packets of the control group's tasks.
     pub fn get_class(&self) -> Result<u64> {
         self.open_path("net_cls.classid", false)
-            .and_then(|file| read_u64_from(file))
+            .and_then(read_u64_from)
     }
 }

@@ -268,6 +268,12 @@ impl V1 {
     }
 }
 
+impl Default for V1 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl V2 {
     /// Finds where control groups are mounted to and returns a hierarchy in which control groups
     /// can be created.
@@ -278,7 +284,13 @@ impl V2 {
     }
 }
 
-pub const UNIFIED_MOUNTPOINT: &'static str = "/sys/fs/cgroup";
+impl Default for V2 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub const UNIFIED_MOUNTPOINT: &str = "/sys/fs/cgroup";
 
 #[cfg(all(target_os = "linux", not(target_env = "musl")))]
 pub fn is_cgroup2_unified_mode() -> bool {
@@ -294,7 +306,7 @@ pub fn is_cgroup2_unified_mode() -> bool {
     fs_stat.unwrap().filesystem_type() == statfs::CGROUP2_SUPER_MAGIC
 }
 
-pub const INIT_CGROUP_PATHS: &'static str = "/proc/1/cgroup";
+pub const INIT_CGROUP_PATHS: &str = "/proc/1/cgroup";
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 pub fn is_cgroup2_unified_mode() -> bool {

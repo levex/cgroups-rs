@@ -89,7 +89,7 @@ fn test_pid_events_is_not_zero() {
             Ok(ForkResult::Child) => loop {
                 let pids_max = pids.get_pid_max();
                 if pids_max.is_ok() && pids_max.unwrap() == MaxValue::Value(1) {
-                    if let Err(_) = unsafe { fork() } {
+                    if unsafe { fork() }.is_err() {
                         unsafe { libc::exit(0) };
                     } else {
                         unsafe { libc::exit(1) };

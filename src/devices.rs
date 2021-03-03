@@ -102,7 +102,7 @@ impl DevicePermissions {
 
     /// Checks whether the string is a valid descriptor of DevicePermissions.
     pub fn is_valid(s: &str) -> bool {
-        if s == "" {
+        if s.is_empty() {
             return false;
         }
         for i in s.chars() {
@@ -110,7 +110,7 @@ impl DevicePermissions {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     /// Returns a Vec will all the permissions that a device can have.
@@ -123,9 +123,10 @@ impl DevicePermissions {
     }
 
     /// Convert a string into DevicePermissions.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Vec<DevicePermissions>> {
         let mut v = Vec::new();
-        if s == "" {
+        if s.is_empty() {
             return Ok(v);
         }
         for e in s.chars() {
@@ -206,7 +207,7 @@ impl DevicesController {
         devtype: DeviceType,
         major: i64,
         minor: i64,
-        perm: &Vec<DevicePermissions>,
+        perm: &[DevicePermissions],
     ) -> Result<()> {
         let perms = perm
             .iter()
@@ -238,7 +239,7 @@ impl DevicesController {
         devtype: DeviceType,
         major: i64,
         minor: i64,
-        perm: &Vec<DevicePermissions>,
+        perm: &[DevicePermissions],
     ) -> Result<()> {
         let perms = perm
             .iter()
@@ -274,13 +275,13 @@ impl DevicesController {
                             error!("allowed_devices: acc: {:?}, ls: {:?}", acc, ls);
                             Err(Error::new(ParseError))
                         } else {
-                            let devtype = DeviceType::from_char(ls[0].chars().nth(0));
+                            let devtype = DeviceType::from_char(ls[0].chars().next());
                             let mut major = ls[1].parse::<i64>();
                             let mut minor = ls[2].parse::<i64>();
-                            if major.is_err() && ls[1] == "*".to_string() {
+                            if major.is_err() && ls[1] == "*" {
                                 major = Ok(-1);
                             }
-                            if minor.is_err() && ls[2] == "*".to_string() {
+                            if minor.is_err() && ls[2] == "*" {
                                 minor = Ok(-1);
                             }
                             if devtype.is_none() || major.is_err() || minor.is_err() || !DevicePermissions::is_valid(&ls[3]) {
@@ -295,7 +296,7 @@ impl DevicesController {
                                     devtype: devtype.unwrap(),
                                     major: major.unwrap(),
                                     minor: minor.unwrap(),
-                                    access: access,
+                                    access,
                                 });
                                 Ok(acc)
                             }

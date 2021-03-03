@@ -111,35 +111,35 @@ impl CpuAcctController {
         CpuAcct {
             stat: self
                 .open_path("cpuacct.stat", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .unwrap_or_default(),
             usage: self
                 .open_path("cpuacct.usage", false)
-                .and_then(|file| read_u64_from(file))
+                .and_then(read_u64_from)
                 .unwrap_or(0),
             usage_all: self
                 .open_path("cpuacct.usage_all", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .unwrap_or_default(),
             usage_percpu: self
                 .open_path("cpuacct.usage_percpu", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .unwrap_or_default(),
             usage_percpu_sys: self
                 .open_path("cpuacct.usage_percpu_sys", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .unwrap_or_default(),
             usage_percpu_user: self
                 .open_path("cpuacct.usage_percpu_user", false)
-                .and_then(|file| read_string_from(file))
-                .unwrap_or("".to_string()),
+                .and_then(read_string_from)
+                .unwrap_or_default(),
             usage_sys: self
                 .open_path("cpuacct.usage_sys", false)
-                .and_then(|file| read_u64_from(file))
+                .and_then(read_u64_from)
                 .unwrap_or(0),
             usage_user: self
                 .open_path("cpuacct.usage_user", false)
-                .and_then(|file| read_u64_from(file))
+                .and_then(read_u64_from)
                 .unwrap_or(0),
         }
     }

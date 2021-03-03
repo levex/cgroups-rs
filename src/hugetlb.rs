@@ -92,8 +92,8 @@ impl HugeTlbController {
         Self {
             base: root.clone(),
             path: root,
-            sizes: sizes,
-            v2: v2,
+            sizes,
+            v2,
         }
     }
 
@@ -115,7 +115,7 @@ impl HugeTlbController {
         self.open_path(&format!("hugetlb.{}.events", hugetlb_size), false)
             .and_then(flat_keyed_to_vec)
             .and_then(|x| {
-                if x.len() == 0 {
+                if x.is_empty() {
                     return Err(Error::from_string(format!(
                         "get empty from hugetlb.{}.events",
                         hugetlb_size
@@ -175,7 +175,7 @@ impl HugeTlbController {
     }
 }
 
-pub const HUGEPAGESIZE_DIR: &'static str = "/sys/kernel/mm/hugepages";
+pub const HUGEPAGESIZE_DIR: &str = "/sys/kernel/mm/hugepages";
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
@@ -264,8 +264,8 @@ fn parse_size(s: &str, m: &HashMap<String, u128>) -> Result<u128> {
     let caps = re.unwrap().captures(s).unwrap();
 
     let num = caps.name("num");
-    let size: u128 = if num.is_some() {
-        let n = num.unwrap().as_str().trim().parse::<u128>();
+    let size: u128 = if let Some(num) = num {
+        let n = num.as_str().trim().parse::<u128>();
         if n.is_err() {
             return Err(Error::new(InvalidBytesSize));
         }
@@ -275,10 +275,10 @@ fn parse_size(s: &str, m: &HashMap<String, u128>) -> Result<u128> {
     };
 
     let q = caps.name("mul");
-    let mul: u128 = if q.is_some() {
-        let t = m.get(q.unwrap().as_str());
-        if t.is_some() {
-            *t.unwrap()
+    let mul: u128 = if let Some(q) = q {
+        let t = m.get(q.as_str());
+        if let Some(t) = t {
+            *t
         } else {
             return Err(Error::new(InvalidBytesSize));
         }
@@ -289,7 +289,7 @@ fn parse_size(s: &str, m: &HashMap<String, u128>) -> Result<u128> {
     Ok(size * mul)
 }
 
-fn custom_size(mut size: f64, base: f64, m: &Vec<String>) -> String {
+fn custom_size(mut size: f64, base: f64, m: &[String]) -> String {
     let mut i = 0;
     while size >= base && i < m.len() - 1 {
         size /= base;
