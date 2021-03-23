@@ -35,7 +35,7 @@ use crate::cgroup::Cgroup;
 /// Process mounts information.
 ///
 /// See `proc(5)` for format details.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Mountinfo {
     /// Mount pathname relative to the process's root.
     pub mount_point: PathBuf,
@@ -102,12 +102,12 @@ pub fn mountinfo_self() -> Vec<Mountinfo> {
 }
 
 /// The standard, original cgroup implementation. Often referred to as "cgroupv1".
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct V1 {
     mountinfo: Vec<Mountinfo>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct V2 {
     root: String,
 }
