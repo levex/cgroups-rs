@@ -311,9 +311,8 @@ impl Cgroup {
 
 pub const UNIFIED_MOUNTPOINT: &str = "/sys/fs/cgroup";
 
-fn enable_controllers(controllers: &[String], path: &PathBuf) {
-    let mut f = path.clone();
-    f.push("cgroup.subtree_control");
+fn enable_controllers(controllers: &[String], path: &Path) {
+    let f = path.join("cgroup.subtree_control");
     for c in controllers {
         let body = format!("+{}", c);
         let _rest = fs::write(f.as_path(), body.as_bytes());

@@ -365,11 +365,9 @@ where
             .map(|file| {
                 let bf = BufReader::new(file);
                 let mut v = Vec::new();
-                for line in bf.lines() {
-                    if let Ok(line) = line {
-                        let n = line.trim().parse().unwrap_or(0u64);
-                        v.push(n);
-                    }
+                for line in bf.lines().flatten() {
+                    let n = line.trim().parse().unwrap_or(0u64);
+                    v.push(n);
                 }
                 v.into_iter().map(CgroupPid::from).collect()
             })
@@ -383,7 +381,7 @@ where
 
 // remove_dir aims to remove cgroup path. It does so recursively,
 // by removing any subdirectories (sub-cgroups) first.
-fn remove_dir(dir: &PathBuf) -> Result<()> {
+fn remove_dir(dir: &Path) -> Result<()> {
     // try the fast path first.
     if fs::remove_dir(dir).is_ok() {
         return Ok(());
