@@ -45,7 +45,7 @@ pub struct Cpu {
 
 /// The current state of the control group and its processes.
 #[derive(Debug)]
-struct CFSQuotaAndPeriod {
+struct CfsQuotaAndPeriod {
     quota: MaxValue,
     period: u64,
 }
@@ -284,7 +284,7 @@ impl CpuController {
 
 impl CustomizedAttribute for CpuController {}
 
-fn parse_cfs_quota_and_period(mut file: File) -> Result<CFSQuotaAndPeriod> {
+fn parse_cfs_quota_and_period(mut file: File) -> Result<CfsQuotaAndPeriod> {
     let mut content = String::new();
     file.read_to_string(&mut content)
         .map_err(|e| Error::with_cause(ReadFailed, e))?;
@@ -299,5 +299,5 @@ fn parse_cfs_quota_and_period(mut file: File) -> Result<CFSQuotaAndPeriod> {
         .parse::<u64>()
         .map_err(|e| Error::with_cause(ParseError, e))?;
 
-    Ok(CFSQuotaAndPeriod { quota, period })
+    Ok(CfsQuotaAndPeriod { quota, period })
 }
