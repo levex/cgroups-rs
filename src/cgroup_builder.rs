@@ -240,10 +240,10 @@ impl DeviceResourceBuilder {
         access: Vec<crate::devices::DevicePermissions>,
     ) -> DeviceResourceBuilder {
         self.cgroup.resources.devices.devices.push(DeviceResource {
+            allow,
+            devtype,
             major,
             minor,
-            devtype,
-            allow,
             access,
         });
         self

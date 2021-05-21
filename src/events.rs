@@ -8,7 +8,7 @@ use nix::sys::eventfd;
 use std::fs::{self, File};
 use std::io::Read;
 use std::os::unix::io::{AsRawFd, FromRawFd};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
@@ -17,18 +17,18 @@ use crate::error::*;
 
 // notify_on_oom returns channel on which you can expect event about OOM,
 // if process died without OOM this channel will be closed.
-pub fn notify_on_oom_v2(key: &str, dir: &PathBuf) -> Result<Receiver<String>> {
+pub fn notify_on_oom_v2(key: &str, dir: &Path) -> Result<Receiver<String>> {
     register_memory_event(key, dir, "memory.oom_control", "")
 }
 
 // notify_on_oom returns channel on which you can expect event about OOM,
 // if process died without OOM this channel will be closed.
-pub fn notify_on_oom_v1(key: &str, dir: &PathBuf) -> Result<Receiver<String>> {
+pub fn notify_on_oom_v1(key: &str, dir: &Path) -> Result<Receiver<String>> {
     register_memory_event(key, dir, "memory.oom_control", "")
 }
 
 // level is one of "low", "medium", or "critical"
-pub fn notify_memory_pressure(key: &str, dir: &PathBuf, level: &str) -> Result<Receiver<String>> {
+pub fn notify_memory_pressure(key: &str, dir: &Path, level: &str) -> Result<Receiver<String>> {
     if level != "low" && level != "medium" && level != "critical" {
         return Err(Error::from_string(format!(
             "invalid pressure level {}",
@@ -41,7 +41,7 @@ pub fn notify_memory_pressure(key: &str, dir: &PathBuf, level: &str) -> Result<R
 
 fn register_memory_event(
     key: &str,
-    cg_dir: &PathBuf,
+    cg_dir: &Path,
     event_name: &str,
     arg: &str,
 ) -> Result<Receiver<String>> {
