@@ -130,7 +130,7 @@ impl FreezerController {
             let mut s = String::new();
             let res = file.read_to_string(&mut s);
             match res {
-                Ok(_) => match s.as_ref() {
+                Ok(_) => match s.trim() {
                     "FROZEN" => Ok(FreezerState::Frozen),
                     "THAWED" => Ok(FreezerState::Thawed),
                     "1" => Ok(FreezerState::Frozen),
