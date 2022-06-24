@@ -48,15 +48,15 @@ impl ControllIdentifier for RdmaController {
 
 impl<'a> From<&'a Subsystem> for &'a RdmaController {
     fn from(sub: &'a Subsystem) -> &'a RdmaController {
-        unsafe {
+        
             match sub {
                 Subsystem::Rdma(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    unsafe { ::std::mem::uninitialized() }
                 }
             }
-        }
+        
     }
 }
 

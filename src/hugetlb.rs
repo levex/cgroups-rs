@@ -62,15 +62,15 @@ impl ControllIdentifier for HugeTlbController {
 
 impl<'a> From<&'a Subsystem> for &'a HugeTlbController {
     fn from(sub: &'a Subsystem) -> &'a HugeTlbController {
-        unsafe {
+        
             match sub {
                 Subsystem::HugeTlb(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    unsafe { ::std::mem::uninitialized() }
                 }
             }
-        }
+        
     }
 }
 

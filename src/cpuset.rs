@@ -114,15 +114,15 @@ impl ControllIdentifier for CpuSetController {
 
 impl<'a> From<&'a Subsystem> for &'a CpuSetController {
     fn from(sub: &'a Subsystem) -> &'a CpuSetController {
-        unsafe {
+        
             match sub {
                 Subsystem::CpuSet(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    unsafe { ::std::mem::uninitialized() }
                 }
             }
-        }
+        
     }
 }
 

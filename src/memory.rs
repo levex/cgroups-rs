@@ -667,15 +667,15 @@ impl ControllIdentifier for MemController {
 
 impl<'a> From<&'a Subsystem> for &'a MemController {
     fn from(sub: &'a Subsystem) -> &'a MemController {
-        unsafe {
+        
             match sub {
                 Subsystem::Mem(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    unsafe { ::std::mem::uninitialized() }
                 }
             }
-        }
+        
     }
 }
 
