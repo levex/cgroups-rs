@@ -61,15 +61,15 @@ impl ControllIdentifier for NetClsController {
 
 impl<'a> From<&'a Subsystem> for &'a NetClsController {
     fn from(sub: &'a Subsystem) -> &'a NetClsController {
-        unsafe {
+        
             match sub {
                 Subsystem::NetCls(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    unsafe { ::std::mem::uninitialized() }
                 }
             }
-        }
+        
     }
 }
 

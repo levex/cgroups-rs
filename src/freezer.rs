@@ -61,15 +61,15 @@ impl ControllIdentifier for FreezerController {
 
 impl<'a> From<&'a Subsystem> for &'a FreezerController {
     fn from(sub: &'a Subsystem) -> &'a FreezerController {
-        unsafe {
+        
             match sub {
                 Subsystem::Freezer(c) => c,
                 _ => {
                     assert_eq!(1, 0);
-                    ::std::mem::uninitialized()
+                    unsafe { ::std::mem::uninitialized() }
                 }
             }
-        }
+        
     }
 }
 
